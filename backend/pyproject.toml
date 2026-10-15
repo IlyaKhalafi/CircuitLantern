@@ -1,0 +1,40 @@
+[project]
+name = "circuit-lantern"
+version = "0.1.0"
+description = "A local workbench for understanding language models"
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115,<1",
+  "uvicorn[standard]>=0.34,<1",
+  "pydantic-settings>=2.7,<3",
+  "huggingface-hub>=0.34,<2",
+  "httpx>=0.28,<1",
+  "numpy>=2.2,<3",
+  "psutil>=6,<8",
+  "safetensors>=0.5,<1",
+  "transformers>=4.56,<5",
+  "torch>=2.6,<3",
+  "accelerate>=1.4,<2",
+]
+
+[dependency-groups]
+dev = ["pytest>=8,<10", "ruff>=0.12,<1"]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.uv.sources]
+torch = [{ index = "pytorch-cpu" }]
+
+[[tool.uv.index]]
+name = "pytorch-cpu"
+url = "https://download.pytorch.org/whl/cpu"
+explicit = true
