@@ -7,7 +7,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-(cd backend && uv run uvicorn circuit_lantern.main:app --host 127.0.0.1 --port 8000) &
+(cd backend && uv run --no-sync uvicorn circuit_lantern.main:app --host 127.0.0.1 --port 8000) &
 backend_pid=$!
 (cd web && npm run dev) &
 web_pid=$!

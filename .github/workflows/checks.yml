@@ -20,8 +20,10 @@ jobs:
         working-directory: backend
       - run: uv run pytest -q
         working-directory: backend
+
   web:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -29,7 +31,23 @@ jobs:
           node-version: 22
           cache: npm
           cache-dependency-path: web/package-lock.json
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+      - run: uv sync --frozen --group dev
+        working-directory: backend
       - run: npm ci
         working-directory: web
-      - run: npm run build
+      - run: npm run format:check
         working-directory: web
+      - run: npx playwright install --with-deps chromium
+        working-directory: web
+      - run: make test-ui
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: browser-verification
+          path: |
+            artifacts/screenshots
+            web/test-results
+          if-no-files-found: ignore
