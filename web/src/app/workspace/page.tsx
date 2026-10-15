@@ -9,7 +9,7 @@ import {
   Search,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Heatmap, Histogram, SeriesChart } from "@/components/charts";
 import { getLayer, ModelGraphView } from "@/components/model-graph";
 import {
@@ -35,14 +35,21 @@ export default function WorkspacePage() {
   const [view, setView] = useState("graph");
   const requestId = useRef(0);
   const detail = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    api<RuntimeState>("/runtime")
-      .then((state) =>
-        state.loaded ? api<ModelGraph>("/graph").then(setGraph) : null,
-      )
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+  const refresh = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const state = await api<RuntimeState>("/runtime");
+      setGraph(state.loaded ? await api<ModelGraph>("/graph") : null);
+    } catch (reason) {
+      setError((reason as Error).message);
+    } finally {
+      setLoading(false);
+    }
   }, []);
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
   async function inspect(name: string) {
     const id = ++requestId.current;
     setSelected(name);
@@ -97,6 +104,17 @@ export default function WorkspacePage() {
       <ErrorNotice message={error} />
       {loading ? (
         <Loading label="Opening model explorer" />
+      ) : !graph && error ? (
+        <Panel
+          title="Explorer temporarily unavailable"
+          subtitle="Retry after the runtime becomes available."
+        >
+          <div className="panel-body">
+            <button className="button secondary" onClick={refresh}>
+              Retry explorer
+            </button>
+          </div>
+        </Panel>
       ) : !graph ? (
         <EmptyState
           icon={<Network size={28} />}
@@ -164,6 +182,7 @@ export default function WorkspacePage() {
                   graph={graph}
                   selectedLayer={layer}
                   onSelect={setLayer}
+                  onInspect={inspect}
                 />
               </Panel>
               <Panel
@@ -262,7 +281,7 @@ export default function WorkspacePage() {
               </div>
             </Panel>
           )}
-          <div ref={detail} className="section-gap">
+          <div ref={detail} className="section-gap matrix-detail">
             {analyzing && (
               <Loading label={`Computing properties of ${selected}`} />
             )}
@@ -273,7 +292,8 @@ export default function WorkspacePage() {
                     <div className="eyebrow">MATRIX INSPECTOR</div>
                     <h2>{metrics.name}</h2>
                     <p>
-                      {metrics.shape.join(" × ")} · {metrics.dtype} ·{" "}
+                      {metrics.shape.join(" × ")} ·{" "}
+                      {metrics.source_format || metrics.dtype} source ·{" "}
                       {number(metrics.elements, 0)} elements
                     </p>
                   </div>
@@ -293,6 +313,13 @@ export default function WorkspacePage() {
                     <Download size={14} /> Export analysis
                   </button>
                 </div>
+                {metrics.quantized && (
+                  <div className="notice info">
+                    {metrics.analysis_note} The graph shows logical matrix
+                    dimensions. Packed storage bytes are not treated as matrix
+                    values.
+                  </div>
+                )}
                 {!metrics.spectrum_exact && (
                   <div className="notice info">
                     Spectral norm and stable rank use a randomized SVD on the

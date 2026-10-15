@@ -1,5 +1,7 @@
 "use client";
 
+import { Modal } from "@/components/modal";
+
 import {
   ArrowRight,
   ArrowUpRight,
@@ -23,6 +25,7 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, bytes, number, post } from "@/lib/api";
+import { executionFormats } from "@/lib/execution";
 import type { Compatibility, Hardware, Job, ModelCard } from "@/lib/types";
 import { ErrorNotice, Loading, Metric, PageHeader } from "@/components/ui";
 
@@ -121,7 +124,8 @@ export default function LibraryPage() {
       const result = await post<Job>("/models/load", {
         model_id: selected,
         revision: report.metadata.revision,
-        device,
+        precision: report.precision,
+        device: report.device,
       });
       setJob(result);
       await poll(result.id);
@@ -263,7 +267,7 @@ export default function LibraryPage() {
           ))}
         </div>
       )}
-      {!searching && models.length === 0 && (
+      {!searching && !error && models.length === 0 && (
         <div className="empty-inline">
           No models found. Try a shorter search or enter a full repository ID.
         </div>
@@ -311,215 +315,202 @@ export default function LibraryPage() {
         ))}
       </div>
       {selected && (
-        <div
-          className="modal-backdrop"
-          onClick={() => {
-            if (!isDownloading) {
-              setSelected(null);
-              ++requestId.current;
-            }
+        <Modal
+          titleId="check-title"
+          locked={!!isDownloading}
+          onClose={() => {
+            setSelected(null);
+            ++requestId.current;
           }}
         >
-          <section
-            className="model-dialog"
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="check-title"
-            onClick={(e) => e.stopPropagation()}
+          <div className="dialog-header">
+            <span className="eyebrow">DEPLOYMENT CHECK</span>
+            <button
+              className="icon-button"
+              aria-label="Close compatibility check"
+              disabled={!!isDownloading}
+              onClick={() => {
+                setSelected(null);
+                ++requestId.current;
+              }}
+            >
+              <X size={19} />
+            </button>
+          </div>
+          <h2 id="check-title">A good fit for your research?</h2>
+          <a
+            className="model-id"
+            href={`https://huggingface.co/${selected}`}
+            target="_blank"
+            rel="noreferrer"
           >
-            <div className="dialog-header">
-              <span className="eyebrow">DEPLOYMENT CHECK</span>
-              <button
-                className="icon-button"
-                aria-label="Close compatibility check"
+            {selected} <ExternalLink size={13} />
+          </a>
+          <div className="form-grid">
+            <label>
+              Execution device
+              <select
+                aria-label="Execution device"
                 disabled={!!isDownloading}
-                onClick={() => {
-                  setSelected(null);
-                  ++requestId.current;
+                value={device}
+                onChange={(e) => {
+                  setDevice(e.target.value);
+                  check(selected, e.target.value);
                 }}
               >
-                <X size={19} />
-              </button>
-            </div>
-            <h2 id="check-title">A good fit for your research?</h2>
-            <a
-              className="model-id"
-              href={`https://huggingface.co/${selected}`}
-              target="_blank"
-              rel="noreferrer"
-            >
-              {selected} <ExternalLink size={13} />
-            </a>
-            <div className="form-grid">
-              <label>
-                Execution device
-                <select
-                  aria-label="Execution device"
-                  disabled={!!isDownloading}
-                  value={device}
-                  onChange={(e) => {
-                    setDevice(e.target.value);
-                    check(selected, e.target.value);
-                  }}
-                >
-                  <option value="cpu">CPU · system memory</option>
-                  <option value="cuda">CUDA · NVIDIA GPU</option>
-                </select>
-              </label>
-              <label>
-                Context allowance
-                <select
-                  aria-label="Context allowance"
-                  disabled={!!isDownloading}
-                  value={context}
-                  onChange={(e) => {
-                    setContext(+e.target.value);
-                    check(selected, device, +e.target.value);
-                  }}
-                >
-                  {[128, 512, 1024, 2048, 4096, 8192].map((n) => (
-                    <option key={n} value={n}>
-                      {n.toLocaleString()} tokens
-                    </option>
-                  ))}
-                </select>
-              </label>
-              <label>
-                Checkpoint precision
-                <select
-                  aria-label="Checkpoint precision"
-                  disabled={!!isDownloading}
-                  value={precision}
-                  onChange={(e) => {
-                    setPrecision(e.target.value);
-                    check(selected, device, context, e.target.value);
-                  }}
-                >
-                  {[
-                    "auto",
-                    "float32",
-                    "float16",
-                    "bfloat16",
-                    "int8",
-                    "int4",
-                    "fp8",
-                    "nvfp4",
-                  ].map((v) => (
-                    <option key={v} value={v}>
-                      {v === "auto" ? "Auto detect" : v.toUpperCase()}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
-            <ErrorNotice message={error} />
-            {busy && !report && (
-              <Loading label="Reading checkpoint metadata and checking this server" />
-            )}
-            {report && (
-              <>
-                <div
-                  className={`compatibility-result ${report.compatible ? "ready" : "blocked"}`}
-                >
-                  {report.compatible ? (
-                    <CheckCircle2 size={23} />
-                  ) : (
-                    <Info size={23} />
-                  )}
-                  <div>
-                    <strong>
-                      {report.compatible
-                        ? "Ready to explore on this server"
-                        : "This configuration needs attention"}
-                    </strong>
-                    <p>
-                      {report.compatible
-                        ? "The checkpoint passes the current hardware and runtime checks."
-                        : "Resolve the checks below before loading this checkpoint."}
-                    </p>
-                  </div>
-                </div>
-                <div className="metrics-grid compact">
-                  <Metric
-                    label="Model parameters"
-                    value={number(report.metadata.parameters, 0)}
-                  />
-                  <Metric
-                    label="Analysis memory"
-                    value={bytes(report.required_bytes)}
-                  />
-                  <Metric
-                    label="Available budget"
-                    value={bytes(report.available_bytes)}
-                  />
-                  <Metric
-                    label="Download size"
-                    value={bytes(report.download_bytes)}
-                  />
-                </div>
-                <div className="memory-bar">
-                  <div
-                    style={{
-                      width: `${Math.min(100, (report.required_bytes / Math.max(report.available_bytes, 1)) * 100)}%`,
-                    }}
-                  />
-                </div>
-                <div className="memory-legend">
-                  <span>
-                    Includes float32 weights, cache and inspection overhead
-                  </span>
-                  <span>{report.device.toUpperCase()}</span>
-                </div>
-                {report.blockers.map((b, i) => (
-                  <div className="check-message blocked" key={i}>
-                    <Info size={15} />
-                    <span>{b}</span>
-                  </div>
-                ))}
-                <details className="estimate-details">
-                  <summary>
-                    How this estimate works <ChevronRight size={14} />
-                  </summary>
-                  {report.warnings.map((w, i) => (
-                    <p key={i}>{w}</p>
-                  ))}
-                  <p>
-                    Disk available{" "}
-                    {hardware ? bytes(hardware.disk_free_bytes) : "loading"}.
-                    Checkpoint revision {report.metadata.revision.slice(0, 10)}.
-                  </p>
-                </details>
-              </>
-            )}
-            {job && (
-              <div className="download-progress">
-                <div>
-                  <LoaderCircle
-                    size={16}
-                    className={isDownloading ? "spin" : ""}
-                  />
-                  <span>{job.message}</span>
-                  <strong>{job.progress}%</strong>
-                </div>
-                <progress value={job.progress} max={100} />
-              </div>
-            )}
-            <div className="dialog-footer">
-              <span>
-                <HardDrive size={14} /> Weights stay on your server
-              </span>
-              <button
-                className="button primary"
-                onClick={load}
-                disabled={!report?.compatible || busy}
+                <option value="cpu">CPU · system memory</option>
+                <option value="cuda">CUDA · NVIDIA GPU</option>
+              </select>
+            </label>
+            <label>
+              Context allowance
+              <select
+                aria-label="Context allowance"
+                disabled={!!isDownloading}
+                value={context}
+                onChange={(e) => {
+                  setContext(+e.target.value);
+                  check(selected, device, +e.target.value);
+                }}
               >
-                <Download size={16} />
-                {isDownloading ? "Preparing model" : "Download & explore"}
-                <ArrowRight size={16} />
-              </button>
+                {[128, 512, 1024, 2048, 4096, 8192].map((n) => (
+                  <option key={n} value={n}>
+                    {n.toLocaleString()} tokens
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label>
+              Execution format
+              <select
+                aria-label="Execution format"
+                disabled={!!isDownloading}
+                value={precision}
+                onChange={(e) => {
+                  setPrecision(e.target.value);
+                  check(selected, device, context, e.target.value);
+                }}
+              >
+                {executionFormats.map(([value, label]) => (
+                  <option key={value} value={value}>
+                    {label}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <ErrorNotice message={error} />
+          {busy && !report && (
+            <Loading label="Reading checkpoint metadata and checking this server" />
+          )}
+          {report && (
+            <>
+              <div
+                className={`compatibility-result ${report.compatible ? "ready" : "blocked"}`}
+              >
+                {report.compatible ? (
+                  <CheckCircle2 size={23} />
+                ) : (
+                  <Info size={23} />
+                )}
+                <div>
+                  <strong>
+                    {report.compatible
+                      ? "Ready to explore on this server"
+                      : "This configuration needs attention"}
+                  </strong>
+                  <p>
+                    {report.compatible
+                      ? "The checkpoint passes the current hardware and runtime checks."
+                      : "Resolve the checks below before loading this checkpoint."}
+                  </p>
+                </div>
+              </div>
+              <div className="metrics-grid compact">
+                <Metric
+                  label="Model parameters"
+                  value={number(report.metadata.parameters, 0)}
+                />
+                <Metric
+                  label="Analysis memory"
+                  value={bytes(report.required_bytes)}
+                />
+                <Metric
+                  label="Available budget"
+                  value={bytes(report.available_bytes)}
+                />
+                <Metric
+                  label="Download size"
+                  value={bytes(report.download_bytes)}
+                />
+              </div>
+              <div className="memory-bar">
+                <div
+                  style={{
+                    width: `${Math.min(100, (report.required_bytes / Math.max(report.available_bytes, 1)) * 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="memory-legend">
+                <span>
+                  Includes execution weights, cache and inspection overhead
+                </span>
+                <span>{report.device.toUpperCase()}</span>
+              </div>
+              {report.blockers.map((b, i) => (
+                <div className="check-message blocked" key={i}>
+                  <Info size={15} />
+                  <span>{b}</span>
+                </div>
+              ))}
+              <details className="estimate-details">
+                <summary>
+                  How this estimate works <ChevronRight size={14} />
+                </summary>
+                <p>
+                  Execution format {report.runtime_precision}. Resident weights{" "}
+                  {bytes(report.weight_bytes)}. Matrix workspace{" "}
+                  {bytes(report.analysis_workspace_bytes || 0)}.
+                </p>
+                {report.warnings.map((w, i) => (
+                  <p key={i}>{w}</p>
+                ))}
+                <p>
+                  Disk available{" "}
+                  {hardware ? bytes(hardware.disk_free_bytes) : "loading"}.
+                  Checkpoint revision {report.metadata.revision.slice(0, 10)}.
+                </p>
+              </details>
+            </>
+          )}
+          {job && (
+            <div className="download-progress">
+              <div>
+                <LoaderCircle
+                  size={16}
+                  className={isDownloading ? "spin" : ""}
+                />
+                <span>{job.message}</span>
+                <strong>{job.progress}%</strong>
+              </div>
+              <progress value={job.progress} max={100} />
             </div>
-          </section>
-        </div>
+          )}
+          <div className="dialog-footer">
+            <span>
+              <HardDrive size={14} /> Weights stay on your server
+            </span>
+            <button
+              className="button primary"
+              onClick={load}
+              disabled={!report?.compatible || busy}
+            >
+              <Download size={16} />
+              {isDownloading ? "Preparing model" : "Download & explore"}
+              <ArrowRight size={16} />
+            </button>
+          </div>
+        </Modal>
       )}
     </>
   );

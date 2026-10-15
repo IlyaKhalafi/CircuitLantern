@@ -8,10 +8,12 @@
     "start": "next start --hostname 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "test:e2e": "playwright test",
-    "format": "prettier --write src next.config.ts",
-    "format:check": "prettier --check src next.config.ts"
+    "format": "prettier --write src tests next.config.ts playwright.config.ts",
+    "format:check": "prettier --check src tests next.config.ts playwright.config.ts"
   },
   "dependencies": {
+    "@fontsource-variable/dm-sans": "^5.3.0",
+    "@fontsource/ibm-plex-mono": "^5.3.0",
     "@xyflow/react": "^12.8.5",
     "lucide-react": "^0.468.0",
     "next": "^16.0.0",
@@ -20,6 +22,7 @@
     "recharts": "^3.3.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@playwright/test": "^1.56.0",
     "@types/node": "^22.0.0",
     "@types/react": "^19.2.0",

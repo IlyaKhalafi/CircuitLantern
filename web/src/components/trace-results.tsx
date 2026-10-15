@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Heatmap, SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
 import { number } from "@/lib/api";
+import { executionLabel } from "@/lib/execution";
 import type { Trace } from "@/lib/types";
 
 export function TraceResults({
@@ -32,6 +33,7 @@ export function TraceResults({
         <span>{trace.tokens.length} prompt tokens</span>
         <span>{number(trace.duration_ms, 0)} ms</span>
         <span>{trace.device.toUpperCase()}</span>
+        <span>{executionLabel(trace.execution_precision)}</span>
         {trace.ablate_layer !== null && (
           <span className="pill orange">
             Block {trace.ablate_layer} bypassed

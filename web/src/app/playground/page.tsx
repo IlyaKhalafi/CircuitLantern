@@ -80,6 +80,9 @@ export default function PlaygroundPage() {
   const compatibleBaseline =
     baseline?.prompt === trace?.prompt &&
     baseline?.revision === trace?.revision &&
+    baseline?.model_id === trace?.model_id &&
+    baseline?.execution_precision === trace?.execution_precision &&
+    baseline?.device === trace?.device &&
     trace?.ablate_layer !== null
       ? baseline
       : null;

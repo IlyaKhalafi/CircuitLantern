@@ -1,5 +1,8 @@
 import type { Metadata } from "next";
 import { Shell } from "@/components/shell";
+import "@fontsource-variable/dm-sans";
+import "@fontsource/ibm-plex-mono/400.css";
+import "@fontsource/ibm-plex-mono/500.css";
 import "./globals.css";
 
 export const metadata: Metadata = {

@@ -53,10 +53,11 @@ export default function GuidePage() {
             uses the first CUDA device when GPU execution is selected.
           </p>
           <p>
-            Analysis promotes weights to float32. Packed quantized checkpoint
-            inspection is currently unsupported. Native NVFP4 requires Blackwell
-            hardware. An H200 has substantial memory but lacks native FP4
-            execution.
+            Choose FP32, FP16, BF16, bitsandbytes NF4 or LLM.int8 execution.
+            Kernel probes verify quantization support on the selected device.
+            Matrix statistics use float32, dequantizing only the selected
+            matrix. Native NVFP4 requires Blackwell hardware and its analysis
+            adapter is still pending. An H200 lacks native NVFP4 execution.
           </p>
         </article>
         <article className="panel guide-card">
@@ -118,8 +119,12 @@ export default function GuidePage() {
           </p>
           <p>
             The lab overlays baseline residual norms when model revision and
-            prompt match. Attention is descriptive. A focused attention pattern
-            alone does not establish causal importance.
+            prompt match. The{" "}
+            <Link href="/causal">causal tracing workspace</Link> also restores
+            clean residual outputs in a corrupted prompt across every block.
+            Prompts must align by token position. Attention is descriptive. A
+            focused attention pattern alone does not establish causal
+            importance.
           </p>
         </article>
         <article className="panel guide-card">

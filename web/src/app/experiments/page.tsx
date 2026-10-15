@@ -193,7 +193,7 @@ export default function ExperimentsPage() {
                 </div>
                 <span
                   className="mono"
-                  style={{ fontSize: 9, color: "#a0a8b3" }}
+                  style={{ fontSize: 9, color: "var(--muted)" }}
                 >
                   revision {selected.trace?.revision.slice(0, 10)}
                 </span>

@@ -1,3 +1,13 @@
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   const response = await fetch(`/api${path}`, {
     ...options,
@@ -7,12 +17,13 @@ export async function api<T>(path: string, options?: RequestInit): Promise<T> {
   if (!response.ok) {
     const body = await response.json().catch(() => ({}));
     const detail = body.detail;
-    throw new Error(
+    throw new ApiError(
       typeof detail === "string"
         ? detail
         : detail
           ? "Some inputs are invalid. Check your settings."
           : `The server returned ${response.status}. Check that the Python backend is running.`,
+      response.status,
     );
   }
   return response.status === 204 ? (undefined as T) : response.json();

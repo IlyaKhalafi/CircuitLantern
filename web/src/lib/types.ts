@@ -22,6 +22,10 @@ export interface ModelMetadata {
   vocab_size: number;
   dtype: string;
   quantization: Record<string, unknown> | null;
+  execution_precision?: string;
+  quantizable_parameters?: number;
+  largest_matrix_elements?: number;
+  download_bytes?: number;
 }
 export interface GPU {
   index: number;
@@ -42,6 +46,13 @@ export interface Hardware {
   packages: Record<string, string | null>;
   cuda_available: boolean;
   runtime_device: string;
+  execution_gpu?: Omit<GPU, "driver"> | null;
+  cuda_error?: string | null;
+  quantization?: {
+    version: string | null;
+    cpu: Record<string, { supported: boolean; reason?: string }>;
+    cuda: Record<string, { supported: boolean; reason?: string }>;
+  };
 }
 export interface Compatibility {
   compatible: boolean;
@@ -51,6 +62,7 @@ export interface Compatibility {
   device: string;
   weight_bytes: number;
   analysis_weight_bytes: number;
+  analysis_workspace_bytes?: number;
   kv_cache_bytes: number;
   overhead_bytes: number;
   required_bytes: number;
@@ -68,6 +80,7 @@ export interface Job {
   message: string;
 }
 export interface RuntimeState {
+  precision?: string;
   loaded: boolean;
   metadata: ModelMetadata | null;
   device: string;
@@ -84,6 +97,10 @@ export interface ModelGraph {
   total_parameters: number;
 }
 export interface MatrixMetrics {
+  source_format?: string;
+  quantized?: boolean;
+  execution_precision?: string;
+  analysis_note?: string;
   name: string;
   shape: number[];
   elements: number;
@@ -134,6 +151,7 @@ export interface Attention {
   heads: number;
 }
 export interface Trace {
+  execution_precision?: string;
   model_id: string;
   revision: string;
   prompt: string;
@@ -155,4 +173,36 @@ export interface Experiment {
   created_at: string;
   model_id: string;
   trace?: Trace;
+}
+
+export interface CausalLayer {
+  layer: number;
+  probability: number;
+  log_probability: number;
+  delta_log_probability: number;
+  recovery: number | null;
+}
+export interface CausalResult {
+  execution_precision?: string;
+  requested_target: string;
+  total_layers: number;
+  cancelled: boolean;
+  baseline_log_probability_gap: number;
+  recovery_minimum_gap: number;
+  recovery_warning: string | null;
+  model_id: string;
+  revision: string;
+  clean_prompt: string;
+  corrupted_prompt: string;
+  tokens: string[];
+  corrupted_tokens: string[];
+  target_token: string;
+  target_token_id: number;
+  position: number | null;
+  clean: { probability: number; log_probability: number };
+  corrupted: { probability: number; log_probability: number };
+  layers: CausalLayer[];
+  duration_ms: number;
+  recovery_defined: boolean;
+  method: string;
 }

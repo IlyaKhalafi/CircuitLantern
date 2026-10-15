@@ -24,6 +24,7 @@ const navigation = [
   { href: "/", label: "Model library", icon: Box },
   { href: "/workspace", label: "Model explorer", icon: Network },
   { href: "/playground", label: "Activation lab", icon: Activity },
+  { href: "/causal", label: "Causal tracing", icon: GitBranch },
   { href: "/experiments", label: "Experiments", icon: FlaskConical },
   { href: "/hardware", label: "Server & runtime", icon: Cpu },
 ];
@@ -54,8 +55,18 @@ export function Shell({ children }: { children: React.ReactNode }) {
     };
   }, [path]);
   const current = navigation.find((item) => item.href === path);
+  useEffect(() => {
+    document.title =
+      (current?.label ||
+        (path === "/guide" ? "Field guide" : "Page not found")) +
+      " · Circuit Lantern";
+  }, [path, current]);
+
   return (
     <div className="app-shell">
+      <a href="#main-content" className="skip-link">
+        Skip to content
+      </a>
       <button
         className="mobile-toggle icon-button"
         onClick={() => setOpen(!open)}
@@ -89,6 +100,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
+              aria-current={path === item.href ? "page" : undefined}
               onClick={() => setOpen(false)}
               className={`nav-item ${path === item.href ? "active" : ""}`}
             >
@@ -131,15 +143,20 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="breadcrumb">
             <span>Workbench</span>
             <ChevronRight size={13} />
-            <strong>{current?.label || "Field guide"}</strong>
+            <strong>
+              {current?.label ||
+                (path === "/guide" ? "Field guide" : "Page not found")}
+            </strong>
           </div>
           <div className="runtime-status">
             <span className={`status-dot ${online ? "" : "offline"}`} />
-            {online === null
-              ? "Connecting to backend"
-              : online
-                ? "Backend connected"
-                : "Backend offline"}
+            <span role="status">
+              {online === null
+                ? "Connecting to backend"
+                : online
+                  ? "Backend connected"
+                  : "Backend offline"}
+            </span>
             <span className="topbar-divider" />
             <span className="mono">
               {runtime?.loaded
@@ -148,7 +165,9 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </span>
           </div>
         </div>
-        <main>{children}</main>
+        <main id="main-content" tabIndex={-1}>
+          {children}
+        </main>
         <footer className="main-footer">
           <span>Built for the questions behind the predictions.</span>
           <span>

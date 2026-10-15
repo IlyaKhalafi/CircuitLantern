@@ -18,6 +18,7 @@ import {
   Panel,
 } from "@/components/ui";
 import { api, bytes } from "@/lib/api";
+import { executionLabel } from "@/lib/execution";
 import type { Hardware, RuntimeState } from "@/lib/types";
 
 export default function HardwarePage() {
@@ -51,7 +52,8 @@ export default function HardwarePage() {
       setBusy(false);
     }
   }
-  const capability = hardware?.gpus[0]?.compute_capability || 0;
+  const capability =
+    (hardware?.execution_gpu || hardware?.gpus[0])?.compute_capability || 0;
   return (
     <>
       <PageHeader
@@ -103,7 +105,7 @@ export default function HardwarePage() {
           <div className="two-column">
             <Panel
               title="GPU inventory"
-              subtitle="Compatibility uses free memory on the first GPU, with a 15 percent reserve."
+              subtitle="Execution uses the first GPU visible to PyTorch, with a 15 percent memory reserve."
             >
               {hardware.gpus.length ? (
                 hardware.gpus.map((gpu) => (
@@ -140,15 +142,16 @@ export default function HardwarePage() {
                 <div className="panel-body">
                   <div className="notice info">
                     <Info size={16} />
-                    No NVIDIA GPU detected. Unquantized models can still be
-                    explored using system memory.
+                    No NVIDIA GPU detected. Supported models and quantization
+                    formats can still run using system memory.
                   </div>
                 </div>
               )}
               {hardware.gpus.length > 0 && !hardware.cuda_available && (
                 <p className="inline-note">
-                  The driver detects a GPU, but this PyTorch build is CPU only.
-                  Install a CUDA enabled build to execute models on the GPU.
+                  The driver detects a GPU, but the Python runtime has no usable
+                  CUDA device. Check the PyTorch build and device visibility.
+                  {hardware.cuda_error && <span> {hardware.cuda_error}</span>}
                 </p>
               )}
             </Panel>
@@ -174,11 +177,33 @@ export default function HardwarePage() {
               <div className="capability-list">
                 {[
                   {
-                    title: "FP32 / FP16 / BF16 checkpoints",
-                    text: "Loaded as float32 for stable weight inspection.",
+                    title: "FP32 / FP16 / BF16 execution",
+                    text: "Choose the execution format. Matrix statistics use float32.",
                     supported: true,
                     badge: "Supported",
                   },
+                  ...(["int4", "int8"] as const).map((precision) => ({
+                    title:
+                      precision === "int4"
+                        ? "Bitsandbytes NF4 and FP4"
+                        : "Bitsandbytes LLM.int8",
+                    text:
+                      precision === "int4"
+                        ? "Packed execution and dequantized matrix inspection. Different from native NVFP4."
+                        : "8-bit weights with float32 residual states and matrix statistics.",
+                    supported:
+                      !!hardware.quantization?.cpu[precision]?.supported ||
+                      !!hardware.quantization?.cuda[precision]?.supported,
+                    badge:
+                      [
+                        hardware.quantization?.cpu[precision]?.supported &&
+                          "CPU",
+                        hardware.quantization?.cuda[precision]?.supported &&
+                          "CUDA",
+                      ]
+                        .filter(Boolean)
+                        .join(" + ") || "Kernel unavailable",
+                  })),
                   {
                     title: "Native BF16 acceleration",
                     text: "Ampere or newer GPU. Compute capability 8.0 or above.",
@@ -243,8 +268,12 @@ export default function HardwarePage() {
                       <strong>{runtime?.device.toUpperCase() || "CPU"}</strong>
                     </div>
                     <div>
-                      <span>Analysis precision</span>
-                      <strong>float32</strong>
+                      <span>Execution format</span>
+                      <strong>
+                        {runtime?.loaded
+                          ? executionLabel(runtime.precision)
+                          : "No model loaded"}
+                      </strong>
                     </div>
                   </div>
                 </div>
@@ -269,9 +298,14 @@ export default function HardwarePage() {
               >
                 <div className="panel-body">
                   <p
-                    style={{ fontSize: 11, color: "#96a0ad", lineHeight: 1.9 }}
+                    style={{
+                      fontSize: 11,
+                      color: "var(--muted)",
+                      lineHeight: 1.9,
+                    }}
                   >
-                    Weights are promoted to float32. The budget also includes
+                    Selected matrices are converted to float32. The budget
+                    includes temporary analysis space, execution weights,
                     residual states, bounded attention capture, a conservative
                     KV cache allowance, and runtime overhead. Available memory
                     changes as other workloads run.
