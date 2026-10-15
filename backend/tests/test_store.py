@@ -8,6 +8,8 @@ def test_experiment_lifecycle(tmp_path):
     assert store.get(created["id"])["trace"]["prompt"] == "Paris"
     assert store.update(created["id"], None, "updated")
     assert store.get(created["id"])["notes"] == "updated"
+    reopened = ExperimentStore(tmp_path / "test.db")
+    assert reopened.get(created["id"])["notes"] == "updated"
     assert store.delete(created["id"])
     assert store.get(created["id"]) is None
     assert not store.delete(created["id"])

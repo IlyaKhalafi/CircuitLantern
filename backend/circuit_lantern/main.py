@@ -7,6 +7,7 @@ from huggingface_hub.errors import HfHubHTTPError
 
 from circuit_lantern.config import get_settings
 from circuit_lantern.schemas import (
+    CausalRequest,
     CompatibilityRequest,
     ExperimentRequest,
     ExperimentUpdate,
@@ -17,7 +18,7 @@ from circuit_lantern.schemas import (
 from circuit_lantern.services.compatibility import assess_compatibility
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
-from circuit_lantern.services.runtime import ModelRuntime
+from circuit_lantern.services.runtime import ModelRuntime, RuntimeBusyError
 from circuit_lantern.services.store import ExperimentStore
 
 
@@ -37,6 +38,11 @@ app.add_middleware(
     allow_methods=["GET", "POST", "PATCH", "DELETE"],
     allow_headers=["Content-Type"],
 )
+
+
+@app.exception_handler(RuntimeBusyError)
+async def runtime_busy(request: Request, error: RuntimeBusyError):
+    return JSONResponse(status_code=409, content={"detail": str(error)})
 
 
 @app.exception_handler(ValueError)
@@ -77,6 +83,7 @@ def check(request: CompatibilityRequest):
     settings = get_settings()
     snapshot = hardware_snapshot(settings.data_dir)
     snapshot["max_model_bytes"] = settings.max_model_bytes
+    snapshot["max_prompt_tokens"] = settings.max_prompt_tokens
     return assess_compatibility(
         model_metadata(request.model_id, request.revision), snapshot, request
     )
@@ -92,12 +99,12 @@ def load_model(payload: LoadRequest, request: Request):
     report = check(CompatibilityRequest(**payload.model_dump(), context_length=128))
     if not report["compatible"]:
         raise HTTPException(409, detail=" ".join(report["blockers"]))
-    return request.app.state.runtime.load(report["metadata"], payload.device)
+    return request.app.state.runtime.load(report["metadata"], payload.device, payload.precision)
 
 
 @app.get("/api/jobs/{job_id}")
 def job(job_id: str, request: Request):
-    result = request.app.state.runtime.jobs.get(job_id)
+    result = request.app.state.runtime.job(job_id)
     if result is None:
         raise HTTPException(404, "Download job not found.")
     return dict(result)
@@ -106,6 +113,19 @@ def job(job_id: str, request: Request):
 @app.get("/api/runtime")
 def runtime_state(request: Request):
     return request.app.state.runtime.state()
+
+
+@app.post("/api/causal", status_code=202)
+def causal(payload: CausalRequest, request: Request):
+    return request.app.state.runtime.causal(payload.model_dump())
+
+
+@app.post("/api/jobs/{job_id}/cancel")
+def cancel_job(job_id: str, request: Request):
+    result = request.app.state.runtime.cancel_job(job_id)
+    if result is None:
+        raise HTTPException(404, "Job not found.")
+    return result
 
 
 @app.delete("/api/runtime", status_code=204)

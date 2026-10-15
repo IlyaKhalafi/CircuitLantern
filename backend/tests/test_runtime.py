@@ -1,54 +1,6 @@
 from unittest.mock import patch
 
 import pytest
-import torch
-from tokenizers import Tokenizer
-from tokenizers.models import WordLevel
-from tokenizers.pre_tokenizers import Whitespace
-from transformers import GPT2Config, GPT2LMHeadModel, PreTrainedTokenizerFast
-
-from circuit_lantern.config import Settings
-from circuit_lantern.services.runtime import ModelRuntime
-
-
-@pytest.fixture
-def runtime(tmp_path):
-    torch.manual_seed(42)
-    instance = ModelRuntime(Settings(data_dir=tmp_path))
-    instance.model = GPT2LMHeadModel(
-        GPT2Config(
-            vocab_size=16,
-            n_positions=64,
-            n_embd=16,
-            n_layer=2,
-            n_head=2,
-            bos_token_id=0,
-            eos_token_id=1,
-            attn_implementation="eager",
-        )
-    ).eval()
-    tokenizer = Tokenizer(
-        WordLevel(
-            {
-                "<pad>": 0,
-                "<eos>": 1,
-                "<unk>": 2,
-                "the": 3,
-                "capital": 4,
-                "of": 5,
-                "France": 6,
-                "is": 7,
-            },
-            unk_token="<unk>",
-        )
-    )
-    tokenizer.pre_tokenizer = Whitespace()
-    instance.tokenizer = PreTrainedTokenizerFast(
-        tokenizer_object=tokenizer, eos_token="<eos>", unk_token="<unk>", pad_token="<pad>"
-    )
-    instance.metadata = {"id": "local-test", "revision": "test-revision", "context_length": 64}
-    yield instance
-    instance.executor.shutdown(wait=True)
 
 
 def test_trace_last_residual_is_before_final_normalization(runtime):
@@ -100,3 +52,26 @@ def test_invalid_interventions_are_rejected(runtime):
 def test_model_context_reserves_generated_tokens(runtime):
     with pytest.raises(ValueError, match="too long"):
         runtime.trace("the " * 60, 8, False, None)
+
+
+def test_invalid_execution_options_preserve_the_active_model(runtime):
+    active_model = runtime.model
+    job = {"status": "queued"}
+    with patch("circuit_lantern.services.runtime.snapshot_download", return_value="unused"):
+        runtime._load(job, {"id": "replacement", "revision": "main"}, "cpu", "nvfp4")
+    assert job["status"] == "failed"
+    assert runtime.model is active_model
+    assert runtime.state()["loaded"]
+    assert "previous model was released" not in job["message"]
+
+
+def test_nonfinite_logits_fail_cleanly_and_remove_capture_hooks(runtime):
+    handle = runtime.model.get_output_embeddings().register_forward_hook(
+        lambda module, args, output: output * float("nan")
+    )
+    try:
+        with pytest.raises(ValueError, match="non finite logits"):
+            runtime.trace("the capital", 1, True, None)
+    finally:
+        handle.remove()
+    assert all(not block._forward_hooks for block in runtime._blocks())

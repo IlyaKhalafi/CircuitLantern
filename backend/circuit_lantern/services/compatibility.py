@@ -1,80 +1,100 @@
 from circuit_lantern.schemas import CompatibilityRequest
+from circuit_lantern.services.execution import (
+    FLOAT_DTYPES,
+    PACKED_PRECISIONS,
+    checkpoint_precision,
+    execution_precision,
+)
 
 GIB = 1024**3
 PRECISION_BYTES = {
     "float32": 4,
     "float16": 2,
     "bfloat16": 2,
-    "int8": 1,
-    "int4": 0.6,
+    "int8": 1.1,
+    "int4": 0.625,
     "fp8": 1,
-    "nvfp4": 0.6,
+    "nvfp4": 0.625,
 }
 
 
 def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityRequest) -> dict:
     blockers, warnings = [], []
-    quantization = metadata.get("quantization") or {}
-    quant_method = str(quantization.get("quant_method", "")).lower()
-    quant_text = str(quantization).lower()
-    native_precision = metadata.get("dtype") or "float32"
-    precision = request.precision
-    if precision == "auto":
-        precision = (
-            "nvfp4" if "nvfp4" in quant_text else "fp8" if "fp8" in quant_text else native_precision
-        )
-    bytes_per_weight = PRECISION_BYTES.get(precision, 4)
+    native = checkpoint_precision(metadata)
+    precision = execution_precision(metadata, request.precision)
     parameters = metadata.get("parameters") or 0
-    if not parameters:
-        blockers.append("Parameter count could not be determined. Memory fit cannot be verified.")
-    weight_bytes = parameters * bytes_per_weight
-    if quantization and metadata.get("weight_bytes"):
-        weight_bytes = metadata["weight_bytes"]
-    kv_bytes = (
-        2
-        * request.batch_size
-        * request.context_length
-        * metadata["num_layers"]
-        * metadata["num_kv_heads"]
-        * (metadata.get("head_dim") or metadata["hidden_size"] // max(metadata["num_heads"], 1))
-        * 4
-    )
-    # Inspection uses float32 weights and captures residuals and eager attention.
-    inspection_weights = parameters * 4 if not quantization else weight_bytes
-    residual_bytes = (
-        (metadata["num_layers"] + 1)
-        * request.batch_size
-        * request.context_length
-        * metadata["hidden_size"]
-        * 4
-    )
-    attention_bytes = (
-        metadata["num_layers"] * metadata["num_heads"] * min(request.context_length, 128) ** 2 * 4
-    )
-    overhead_bytes = (
-        max(256 * 1024**2, inspection_weights * 0.15) + residual_bytes + attention_bytes
-    )
-    required_bytes = inspection_weights + kv_bytes + overhead_bytes
-    disk_bytes = metadata.get("weight_bytes") or parameters * PRECISION_BYTES.get(
-        native_precision, 4
-    )
-    available_bytes = hardware["ram_available_bytes"]
-    cuda_gpus = hardware["gpus"]
-    gpu = cuda_gpus[0] if cuda_gpus else None
-    capability = gpu["compute_capability"] if gpu else 0
-    if request.device == "cuda":
-        available_bytes = gpu["free_bytes"] if gpu else 0
-        if not hardware["cuda_available"]:
+    hidden = metadata.get("hidden_size") or 0
+    layers = metadata.get("num_layers") or 0
+    heads = metadata.get("num_heads") or 1
+    kv_heads = metadata.get("num_kv_heads") or heads
+    head_dim = metadata.get("head_dim") or hidden // max(heads, 1)
+    if not parameters or not hidden or not layers:
+        blockers.append(
+            "The logical model dimensions could not be determined. Memory fit cannot be verified."
+        )
+    if metadata.get("architecture_supported") is False:
+        blockers.append(
+            "This architecture cannot be initialized by the installed Transformers runtime. "
+            + (metadata.get("architecture_error") or "Choose a supported causal language model.")
+        )
+    if native and request.precision not in ("auto", native):
+        blockers.append(
+            "This checkpoint is already quantized. Select Auto or its existing execution format. Use the original checkpoint to choose another precision."
+        )
+    if native == "int8" and (metadata.get("quantization") or {}).get("llm_int8_has_fp16_weights"):
+        blockers.append(
+            "8-bit checkpoints with floating point master weights are not supported for packed weight inspection. Use an inference checkpoint with llm_int8_has_fp16_weights disabled."
+        )
+    if native == "int4" and (metadata.get("quantization") or {}).get(
+        "bnb_4bit_quant_type", "fp4"
+    ) not in ("nf4", "fp4"):
+        blockers.append(
+            "This bitsandbytes 4-bit data type does not have a supported matrix adapter."
+        )
+    if precision in PACKED_PRECISIONS:
+        supported = hardware.get("quantization", {}).get(request.device, {}).get(precision, {})
+        if not supported.get("supported"):
             blockers.append(
-                "The Python runtime has no usable CUDA device. Install a CUDA enabled PyTorch build or use CPU."
+                "The selected bitsandbytes quantization path is unavailable on this device. Install the quantization dependencies and a matching PyTorch runtime."
             )
-        if inspection_weights * 1.15 > hardware["ram_available_bytes"] * 0.85:
+        quantizable = metadata.get("quantizable_parameters")
+        if quantizable is None:
             blockers.append(
-                "Insufficient host RAM for the float32 checkpoint loading and analysis staging budget."
+                "The quantizable weight layout could not be verified for this checkpoint."
             )
-    if (precision == "nvfp4" or "nvfp4" in quant_text) and (
-        request.device != "cuda" or capability < 10
-    ):
+            quantizable = 0
+        quantizable = min(parameters, quantizable)
+        weight_bytes = (parameters - quantizable) * 4 + quantizable * PRECISION_BYTES[precision]
+        runtime_precision = (
+            "NF4 / FP32 compute" if precision == "int4" else "LLM.int8 / FP32 residuals"
+        )
+        if native == "int4":
+            kind = (metadata.get("quantization") or {}).get("bnb_4bit_quant_type", "fp4")
+            runtime_precision = kind.upper() + " / FP32 residuals"
+        warnings.append(
+            "Packed weights remain quantized for execution. Matrix analysis dequantizes one selected matrix to float32. Embeddings, output heads and skipped modules remain unquantized."
+        )
+        if request.device == "cpu":
+            warnings.append(
+                "CPU quantization reduces resident weight storage. Fallback kernels can dequantize a matrix during a forward pass, so reduced memory does not guarantee faster inference."
+            )
+    else:
+        weight_bytes = parameters * PRECISION_BYTES.get(precision, 4)
+        runtime_precision = precision
+        if precision not in FLOAT_DTYPES:
+            method = (metadata.get("quantization") or {}).get("quant_method", precision)
+            blockers.append(
+                f"Packed weight inspection for {method} is not supported by the current runtime. Select a supported checkpoint format."
+            )
+    execution_gpu = hardware.get("execution_gpu") or (
+        hardware["gpus"][0] if hardware["gpus"] else None
+    )
+    capability = execution_gpu["compute_capability"] if execution_gpu else 0
+    if request.device == "cuda" and not hardware["cuda_available"]:
+        blockers.append(
+            "The Python runtime has no usable CUDA device. Install a CUDA enabled PyTorch build or use CPU."
+        )
+    if precision == "nvfp4" and (request.device != "cuda" or capability < 10):
         blockers.append(
             "Native NVFP4 requires a Blackwell GPU with compute capability 10.0 or newer. Hopper H100 and H200 cannot execute native NVFP4 kernels."
         )
@@ -82,16 +102,51 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         blockers.append(
             "This FP8 execution path requires a Hopper or newer CUDA GPU with compute capability 9.0 or newer."
         )
-    if request.device == "cuda" and precision == "bfloat16" and capability < 8:
-        blockers.append("Native BF16 requires an Ampere or newer GPU in this runtime.")
-    if quantization:
-        blockers.append(
-            f"This checkpoint uses {quant_method or 'an unrecognized quantization'}. Packed weight inspection is not supported by the current float32 analysis runtime. Select the original unquantized checkpoint."
+    if request.device == "cuda":
+        if precision == "bfloat16" and capability < 8:
+            blockers.append("Native BF16 requires an Ampere or newer GPU in this runtime.")
+        if precision == "int8" and capability < 7.5:
+            blockers.append("This CUDA LLM.int8 path requires a Turing or newer NVIDIA GPU.")
+        if precision == "int4" and capability < 6:
+            blockers.append(
+                "CUDA NF4 and bitsandbytes FP4 require a Pascal or newer NVIDIA GPU. This format is different from native NVFP4."
+            )
+    element_bytes = PRECISION_BYTES.get(precision, 4) if precision in FLOAT_DTYPES else 4
+    kv_bytes = (
+        2
+        * request.batch_size
+        * request.context_length
+        * layers
+        * kv_heads
+        * head_dim
+        * element_bytes
+    )
+    residual_bytes = (layers + 1) * request.batch_size * request.context_length * hidden * 4
+    capture_tokens = min(request.context_length, hardware.get("max_prompt_tokens", 128))
+    attention_bytes = layers * heads * capture_tokens**2 * 4
+    workspace_bytes = (
+        (
+            metadata.get("largest_matrix_elements")
+            or hidden * max(hidden * 4, metadata.get("vocab_size") or 0)
         )
-    elif request.precision in ("int4", "int8", "fp8", "nvfp4"):
-        blockers.append(
-            "On the fly quantization is not supported by the analysis runtime. Choose auto precision or an unquantized checkpoint."
-        )
+        * 4
+        if precision != "float32"
+        else 0
+    )
+    overhead_bytes = max(256 * 1024**2, weight_bytes * 0.15) + residual_bytes + attention_bytes
+    required_bytes = weight_bytes + kv_bytes + overhead_bytes + workspace_bytes
+    native_bytes = PRECISION_BYTES.get(metadata.get("dtype"), 4)
+    disk_bytes = (
+        metadata.get("download_bytes") or metadata.get("weight_bytes") or parameters * native_bytes
+    )
+    available_bytes = hardware["ram_available_bytes"]
+    if request.device == "cuda":
+        available_bytes = execution_gpu["free_bytes"] if execution_gpu else 0
+        staging_bytes = parameters * (4 if precision in PACKED_PRECISIONS else element_bytes)
+        if staging_bytes * 1.15 > hardware["ram_available_bytes"] * 0.85:
+            blockers.append(
+                "Insufficient host RAM for the conservative checkpoint loading and analysis staging budget."
+            )
     if required_bytes > available_bytes * 0.85:
         blockers.append(
             "Insufficient available memory after reserving 15 percent for the operating system and other workloads."
@@ -104,34 +159,35 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         )
     if not metadata.get("has_safetensors"):
         blockers.append(
-            "This repository has no safetensors checkpoint. Only safetensors weights are accepted."
+            "No supported Transformers safetensors checkpoint was found. A model.safetensors file or shard index is required."
         )
     if request.context_length > metadata["context_length"]:
         blockers.append(
             f"Requested context exceeds this model's {metadata['context_length']:,} token context window."
         )
     warnings.append(
-        "Weight inspection uses float32. Memory estimates include capture overhead and a conservative KV cache allowance."
+        "Matrix statistics use float32. The memory budget includes execution weights, a conservative KV cache allowance, capture overhead and temporary matrix analysis space."
     )
     warnings.append(
-        "Fit is an estimate for one device. Other running jobs can change available memory before loading."
+        "Fit is an estimate for one visible execution device. Other running jobs can change available memory before loading."
     )
     if metadata.get("parameter_estimated"):
         warnings.append(
-            "Parameter count is estimated from model configuration. Actual memory may differ."
+            "Logical parameter count is derived from architecture configuration rather than packed tensor element counts. Checkpoint variants may differ."
         )
-    if request.context_length > 128:
+    if request.context_length > hardware.get("max_prompt_tokens", 128):
         warnings.append(
-            "Interactive traces are limited to 128 prompt tokens to keep attention capture bounded."
+            f"Interactive captures are limited to {hardware.get('max_prompt_tokens', 128)} prompt tokens."
         )
     return {
         "compatible": not blockers,
         "status": "ready" if not blockers else "blocked",
         "precision": precision,
-        "runtime_precision": "float32",
+        "runtime_precision": runtime_precision,
         "device": request.device,
         "weight_bytes": int(weight_bytes),
-        "analysis_weight_bytes": int(inspection_weights),
+        "analysis_weight_bytes": int(weight_bytes),
+        "analysis_workspace_bytes": int(workspace_bytes),
         "kv_cache_bytes": int(kv_bytes),
         "overhead_bytes": int(overhead_bytes),
         "required_bytes": int(required_bytes),

@@ -8,10 +8,11 @@ class ModelRequest(BaseModel):
     revision: str = Field(default="main", min_length=1, max_length=128)
 
 
+Precision = Literal["auto", "float32", "float16", "bfloat16", "int8", "int4", "fp8", "nvfp4"]
+
+
 class CompatibilityRequest(ModelRequest):
-    precision: Literal["auto", "float32", "float16", "bfloat16", "int8", "int4", "fp8", "nvfp4"] = (
-        "auto"
-    )
+    precision: Precision = "auto"
     context_length: int = Field(default=2048, ge=16, le=131072)
     batch_size: int = Field(default=1, ge=1, le=64)
     device: Literal["cpu", "cuda"] = "cpu"
@@ -36,4 +37,12 @@ class ExperimentUpdate(BaseModel):
 
 
 class LoadRequest(ModelRequest):
+    precision: Precision = "auto"
     device: Literal["cpu", "cuda"] = "cpu"
+
+
+class CausalRequest(BaseModel):
+    clean_prompt: str = Field(min_length=1, max_length=8000)
+    corrupted_prompt: str = Field(min_length=1, max_length=8000)
+    target: str = Field(default="", max_length=100)
+    position: int | None = Field(default=-1, ge=-128, le=127)

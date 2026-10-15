@@ -79,3 +79,127 @@ def test_safetensors_required():
         model, hardware(), CompatibilityRequest(model_id="gpt2", context_length=128)
     )
     assert any("safetensors" in blocker for blocker in result["blockers"])
+
+
+def quantized_hardware(capability=9):
+    result = hardware(capability)
+    result["quantization"] = {
+        device: {precision: {"supported": True} for precision in ("int4", "int8")}
+        for device in ("cpu", "cuda")
+    }
+    return result
+
+
+def test_nf4_budgets_unquantized_modules_and_float32_matrix_workspace():
+    model = metadata(quantizable_parameters=100_000_000, largest_matrix_elements=10_000_000)
+    result = assess_compatibility(
+        model,
+        quantized_hardware(),
+        CompatibilityRequest(
+            model_id="model",
+            precision="int4",
+            context_length=128,
+        ),
+    )
+    assert result["compatible"]
+    assert result["weight_bytes"] == 24_000_000 * 4 + 100_000_000 * 0.625
+    assert result["analysis_workspace_bytes"] == 40_000_000
+    assert result["download_bytes"] == model["weight_bytes"]
+
+
+def test_selected_float_precision_changes_memory_but_not_source_download():
+    reports = [
+        assess_compatibility(
+            metadata(largest_matrix_elements=1000),
+            hardware(),
+            CompatibilityRequest(
+                model_id="model",
+                precision=precision,
+                context_length=128,
+            ),
+        )
+        for precision in ("float32", "float16", "bfloat16")
+    ]
+    assert all(result["compatible"] for result in reports)
+    assert reports[0]["weight_bytes"] == reports[1]["weight_bytes"] * 2
+    assert reports[1]["weight_bytes"] == reports[2]["weight_bytes"]
+    assert len({report["download_bytes"] for report in reports}) == 1
+
+
+def test_bnb_fp4_is_distinct_from_native_nvfp4_and_preserves_native_format():
+    result = assess_compatibility(
+        metadata(
+            quantizable_parameters=100_000_000,
+            quantization={
+                "quant_method": "bitsandbytes",
+                "load_in_4bit": True,
+                "bnb_4bit_quant_type": "fp4",
+            },
+        ),
+        quantized_hardware(capability=7),
+        CompatibilityRequest(
+            model_id="model",
+            device="cuda",
+            context_length=128,
+        ),
+    )
+    assert result["compatible"]
+    assert result["precision"] == "int4"
+    assert result["runtime_precision"].startswith("FP4")
+
+
+def test_kernel_presence_does_not_override_int8_gpu_architecture_requirement():
+    result = assess_compatibility(
+        metadata(quantizable_parameters=100_000_000),
+        quantized_hardware(capability=6),
+        CompatibilityRequest(model_id="model", device="cuda", precision="int8", context_length=128),
+    )
+    assert any("Turing" in blocker for blocker in result["blockers"])
+
+
+def test_execution_device_memory_is_used_instead_of_first_physical_gpu():
+    machine = hardware(memory=20 * 1024**3)
+    machine["execution_gpu"] = {"compute_capability": 8, "free_bytes": 64 * 1024**2}
+    result = assess_compatibility(
+        metadata(),
+        machine,
+        CompatibilityRequest(
+            model_id="model",
+            device="cuda",
+            context_length=128,
+        ),
+    )
+    assert not result["compatible"]
+    assert result["available_bytes"] == int(64 * 1024**2 * 0.85)
+
+
+def test_missing_quantization_kernel_or_layout_blocks_execution():
+    result = assess_compatibility(
+        metadata(),
+        hardware(),
+        CompatibilityRequest(
+            model_id="model",
+            precision="int4",
+            context_length=128,
+        ),
+    )
+    assert not result["compatible"]
+    assert any("unavailable" in blocker for blocker in result["blockers"])
+    assert any("layout" in blocker for blocker in result["blockers"])
+
+
+def test_training_style_int8_master_weights_are_not_mistaken_for_packed_storage():
+    result = assess_compatibility(
+        metadata(
+            quantizable_parameters=100_000_000,
+            quantization={
+                "quant_method": "bitsandbytes",
+                "load_in_8bit": True,
+                "llm_int8_has_fp16_weights": True,
+            },
+        ),
+        quantized_hardware(),
+        CompatibilityRequest(model_id="model", context_length=128),
+    )
+    assert not result["compatible"]
+    assert any("master weights" in blocker for blocker in result["blockers"])

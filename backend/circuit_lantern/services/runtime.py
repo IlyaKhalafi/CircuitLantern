@@ -3,6 +3,7 @@ import threading
 import time
 import uuid
 from concurrent.futures import ThreadPoolExecutor
+from contextlib import contextmanager
 
 import torch
 from huggingface_hub import snapshot_download
@@ -10,7 +11,20 @@ from torch.nn import functional
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
+from circuit_lantern.services.causal import activation_patch_sweep
+from circuit_lantern.services.execution import (
+    PACKED_PRECISIONS,
+    describe_execution,
+    loading_options,
+    prepare_model_execution,
+)
+from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
+from circuit_lantern.services.weights import logical_weight, model_weight_inventory
+
+
+class RuntimeBusyError(ValueError):
+    pass
 
 
 class ModelRuntime:
@@ -24,7 +38,7 @@ class ModelRuntime:
         self.device = "cpu"
         self.lock = threading.Lock()
         self.job_lock = threading.Lock()
-        self.jobs: dict[str, dict] = {}
+        self.jobs: dict[str, JobRecord] = {}
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="model-loader")
         self.metrics_cache: dict[str, dict] = {}
         self._state = {"loaded": False, "metadata": None, "device": "cpu"}
@@ -33,29 +47,37 @@ class ModelRuntime:
     def state(self) -> dict:
         return dict(self._state)
 
-    def load(self, metadata: dict, device: str) -> dict:
+    def load(self, metadata: dict, device: str, precision: str = "auto") -> dict:
         with self.job_lock:
-            if any(j["status"] in ("queued", "downloading", "loading") for j in self.jobs.values()):
-                raise ValueError("A model download is already running. Wait for it to finish.")
-            job = {
-                "id": uuid.uuid4().hex,
-                "model_id": metadata["id"],
-                "status": "queued",
-                "progress": 0,
-                "message": "Waiting for model loader",
-                "created_at": time.time(),
-            }
+            if any(
+                j["status"] in ("queued", "running", "downloading", "loading")
+                for j in self.jobs.values()
+            ):
+                raise ValueError(
+                    "A background operation is already running. Wait for it to finish."
+                )
+            job = JobRecord(
+                {
+                    "id": uuid.uuid4().hex,
+                    "model_id": metadata["id"],
+                    "kind": "download",
+                    "status": "queued",
+                    "progress": 0,
+                    "message": "Waiting for model loader",
+                    "created_at": time.time(),
+                }
+            )
             # Keep completed jobs bounded in a long running workstation.
             self.jobs = dict(list(self.jobs.items())[-49:])
             self.jobs[job["id"]] = job
         try:
-            self.executor.submit(self._load, job, metadata, device)
+            self.executor.submit(self._load, job, metadata, device, precision)
         except RuntimeError:
             job.update(status="failed", message="The model loader is shutting down.")
             raise
-        return dict(job)
+        return job.snapshot()
 
-    def _load(self, job: dict, metadata: dict, device: str):
+    def _load(self, job: JobRecord | dict, metadata: dict, device: str, precision: str = "auto"):
         try:
             job.update(
                 status="downloading",
@@ -65,7 +87,8 @@ class ModelRuntime:
             path = snapshot_download(
                 metadata["id"],
                 revision=metadata["revision"],
-                allow_patterns=["*.safetensors", "*.json", "*.txt", "*.model", "*.tiktoken"],
+                allow_patterns=metadata.get("download_files")
+                or ["*.safetensors", "*.json", "*.txt", "*.model", "*.tiktoken"],
                 max_workers=2,
             )
         except Exception as error:  # noqa: BLE001 - a failed download must preserve the active model
@@ -73,12 +96,15 @@ class ModelRuntime:
             return
         with self.lock:
             model = tokenizer = None
+            released_model = False
             try:
                 job.update(
                     status="loading",
                     progress=70,
                     message="Loading model and building the weight index",
                 )
+                options, resolved_precision = loading_options(metadata, precision, device)
+                released_model = self.model is not None
                 self._unload()
                 tokenizer = AutoTokenizer.from_pretrained(
                     path, trust_remote_code=False, local_files_only=True
@@ -87,34 +113,140 @@ class ModelRuntime:
                     path,
                     trust_remote_code=False,
                     local_files_only=True,
-                    torch_dtype=torch.float32,
+                    **options,
                     use_safetensors=True,
                     attn_implementation="eager",
                 )
-                model.eval().to(device)
+                prepare_model_execution(model, resolved_precision, device)
+                model.eval()
+                if resolved_precision not in PACKED_PRECISIONS:
+                    model.to("cuda:0" if device == "cuda" else device)
+                metadata = dict(
+                    metadata,
+                    execution_precision=resolved_precision,
+                    execution_config=describe_execution(model, resolved_precision, device),
+                )
                 self.model, self.tokenizer, self.metadata, self.device = (
                     model,
                     tokenizer,
                     metadata,
                     device,
                 )
-                self._state = {"loaded": True, "metadata": metadata, "device": device}
+                self._state = {
+                    "loaded": True,
+                    "metadata": metadata,
+                    "device": device,
+                    "precision": resolved_precision,
+                }
                 job.update(status="ready", progress=100, message="Model is ready for inspection")
             except Exception as error:  # noqa: BLE001 - worker failures must reach the job record
                 model = tokenizer = None
+                job.update(
+                    status="failed",
+                    progress=0,
+                    message=str(error)[:800]
+                    + (
+                        " The previous model was released before loading the replacement."
+                        if released_model
+                        else ""
+                    ),
+                )
+            if job["status"] == "failed" and (released_model or self.model is None):
                 self._unload()
-                job.update(status="failed", progress=0, message=str(error)[:1000])
 
     def _unload(self):
         self.model = self.tokenizer = self.metadata = None
+        self.device = "cpu"
         self._state = {"loaded": False, "metadata": None, "device": self.device}
         self.metrics_cache.clear()
         gc.collect()
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
 
-    def unload(self):
+    def causal(self, payload: dict) -> dict:
+        with self.job_lock:
+            state = self.state()
+            if not state["loaded"]:
+                raise ValueError("Load a model from the model library first.")
+            if any(
+                j["status"] in ("queued", "running", "downloading", "loading")
+                for j in self.jobs.values()
+            ):
+                raise ValueError("Another background operation is running. Wait for it to finish.")
+            job = JobRecord(
+                {
+                    "id": uuid.uuid4().hex,
+                    "model_id": state["metadata"]["id"],
+                    "kind": "causal",
+                    "status": "queued",
+                    "progress": 0,
+                    "message": "Preparing causal capture",
+                    "created_at": time.time(),
+                }
+            )
+            revision = state["metadata"]["revision"]
+            self.jobs = dict(list(self.jobs.items())[-49:])
+            self.jobs[job["id"]] = job
+            try:
+                self.executor.submit(self._causal, job, payload, revision)
+            except RuntimeError:
+                job.update(status="failed", message="The model loader is shutting down.")
+                raise
+        return job.snapshot()
+
+    def job(self, job_id: str) -> dict | None:
+        with self.job_lock:
+            result = self.jobs.get(job_id)
+            return result.snapshot() if result is not None else None
+
+    def cancel_job(self, job_id: str) -> dict | None:
+        with self.job_lock:
+            job = self.jobs.get(job_id)
+            if job is None:
+                return None
+            if job.get("kind") != "causal":
+                raise ValueError(
+                    "Only causal sweeps can be cancelled. Model downloads must finish before another operation starts."
+                )
+            return job.request_cancel()
+
+    def _causal(self, job: JobRecord, payload: dict, revision: str):
         with self.lock:
+            try:
+                if job.get("cancel_requested"):
+                    job.update(status="cancelled", message="Causal sweep cancelled before capture")
+                    return
+                self._require_model()
+                if self.metadata["revision"] != revision or self.metadata["id"] != job["model_id"]:
+                    raise ValueError("The active model changed. Start the sweep again.")
+                job.update(status="running", message="Capturing clean and corrupted baselines")
+                result = activation_patch_sweep(
+                    self.model,
+                    self.tokenizer,
+                    self._blocks(),
+                    self.metadata,
+                    self.device,
+                    **payload,
+                    job=job,
+                    max_tokens=self.settings.max_prompt_tokens,
+                )
+                job.finish(result)
+            except Exception as error:  # noqa: BLE001 - background failures are reported through jobs
+                job.update(status="failed", message=str(error)[:1000])
+
+    @contextmanager
+    def operation(self):
+        if not self.lock.acquire(blocking=False):
+            raise RuntimeBusyError(
+                "The model is busy with another operation. Wait for it to finish or cancel the active causal sweep."
+            )
+        try:
+            yield
+        finally:
+            self.lock.release()
+
+    def unload(self):
+        with self.operation():
             self._unload()
 
     def _require_model(self):
@@ -122,34 +254,31 @@ class ModelRuntime:
             raise ValueError("Load a model from the model library first.")
 
     def graph(self) -> dict:
-        with self.lock:
+        with self.operation():
             self._require_model()
-            weights = [
-                {
-                    "name": name,
-                    "shape": list(weight.shape),
-                    "elements": weight.numel(),
-                    "dtype": str(weight.dtype).removeprefix("torch."),
-                }
-                for name, weight in self.model.named_parameters()
-                if weight.ndim == 2
-            ]
+            weights, total_parameters = model_weight_inventory(self.model)
             return {
                 "metadata": self.metadata,
                 "matrices": weights,
-                "total_parameters": sum(p.numel() for p in self.model.parameters()),
+                "total_parameters": total_parameters,
             }
 
     def matrix(self, name: str) -> dict:
-        with self.lock:
+        with self.operation():
             self._require_model()
             if name in self.metrics_cache:
                 return dict(self.metrics_cache[name])
-            parameter = dict(self.model.named_parameters()).get(name)
-            if parameter is None:
-                raise ValueError("Weight matrix was not found in the loaded model.")
+            tensor, description = logical_weight(self.model, name)
             result = dict(
-                name=name, **matrix_metrics(parameter, self.settings.max_analysis_elements)
+                name=name,
+                **matrix_metrics(tensor, self.settings.max_analysis_elements),
+                source_format=description["dtype"],
+                quantized=description["quantized"],
+                execution_precision=self.metadata.get("execution_precision", "float32"),
+                execution_config=self.metadata.get("execution_config"),
+                analysis_note="Statistics describe the dequantized float32 matrix."
+                if description["quantized"]
+                else "Statistics describe the loaded matrix converted to float32.",
             )
             # A few large heatmaps are useful to keep, without unbounded retention.
             if len(self.metrics_cache) >= 24:
@@ -183,13 +312,15 @@ class ModelRuntime:
     def trace(
         self, prompt: str, max_new_tokens: int, capture_attention: bool, ablate_layer: int | None
     ) -> dict:
-        with self.lock:
+        with self.operation():
             self._require_model()
             if not 1 <= max_new_tokens <= 64:
                 raise ValueError("Generate between 1 and 64 tokens per interactive trace.")
             started = time.perf_counter()
             encoded = self.tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
             token_count = encoded.input_ids.shape[1]
+            if not token_count:
+                raise ValueError("The prompt must contain at least one token.")
             context_limit = self.metadata["context_length"]
             if token_count > min(self.settings.max_prompt_tokens, context_limit - max_new_tokens):
                 raise ValueError(
@@ -224,6 +355,10 @@ class ModelRuntime:
                 )
                 for handle in capture_handles:
                     handle.remove()
+                if not torch.isfinite(outputs.logits).all():
+                    raise ValueError(
+                        "The model produced non finite logits. Try BF16 or FP32 execution."
+                    )
                 final_norm = self._final_norm()
                 unembed = self.model.get_output_embeddings()
                 tokens = [self.tokenizer.decode([i]) for i in inputs["input_ids"][0].tolist()]
@@ -237,6 +372,10 @@ class ModelRuntime:
                         else hidden
                     )
                     logits = unembed(projected).float()
+                    if not torch.isfinite(logits).all():
+                        raise ValueError(
+                            "The logit lens produced non finite values. Try BF16 or FP32 execution."
+                        )
                     probabilities = torch.softmax(logits[0, -1], dim=-1)
                     values, indices = probabilities.topk(min(5, probabilities.numel()))
                     is_final = index == len(outputs.hidden_states) - 1
@@ -307,6 +446,8 @@ class ModelRuntime:
                 return {
                     "model_id": self.metadata["id"],
                     "revision": self.metadata["revision"],
+                    "execution_precision": self.metadata.get("execution_precision", "float32"),
+                    "execution_config": self.metadata.get("execution_config"),
                     "prompt": prompt,
                     "tokens": tokens,
                     "token_ids": inputs["input_ids"][0].cpu().tolist(),

@@ -1,6 +1,7 @@
 import json
 import sqlite3
 import uuid
+from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -14,8 +15,14 @@ class ExperimentStore:
                 created_at TEXT NOT NULL, model_id TEXT NOT NULL, payload TEXT NOT NULL
             )""")
 
+    @contextmanager
     def connect(self):
-        return sqlite3.connect(self.path, timeout=10)
+        connection = sqlite3.connect(self.path, timeout=10)
+        try:
+            with connection:
+                yield connection
+        finally:
+            connection.close()
 
     def list(self) -> list[dict]:
         with self.connect() as connection:

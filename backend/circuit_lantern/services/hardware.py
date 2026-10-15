@@ -1,10 +1,11 @@
 import importlib.metadata
-import json
 import shutil
 import subprocess
 from pathlib import Path
 
 import psutil
+
+from circuit_lantern.services.execution import quantization_capabilities
 
 
 def hardware_snapshot(data_dir: Path) -> dict:
@@ -45,7 +46,30 @@ def hardware_snapshot(data_dir: Path) -> dict:
             packages[name] = None
     import torch
 
+    cuda_available = torch.cuda.is_available()
+    execution_gpu, cuda_error = None, None
+    if cuda_available:
+        try:
+            # Query and execute on logical device zero, respecting CUDA_VISIBLE_DEVICES.
+            sample = torch.ones(2, 2, device="cuda:0")
+            if float((sample @ sample).sum()) != 8:
+                raise RuntimeError("The CUDA execution probe returned an invalid result.")
+            free_bytes, total_bytes = torch.cuda.mem_get_info(0)
+            properties = torch.cuda.get_device_properties(0)
+            execution_gpu = {
+                "index": 0,
+                "name": properties.name,
+                "total_bytes": total_bytes,
+                "free_bytes": free_bytes,
+                "compute_capability": properties.major + properties.minor / 10,
+            }
+        except (RuntimeError, OSError) as error:
+            cuda_available = False
+            cuda_error = str(error)[:250]
     return {
+        "execution_gpu": execution_gpu,
+        "cuda_error": cuda_error,
+        "quantization": quantization_capabilities(),
         "cpu": psutil.cpu_count(logical=False) or 1,
         "cpu_threads": psutil.cpu_count() or 1,
         "ram_total_bytes": memory.total,
@@ -54,10 +78,6 @@ def hardware_snapshot(data_dir: Path) -> dict:
         "disk_free_bytes": disk.free,
         "gpus": gpus,
         "packages": packages,
-        "cuda_available": torch.cuda.is_available(),
-        "runtime_device": "cuda" if torch.cuda.is_available() else "cpu",
+        "cuda_available": cuda_available,
+        "runtime_device": "cuda" if cuda_available else "cpu",
     }
-
-
-def hardware_fingerprint(snapshot: dict) -> str:
-    return json.dumps(snapshot["gpus"], sort_keys=True)

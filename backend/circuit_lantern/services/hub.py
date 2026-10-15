@@ -1,7 +1,11 @@
 import json
+from fnmatch import fnmatch
 from functools import lru_cache
+from pathlib import Path, PurePosixPath
 
 from huggingface_hub import HfApi, hf_hub_download
+
+from circuit_lantern.services.architecture import architecture_layout
 
 CURATED_MODELS = [
     {
@@ -95,26 +99,69 @@ def model_metadata(model_id: str, revision: str = "main") -> dict:
     config = raw.get("text_config", raw)
     tensor_info = info.safetensors
     parameters = tensor_info.total if tensor_info else None
-    weight_files = [s for s in info.siblings if s.rfilename.endswith(".safetensors")]
-    weight_bytes = sum(s.size or 0 for s in weight_files)
-    if not weight_files:
-        weight_files = [s for s in info.siblings if s.rfilename.endswith("pytorch_model.bin")]
-        weight_bytes = sum(s.size or 0 for s in weight_files)
+    siblings = {entry.rfilename: entry for entry in info.siblings}
+    if "model.safetensors" in siblings:
+        weight_names = ["model.safetensors"]
+    elif "model.safetensors.index.json" in siblings:
+        index_path = hf_hub_download(model_id, "model.safetensors.index.json", revision=info.sha)
+        with open(index_path) as file:
+            weight_names = sorted(set(json.load(file)["weight_map"].values()))
+        if any(
+            name not in siblings
+            or PurePosixPath(name).is_absolute()
+            or ".." in PurePosixPath(name).parts
+            or not name.endswith(".safetensors")
+            for name in weight_names
+        ):
+            raise ValueError(
+                "The checkpoint index references invalid or unavailable safetensors files."
+            )
+    else:
+        # AutoModel expects the standard filename or its shard index.
+        # Alternative variants and adapter-only files cannot establish a loadable checkpoint.
+        weight_names = []
+    weight_bytes = sum(siblings[name].size or 0 for name in weight_names)
+    assets = [
+        name
+        for name in siblings
+        if any(fnmatch(name, pattern) for pattern in ("*.json", "*.txt", "*.model", "*.tiktoken"))
+    ]
+    download_files = sorted(set(weight_names + assets))
+    download_bytes = sum(siblings[name].size or 0 for name in download_files)
+    try:
+        layout = architecture_layout(str(Path(config_path).parent))
+        architecture_supported = True
+        architecture_error = None
+    except (ValueError, TypeError, ImportError, AttributeError, RuntimeError) as error:
+        layout = {}
+        architecture_supported = False
+        architecture_error = str(error)[:250]
     hidden = config.get("hidden_size", config.get("n_embd", 0))
     layers = config.get("num_hidden_layers", config.get("n_layer", 0))
     heads = config.get("num_attention_heads", config.get("n_head", 1))
     vocab = config.get("vocab_size", 0)
+    quantization = raw.get("quantization_config", config.get("quantization_config"))
+    if layout:
+        parameters = layout["parameters"]
     if not parameters and hidden and layers:
-        intermediate = config.get("intermediate_size", hidden * 4)
+        intermediate = config.get("intermediate_size") or config.get("n_inner") or hidden * 4
         parameters = int(2 * vocab * hidden + layers * (4 * hidden**2 + 3 * hidden * intermediate))
     return {
         "id": model_id,
         "revision": info.sha,
         "architecture": config.get("model_type", "unknown"),
         "parameters": parameters,
-        "parameter_estimated": not bool(tensor_info),
+        "parameter_estimated": not bool(tensor_info) or bool(quantization),
+        "quantizable_parameters": layout.get("quantizable_parameters"),
+        "largest_matrix_elements": layout.get("largest_matrix_elements"),
+        "tied_embeddings": layout.get("tied_embeddings"),
+        "architecture_supported": architecture_supported,
+        "architecture_error": architecture_error,
         "weight_bytes": weight_bytes,
-        "has_safetensors": any(s.rfilename.endswith(".safetensors") for s in weight_files),
+        "has_safetensors": bool(weight_names),
+        "weight_files": weight_names,
+        "download_files": download_files,
+        "download_bytes": download_bytes,
         "hidden_size": hidden,
         "num_layers": layers,
         "num_heads": heads,
@@ -123,7 +170,7 @@ def model_metadata(model_id: str, revision: str = "main") -> dict:
         "context_length": config.get("max_position_embeddings", config.get("n_positions", 2048)),
         "vocab_size": vocab,
         "dtype": config.get("dtype", config.get("torch_dtype", "float32")),
-        "quantization": raw.get("quantization_config", config.get("quantization_config")),
+        "quantization": quantization,
         "gated": bool(info.gated),
         "downloads": info.downloads,
         "config": config,
