@@ -27,10 +27,11 @@ class ModelRuntime:
         self.jobs: dict[str, dict] = {}
         self.executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="model-loader")
         self.metrics_cache: dict[str, dict] = {}
+        self._state = {"loaded": False, "metadata": None, "device": "cpu"}
         torch.set_num_threads(min(4, torch.get_num_threads()))
 
     def state(self) -> dict:
-        return {"loaded": self.model is not None, "metadata": self.metadata, "device": self.device}
+        return dict(self._state)
 
     def load(self, metadata: dict, device: str) -> dict:
         with self.job_lock:
@@ -47,23 +48,32 @@ class ModelRuntime:
             # Keep completed jobs bounded in a long running workstation.
             self.jobs = dict(list(self.jobs.items())[-49:])
             self.jobs[job["id"]] = job
-        self.executor.submit(self._load, job, metadata, device)
+        try:
+            self.executor.submit(self._load, job, metadata, device)
+        except RuntimeError:
+            job.update(status="failed", message="The model loader is shutting down.")
+            raise
         return dict(job)
 
     def _load(self, job: dict, metadata: dict, device: str):
+        try:
+            job.update(
+                status="downloading",
+                progress=10,
+                message="Downloading safetensors checkpoint from Hugging Face",
+            )
+            path = snapshot_download(
+                metadata["id"],
+                revision=metadata["revision"],
+                allow_patterns=["*.safetensors", "*.json", "*.txt", "*.model", "*.tiktoken"],
+                max_workers=2,
+            )
+        except Exception as error:  # noqa: BLE001 - a failed download must preserve the active model
+            job.update(status="failed", progress=0, message=str(error)[:1000])
+            return
         with self.lock:
+            model = tokenizer = None
             try:
-                job.update(
-                    status="downloading",
-                    progress=10,
-                    message="Downloading safetensors checkpoint from Hugging Face",
-                )
-                path = snapshot_download(
-                    metadata["id"],
-                    revision=metadata["revision"],
-                    allow_patterns=["*.safetensors", "*.json", "*.txt", "*.model", "*.tiktoken"],
-                    max_workers=2,
-                )
                 job.update(
                     status="loading",
                     progress=70,
@@ -88,13 +98,16 @@ class ModelRuntime:
                     metadata,
                     device,
                 )
+                self._state = {"loaded": True, "metadata": metadata, "device": device}
                 job.update(status="ready", progress=100, message="Model is ready for inspection")
             except Exception as error:  # noqa: BLE001 - worker failures must reach the job record
+                model = tokenizer = None
                 self._unload()
                 job.update(status="failed", progress=0, message=str(error)[:1000])
 
     def _unload(self):
         self.model = self.tokenizer = self.metadata = None
+        self._state = {"loaded": False, "metadata": None, "device": self.device}
         self.metrics_cache.clear()
         gc.collect()
         if torch.cuda.is_available():
@@ -131,7 +144,7 @@ class ModelRuntime:
         with self.lock:
             self._require_model()
             if name in self.metrics_cache:
-                return self.metrics_cache[name]
+                return dict(self.metrics_cache[name])
             parameter = dict(self.model.named_parameters()).get(name)
             if parameter is None:
                 raise ValueError("Weight matrix was not found in the loaded model.")
@@ -172,25 +185,36 @@ class ModelRuntime:
     ) -> dict:
         with self.lock:
             self._require_model()
+            if not 1 <= max_new_tokens <= 64:
+                raise ValueError("Generate between 1 and 64 tokens per interactive trace.")
             started = time.perf_counter()
             encoded = self.tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
             token_count = encoded.input_ids.shape[1]
             context_limit = self.metadata["context_length"]
             if token_count > min(self.settings.max_prompt_tokens, context_limit - max_new_tokens):
                 raise ValueError(
-                    "Prompt is too long for interactive capture or the model context window. Shorten it to at most 128 tokens."
+                    f"Prompt is too long for interactive capture or the model context window. Shorten it to at most {self.settings.max_prompt_tokens} tokens."
                 )
             inputs = {name: tensor.to(self.device) for name, tensor in encoded.items()}
             handles = []
+            blocks = self._blocks()
             if ablate_layer is not None:
-                blocks = self._blocks()
-                if blocks is None or ablate_layer >= len(blocks):
+                if blocks is None or not 0 <= ablate_layer < len(blocks):
                     raise ValueError("The selected layer cannot be bypassed in this architecture.")
 
-                def bypass(module, args, output):
-                    return (args[0], *output[1:]) if isinstance(output, tuple) else args[0]
+                def bypass(module, args, kwargs, output):
+                    hidden = args[0] if args else kwargs["hidden_states"]
+                    return (hidden, *output[1:]) if isinstance(output, tuple) else hidden
 
-                handles.append(blocks[ablate_layer].register_forward_hook(bypass))
+                handles.append(blocks[ablate_layer].register_forward_hook(bypass, with_kwargs=True))
+            raw_final = []
+            capture_handles = []
+            if blocks is not None:
+
+                def capture_final(module, args, output):
+                    raw_final.append(output[0] if isinstance(output, tuple) else output)
+
+                capture_handles.append(blocks[-1].register_forward_hook(capture_final))
             try:
                 outputs = self.model(
                     **inputs,
@@ -198,6 +222,8 @@ class ModelRuntime:
                     output_attentions=capture_attention,
                     use_cache=False,
                 )
+                for handle in capture_handles:
+                    handle.remove()
                 final_norm = self._final_norm()
                 unembed = self.model.get_output_embeddings()
                 tokens = [self.tokenizer.decode([i]) for i in inputs["input_ids"][0].tolist()]
@@ -213,11 +239,16 @@ class ModelRuntime:
                     logits = unembed(projected).float()
                     probabilities = torch.softmax(logits[0, -1], dim=-1)
                     values, indices = probabilities.topk(min(5, probabilities.numel()))
-                    vector = hidden[0].float()
+                    is_final = index == len(outputs.hidden_states) - 1
+                    raw_hidden = raw_final[0] if is_final and raw_final else hidden
+                    vector = raw_hidden[0].float()
                     layers.append(
                         {
                             "layer": index - 1,
                             "label": "Embedding" if index == 0 else f"Layer {index - 1}",
+                            "capture_point": "residual_post"
+                            if not is_final or raw_final
+                            else "final_normalized",
                             "rms": float(vector.square().mean().sqrt()),
                             "norm": float(vector[-1].norm()),
                             "token_norms": vector.norm(dim=-1).cpu().tolist(),
@@ -270,7 +301,9 @@ class ModelRuntime:
                     generated[0, token_count:], skip_special_tokens=True
                 )
                 final_probabilities = torch.softmax(outputs.logits[0, -1].float(), -1)
-                top_values, top_indices = final_probabilities.topk(10)
+                top_values, top_indices = final_probabilities.topk(
+                    min(10, final_probabilities.numel())
+                )
                 return {
                     "model_id": self.metadata["id"],
                     "revision": self.metadata["revision"],
@@ -292,9 +325,9 @@ class ModelRuntime:
                     "duration_ms": round((time.perf_counter() - started) * 1000),
                     "device": self.device,
                     "ablate_layer": ablate_layer,
-                    "method": "Logit lens with the model final normalization. Intermediate predictions are diagnostic projections, not calibrated probabilities.",
-                    "final_state_normalized": True,
+                    "method": f"Logit lens {'with the model final normalization' if final_norm is not None else 'without final normalization for this architecture'}. Intermediate predictions are diagnostic projections, not calibrated probabilities.",
+                    "final_state_normalized": not bool(raw_final),
                 }
             finally:
-                for handle in handles:
+                for handle in handles + capture_handles:
                     handle.remove()

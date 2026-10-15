@@ -36,7 +36,7 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         * request.context_length
         * metadata["num_layers"]
         * metadata["num_kv_heads"]
-        * (metadata["hidden_size"] // max(metadata["num_heads"], 1))
+        * (metadata.get("head_dim") or metadata["hidden_size"] // max(metadata["num_heads"], 1))
         * 4
     )
     # Inspection uses float32 weights and captures residuals and eager attention.
@@ -55,7 +55,9 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         max(256 * 1024**2, inspection_weights * 0.15) + residual_bytes + attention_bytes
     )
     required_bytes = inspection_weights + kv_bytes + overhead_bytes
-    disk_bytes = metadata.get("weight_bytes") or weight_bytes
+    disk_bytes = metadata.get("weight_bytes") or parameters * PRECISION_BYTES.get(
+        native_precision, 4
+    )
     available_bytes = hardware["ram_available_bytes"]
     cuda_gpus = hardware["gpus"]
     gpu = cuda_gpus[0] if cuda_gpus else None
@@ -65,6 +67,10 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         if not hardware["cuda_available"]:
             blockers.append(
                 "The Python runtime has no usable CUDA device. Install a CUDA enabled PyTorch build or use CPU."
+            )
+        if inspection_weights * 1.15 > hardware["ram_available_bytes"] * 0.85:
+            blockers.append(
+                "Insufficient host RAM for the float32 checkpoint loading and analysis staging budget."
             )
     if (precision == "nvfp4" or "nvfp4" in quant_text) and (
         request.device != "cuda" or capability < 10

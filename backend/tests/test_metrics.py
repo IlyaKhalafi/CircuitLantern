@@ -27,10 +27,14 @@ def test_zero_matrix_stays_finite():
     assert result["sparsity"] == 1
 
 
-def test_large_spectrum_is_explicitly_labeled_as_subsampled():
+def test_large_spectrum_uses_full_matrix_and_preserves_total_energy():
     result = matrix_metrics(torch.eye(800))
     assert result["spectrum_exact"] is False
-    assert result["spectrum_stride"] == 2
+    assert result["spectrum_shape"] == [800, 800]
+    assert result["spectral_norm"] == pytest.approx(1, rel=1e-5)
+    assert result["stable_rank"] == pytest.approx(800, rel=1e-5)
+    assert result["condition_number"] is None
+    assert result["cumulative_energy"][-1] == pytest.approx(64 / 800, rel=1e-5)
 
 
 def test_nonfinite_weights_rejected():
