@@ -4,6 +4,7 @@ import torch
 
 from circuit_lantern.services.execution import execution_provenance
 from circuit_lantern.services.jobs import JobRecord
+from circuit_lantern.services.scoring import log_probabilities, target_score, target_token_id
 from circuit_lantern.services.tokens import capture_token_limit
 
 MIN_RECOVERY_GAP = 0.001
@@ -65,29 +66,11 @@ def activation_patch_sweep(
     finally:
         for handle in handles:
             handle.remove()
-    if target:
-        target_ids = tokenizer.encode(target, add_special_tokens=False)
-        if len(target_ids) != 1:
-            raise ValueError(
-                "The target must encode to exactly one token. Include a leading space when needed, or leave it empty to use the clean top prediction."
-            )
-        target_id = target_ids[0]
-    else:
-        target_id = int(clean_logits.argmax())
+    clean_probs = log_probabilities(clean_logits)
+    target_id = target_token_id(tokenizer, target, clean_probs)
     corrupted_logits = model(**corrupted, use_cache=False).logits[0, -1].float().clone()
-
-    def score(logits):
-        if not torch.isfinite(logits).all():
-            raise ValueError(
-                "The model produced non finite logits. Choose a different checkpoint or prompt."
-            )
-        log_probability = float(logits.log_softmax(-1)[target_id])
-        return {
-            "log_probability": log_probability,
-            "probability": float(logits.softmax(-1)[target_id]),
-        }
-
-    clean_score, corrupted_score = score(clean_logits), score(corrupted_logits)
+    clean_score = target_score(clean_probs, target_id)
+    corrupted_score = target_score(log_probabilities(corrupted_logits), target_id)
     denominator = clean_score["log_probability"] - corrupted_score["log_probability"]
     recovery_defined = denominator > MIN_RECOVERY_GAP
     results = []
@@ -110,7 +93,7 @@ def activation_patch_sweep(
             logits = model(**corrupted, use_cache=False).logits[0, -1].float().clone()
         finally:
             handle.remove()
-        patched = score(logits)
+        patched = target_score(log_probabilities(logits), target_id)
         delta = patched["log_probability"] - corrupted_score["log_probability"]
         results.append(
             {
@@ -150,5 +133,6 @@ def activation_patch_sweep(
         if recovery_defined and denominator < 0.05
         else None,
         "total_layers": len(blocks),
+        "complete": len(results) == len(blocks),
         "method": "Clean residual output is restored in the corrupted forward pass at one transformer block per run. Recovery is normalized target log probability change. It may be negative or exceed one.",
     }

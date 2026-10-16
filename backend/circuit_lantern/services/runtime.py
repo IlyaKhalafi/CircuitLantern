@@ -25,6 +25,7 @@ from circuit_lantern.services.execution import (
 from circuit_lantern.services.generation import decode_generation, generation_settings
 from circuit_lantern.services.geometry import ResidualGeometry
 from circuit_lantern.services.hardware import hardware_snapshot
+from circuit_lantern.services.head_sweep import MAX_SWEEP_HEADS, head_ablation_sweep
 from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
@@ -62,7 +63,11 @@ class ModelRuntime:
         torch.set_num_threads(min(4, torch.get_num_threads()))
 
     def state(self) -> dict:
-        return dict(self._state, max_prompt_tokens=self.settings.max_prompt_tokens)
+        return dict(
+            self._state,
+            max_prompt_tokens=self.settings.max_prompt_tokens,
+            max_head_sweep_heads=MAX_SWEEP_HEADS,
+        )
 
     def assess_fit(self, metadata: dict, request: CompatibilityRequest) -> dict:
         with self.operation():
@@ -225,6 +230,12 @@ class ModelRuntime:
             torch.cuda.empty_cache()
 
     def causal(self, payload: dict) -> dict:
+        return self._start_sweep("causal", payload)
+
+    def head_sweep(self, payload: dict) -> dict:
+        return self._start_sweep("head_sweep", payload)
+
+    def _start_sweep(self, kind: str, payload: dict) -> dict:
         payload = dict(payload)
         expected_execution_id = payload.pop("expected_execution_id", None)
         with self.job_lock:
@@ -242,10 +253,10 @@ class ModelRuntime:
                     "id": uuid.uuid4().hex,
                     "model_id": state["metadata"]["id"],
                     "execution_id": state["metadata"].get("execution_id"),
-                    "kind": "causal",
+                    "kind": kind,
                     "status": "queued",
                     "progress": 0,
-                    "message": "Preparing causal capture",
+                    "message": "Preparing research sweep",
                     "created_at": time.time(),
                 }
             )
@@ -253,7 +264,7 @@ class ModelRuntime:
             self.jobs = dict(list(self.jobs.items())[-49:])
             self.jobs[job["id"]] = job
             try:
-                self.executor.submit(self._causal, job, payload, revision)
+                self.executor.submit(self._run_sweep, job, payload, revision)
             except RuntimeError:
                 job.update(status="failed", message="The model loader is shutting down.")
                 raise
@@ -269,17 +280,19 @@ class ModelRuntime:
             job = self.jobs.get(job_id)
             if job is None:
                 return None
-            if job.get("kind") != "causal":
+            if job.get("kind") not in ("causal", "head_sweep"):
                 raise ValueError(
-                    "Only causal sweeps can be cancelled. Model downloads must finish before another operation starts."
+                    "Only causal sweeps and head sweeps can be cancelled. Model downloads must finish before another operation starts."
                 )
             return job.request_cancel()
 
-    def _causal(self, job: JobRecord, payload: dict, revision: str):
+    def _run_sweep(self, job: JobRecord, payload: dict, revision: str):
+        is_head_sweep = job["kind"] == "head_sweep"
+        label = "Head sweep" if is_head_sweep else "Causal sweep"
         with self.lock:
             try:
                 if job.get("cancel_requested"):
-                    job.update(status="cancelled", message="Causal sweep cancelled before capture")
+                    job.update(status="cancelled", message=f"{label} cancelled before capture")
                     return
                 self._require_model()
                 if (
@@ -288,8 +301,9 @@ class ModelRuntime:
                     or self.metadata.get("execution_id") != job.get("execution_id")
                 ):
                     raise ValueError("The active model changed. Start the sweep again.")
-                job.update(status="running", message="Capturing clean and corrupted baselines")
-                result = activation_patch_sweep(
+                job.update(status="running", message="Capturing baseline predictions")
+                operation = head_ablation_sweep if is_head_sweep else activation_patch_sweep
+                result = operation(
                     self.model,
                     self.tokenizer,
                     self._blocks(),
@@ -299,7 +313,7 @@ class ModelRuntime:
                     job=job,
                     max_tokens=self.settings.max_prompt_tokens,
                 )
-                job.finish(result)
+                job.finish(result, label=label, unit="heads" if is_head_sweep else "layers")
             except Exception as error:  # noqa: BLE001 - background failures are reported through jobs
                 job.update(status="failed", message=str(error)[:1000])
 
@@ -307,7 +321,7 @@ class ModelRuntime:
     def operation(self):
         if not self.lock.acquire(blocking=False):
             raise RuntimeBusyError(
-                "The model is busy with another operation. Wait for it to finish or cancel the active causal sweep."
+                "The model is busy with another operation. Wait for it to finish or cancel the active sweep."
             )
         try:
             yield

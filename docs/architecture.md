@@ -23,6 +23,8 @@ flowchart LR
 
 `runtime.py` owns one model and tokenizer. Its operation lock serializes loading, unloading, matrix analysis and activation capture. Download workers update bounded in memory job records. Weight statistics use a small cache that is cleared whenever the model changes.
 
+`head_sweep.py` runs bounded independent attention head interventions using the verified output layouts in `interventions.py`. `scoring.py` shares finite logit checks, single token target resolution and float64 log probability scoring across research sweeps.
+
 `metrics.py` holds numerical calculations and declares the difference between exact statistics and randomized full matrix spectral estimates. `store.py` uses short SQLite transactions with a connection per operation.
 
 ## Frontend boundaries
@@ -31,7 +33,7 @@ The App Router separates the library, architecture explorer, activation lab, exp
 
 The frontend calls a same origin API path. A Next.js route handler forwards requests to the Python service so browser requests do not need a separate backend origin. It reads the backend address at runtime, allowing the same production build to target a different server without rebuilding.
 
-Causal sweeps run in the same serialized executor as model loading. A sweep captures clean block outputs once, then runs one restored block per corrupted forward pass. The model revision is checked before execution and cannot be replaced by another background load during the sweep. Cancellation is cooperative between layers, preserving completed results. Browser job polling survives navigation and detects expired job IDs after a server restart.
+Residual patching and head ablation sweeps run in the same serialized executor as model loading. A sweep captures clean block outputs once, then runs one restored block per corrupted forward pass. The model revision is checked before execution and cannot be replaced by another background load during the sweep. Head sweeps perform one unchanged baseline and one forward per selected query head, with at most 512 heads per job. Model session identity is checked alongside the checkpoint revision. Cancellation is cooperative between forwards, preserving completed results. Head failures retain earlier successful heads and publish a failed terminal state. Cancellation during a final successful forward does not relabel a complete result as partial. Browser job polling survives navigation and detects expired job IDs after a server restart.
 
 Fonts are bundled with the frontend so rendering does not depend on third party font requests.
 

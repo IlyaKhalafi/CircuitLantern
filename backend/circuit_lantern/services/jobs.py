@@ -38,15 +38,23 @@ class JobRecord(Mapping[str, Any]):
                 "cancel_requested": self._data.get("cancel_requested", False),
             }
 
-    def finish(self, result: dict):
+    def finish(self, result: dict, *, label: str = "Causal sweep", unit: str = "layers"):
         with self._lock:
-            cancelled = self._data.get("cancel_requested", False)
+            failure = result.get("error")
+            cancelled = bool(
+                self._data.get("cancel_requested", False)
+                and not result.get("complete", False)
+                and not failure
+            )
             result["cancelled"] = cancelled
             self._data.update(
                 result=result,
-                status="cancelled" if cancelled else "ready",
-                progress=self._data["progress"] if cancelled else 100,
-                message="Causal sweep cancelled. Completed layers are retained."
-                if cancelled
-                else "Causal sweep complete",
+                status="failed" if failure else "cancelled" if cancelled else "ready",
+                progress=self._data["progress"] if cancelled or failure else 100,
+                message=failure
+                or (
+                    f"{label} cancelled. Completed {unit} are retained."
+                    if cancelled
+                    else f"{label} complete"
+                ),
             )

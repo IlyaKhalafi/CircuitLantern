@@ -12,6 +12,7 @@ from circuit_lantern.schemas import (
     ExecutionId,
     ExperimentRequest,
     ExperimentUpdate,
+    HeadSweepRequest,
     LoadRequest,
     ModelRequest,
     TokenizeRequest,
@@ -116,6 +117,11 @@ def runtime_state(request: Request):
 @app.post("/api/causal", status_code=202)
 def causal(payload: CausalRequest, request: Request):
     return request.app.state.runtime.causal(payload.model_dump())
+
+
+@app.post("/api/head-sweep", status_code=202)
+def head_sweep(payload: HeadSweepRequest, request: Request):
+    return request.app.state.runtime.head_sweep(payload.model_dump())
 
 
 @app.post("/api/jobs/{job_id}/cancel")

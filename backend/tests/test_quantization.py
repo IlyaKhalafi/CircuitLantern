@@ -216,3 +216,29 @@ def test_head_ablation_keeps_loaded_precision_and_removes_hooks(precision_runtim
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())
     for name, parameter in runtime.model.named_parameters():
         assert torch.equal(before[name], parameter)
+
+
+def test_head_sweep_keeps_loaded_precision_and_canonical_weights(precision_runtime):
+    from circuit_lantern.services.head_sweep import head_ablation_sweep
+
+    runtime, _, precision = precision_runtime
+    before = {
+        name: parameter.detach().clone() for name, parameter in runtime.model.named_parameters()
+    }
+    result = head_ablation_sweep(
+        runtime.model,
+        runtime.tokenizer,
+        runtime._blocks(),
+        runtime.metadata,
+        runtime.device,
+        prompt="the capital",
+        target="",
+        layers=[0],
+        job={},
+        max_tokens=64,
+    )
+    assert result["execution_precision"] == precision
+    assert len(result["heads"]) == 2
+    assert all(not module._forward_pre_hooks for module in runtime.model.modules())
+    for name, parameter in runtime.model.named_parameters():
+        assert torch.equal(before[name], parameter)

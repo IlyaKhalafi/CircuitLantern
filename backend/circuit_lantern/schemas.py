@@ -73,3 +73,11 @@ class CausalRequest(BoundExecutionRequest):
     corrupted_prompt: str = Field(min_length=1, max_length=8000)
     target: str = Field(default="", max_length=100)
     position: int | None = Field(default=-1, ge=-131072, le=131071)
+
+
+class HeadSweepRequest(BoundExecutionRequest):
+    prompt: str = Field(min_length=1, max_length=8000)
+    target: str = Field(default="", max_length=100)
+    layers: list[Annotated[int, Field(ge=0)]] | None = Field(
+        default=None, min_length=1, max_length=128
+    )

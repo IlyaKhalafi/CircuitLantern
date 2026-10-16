@@ -142,3 +142,26 @@ def test_unknown_and_pruned_attention_layouts_are_not_offered(runtime):
     assert [target["layer"] for target in attention_head_targets(runtime._blocks())] == [1]
     with pytest.raises(ValueError, match="pruned"):
         install_head_ablation(runtime._blocks(), 0, 0)
+
+
+def test_head_sweep_supports_verified_architectures_and_query_heads(attention_model):
+    from circuit_lantern.services.head_sweep import head_ablation_sweep
+
+    runtime = attention_model
+    result = head_ablation_sweep(
+        runtime.model,
+        runtime.tokenizer,
+        runtime._blocks(),
+        runtime.metadata,
+        "cpu",
+        prompt="the capital",
+        target="",
+        layers=[0],
+        job={},
+        max_tokens=64,
+    )
+    expected_heads = attention_head_targets(runtime._blocks())[0]["heads"]
+    assert len(result["heads"]) == expected_heads
+    assert result["heads"][-1]["head"] == expected_heads - 1
+    assert all(row["kl_divergence"] >= 0 for row in result["heads"])
+    assert all(not module._forward_pre_hooks for module in runtime.model.modules())

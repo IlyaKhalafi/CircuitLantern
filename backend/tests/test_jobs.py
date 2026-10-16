@@ -66,4 +66,16 @@ def test_failed_replacement_reports_the_released_model(runtime):
         "metadata": None,
         "device": "cpu",
         "max_prompt_tokens": runtime.settings.max_prompt_tokens,
+        "max_head_sweep_heads": 512,
     }
+
+
+def test_cancel_request_during_final_forward_does_not_label_complete_result_partial():
+    job = JobRecord({"status": "running", "progress": 90})
+    job.request_cancel()
+    job.finish({"complete": True, "heads": [{"head": 0}]}, label="Head sweep", unit="heads")
+    snapshot = job.snapshot()
+    assert snapshot["status"] == "ready"
+    assert snapshot["progress"] == 100
+    assert snapshot["result"]["cancelled"] is False
+    assert snapshot["message"] == "Head sweep complete"

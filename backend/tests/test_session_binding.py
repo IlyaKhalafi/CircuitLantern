@@ -35,6 +35,7 @@ async def bound_client(runtime, monkeypatch):
         ("DELETE", f"/api/runtime?expected_execution_id={STALE}", None),
         ("POST", "/api/tokenize", {"prompts": ["the capital"], "expected_execution_id": STALE}),
         ("POST", "/api/trace", {"prompt": "the capital", "expected_execution_id": STALE}),
+        ("POST", "/api/head-sweep", {"prompt": "the capital", "expected_execution_id": STALE}),
         (
             "POST",
             "/api/causal",
@@ -113,3 +114,22 @@ async def test_bound_unload_clears_only_the_requested_active_session(bound_clien
         await bound_client.delete(f"/api/runtime?expected_execution_id={CURRENT}")
     ).status_code == 409
     assert (await bound_client.delete("/api/runtime")).status_code == 204
+
+
+async def test_head_sweep_endpoint_completes_with_bound_identity(bound_client):
+    import asyncio
+
+    response = await bound_client.post(
+        "/api/head-sweep",
+        json={"prompt": "the capital", "layers": [0], "expected_execution_id": CURRENT},
+    )
+    assert response.status_code == 202
+    job_id = response.json()["id"]
+    for _ in range(100):
+        job = (await bound_client.get(f"/api/jobs/{job_id}")).json()
+        if job["status"] in ("ready", "failed"):
+            break
+        await asyncio.sleep(0.01)
+    assert job["status"] == "ready", job["message"]
+    assert job["result"]["execution_id"] == CURRENT
+    assert len(job["result"]["heads"]) == 2
