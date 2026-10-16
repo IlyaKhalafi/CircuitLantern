@@ -183,6 +183,9 @@ export interface Prediction {
   logit?: number;
 }
 export interface LayerTrace {
+  token_prediction_ids?: number[];
+  token_prediction_probabilities?: number[];
+  token_entropies?: number[];
   update_norm?: number | null;
   update_rms?: number | null;
   relative_update?: number | null;
@@ -216,6 +219,7 @@ export interface TraceGeometry {
   method: string;
 }
 export interface Trace extends ExecutionProvenance {
+  token_prediction_method?: string;
   final_state_normalized?: boolean;
   geometry?: TraceGeometry;
   model_id: string;

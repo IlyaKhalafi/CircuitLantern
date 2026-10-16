@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { RepresentationGeometry } from "@/components/representation-geometry";
 import { GeneratedOutput } from "@/components/generated-output";
 import { AttentionHeads } from "@/components/attention-heads";
+import { LogitLens } from "@/components/logit-lens";
 import { number } from "@/lib/api";
 import { interventionLabel } from "@/lib/interventions";
 import { executionLabel } from "@/lib/execution";
@@ -194,68 +195,11 @@ export function TraceResults({
         <RepresentationGeometry geometry={trace.geometry} trace={trace} />
       )}
       {tab === "lens" && (
-        <Panel
-          title="Watch predictions take shape"
-          subtitle="Project intermediate residual states through the final norm and unembedding."
-        >
-          <div className="attention-controls">
-            <label className="checkbox-row">
-              Token position{" "}
-              <select
-                aria-label="Logit lens token position"
-                value={Math.min(tokenIndex, trace.tokens.length - 1)}
-                onChange={(e) => setTokenIndex(+e.target.value)}
-              >
-                {trace.tokens.map((t, i) => (
-                  <option key={i} value={i}>
-                    {i} · {t || "∅"}
-                  </option>
-                ))}
-              </select>
-            </label>
-          </div>
-          <div className="table-wrap">
-            <table>
-              <thead>
-                <tr>
-                  <th>CAPTURE</th>
-                  <th>POSITION PREDICTION</th>
-                  <th>LAST TOKEN TOP PREDICTION</th>
-                  <th>PROBABILITY</th>
-                  <th>ENTROPY</th>
-                  <th>COSINE TO PREVIOUS</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trace.layers.map((l) => (
-                  <tr key={l.layer}>
-                    <td className="code">{l.label}</td>
-                    <td>
-                      <span className="lens-token">
-                        {
-                          l.token_predictions[
-                            Math.min(tokenIndex, trace.tokens.length - 1)
-                          ]
-                        }
-                      </span>
-                    </td>
-                    <td>
-                      <span className="lens-token">
-                        {l.predictions[0].token}
-                      </span>
-                    </td>
-                    <td className="code">
-                      {(l.predictions[0].probability * 100).toFixed(2)}%
-                    </td>
-                    <td className="code">{number(l.entropy)}</td>
-                    <td className="code">{number(l.cosine_similarity, 4)}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <p className="inline-note">{trace.method}</p>
-        </Panel>
+        <LogitLens
+          trace={trace}
+          position={tokenIndex}
+          onPositionChange={setTokenIndex}
+        />
       )}
       {tab === "attention" &&
         (attention ? (

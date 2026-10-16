@@ -105,10 +105,13 @@ export default function GuidePage() {
           </p>
           <p>
             The logit lens applies final normalization and the model unembedding
-            to intermediate states. These are diagnostic projections. Their
-            confidence is not calibrated. The final logit lens projection uses
-            the model's normalized output. Residual magnitude is measured before
-            final normalization for supported block layouts.
+            to intermediate states. Choose a token position to follow its
+            prediction, vocabulary ID, confidence, entropy and residual norm
+            across layers without another forward pass. These are diagnostic
+            projections. Their confidence is not calibrated. The final logit
+            lens projection uses the model's normalized output. Residual
+            magnitude is measured before final normalization for supported block
+            layouts.
           </p>
         </article>
         <article className="panel guide-card">
