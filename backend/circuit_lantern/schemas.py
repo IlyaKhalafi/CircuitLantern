@@ -2,6 +2,8 @@ from typing import Annotated, Literal
 
 from pydantic import BaseModel, Field, model_validator
 
+from circuit_lantern.limits import MAX_TARGET_CHARACTERS, MAX_TRACKED_TARGETS
+
 
 class ModelRequest(BaseModel):
     model_id: str = Field(min_length=1, max_length=180, pattern=r"^[\w.-]+(/[\w.-]+)?$")
@@ -42,6 +44,9 @@ class TraceRequest(BoundExecutionRequest):
     max_new_tokens: int = Field(default=16, ge=0, le=64)
     capture_attention: bool = True
     attention_query_position: int = Field(default=-1, ge=-1, le=131071)
+    tracked_tokens: list[Annotated[str, Field(min_length=1, max_length=MAX_TARGET_CHARACTERS)]] = (
+        Field(default_factory=list, max_length=MAX_TRACKED_TARGETS)
+    )
     ablate_layer: int | None = Field(default=None, ge=0)
     ablate_head: HeadAblation | None = None
 

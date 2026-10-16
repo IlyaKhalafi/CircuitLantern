@@ -5,13 +5,14 @@ import pytest
 import torch
 
 
+@pytest.mark.parametrize("tracked_tokens", [[], ["France", "Poland"]])
 @pytest.mark.parametrize("capture_attention", [False, True])
 @pytest.mark.parametrize(
     ("layer", "head"),
     [(None, None), (0, None), (None, {"layer": 0, "head": 0})],
 )
 def test_prompt_capture_tensors_are_released_before_continuation(
-    runtime, layer, head, capture_attention
+    runtime, layer, head, capture_attention, tracked_tokens
 ):
     references = []
     forward = runtime.model.forward
@@ -39,7 +40,9 @@ def test_prompt_capture_tensors_are_released_before_continuation(
             patch.object(runtime.model, "forward", new=capture_forward),
             patch.object(runtime.model, "generate", new=generate),
         ):
-            result = runtime.trace("the capital", 1, capture_attention, layer, head)
+            result = runtime.trace(
+                "the capital", 1, capture_attention, layer, head, tracked_tokens=tracked_tokens
+            )
     finally:
         handle.remove()
     assert result["generated_token_ids"] == [runtime.tokenizer.eos_token_id]

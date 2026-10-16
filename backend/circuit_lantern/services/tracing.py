@@ -18,10 +18,13 @@ def summarize_trace(
     bypassed_hidden: list[torch.Tensor],
     ablate_layer: int | None,
     attention_query_position: int = -1,
+    tracked_targets: list[dict] | None = None,
 ) -> dict:
     """Materialize prompt diagnostics so their tensors can be released before generation."""
     if not torch.isfinite(outputs.logits).all():
         raise ValueError("The model produced non finite logits. Try BF16 or FP32 execution.")
+    targets = tracked_targets or []
+    target_ids = tuple(target["token_id"] for target in targets)
     layers = []
     geometry = ResidualGeometry()
     for index, hidden in enumerate(outputs.hidden_states):
@@ -43,7 +46,7 @@ def summarize_trace(
             )
         probabilities = torch.softmax(logits[0, -1], dim=-1)
         values, indices = probabilities.topk(min(5, probabilities.numel()))
-        token_summary = summarize_token_logits(logits[0])
+        token_summary = summarize_token_logits(logits[0], target_ids)
         raw_hidden = raw_final[0] if is_final and raw_final else hidden
         vector = raw_hidden[0].float()
         label = "Embedding" if index == 0 else f"Layer {index - 1}"
@@ -82,6 +85,14 @@ def summarize_trace(
     final_probabilities = torch.softmax(outputs.logits[0, -1].float(), -1)
     top_values, top_indices = final_probabilities.topk(min(10, final_probabilities.numel()))
     return {
+        **(
+            {
+                "tracked_targets": targets,
+                "target_score_method": "Full vocabulary log probabilities in float64 at every prompt position after the recorded logit lens projection. Subtracting stored target log probabilities gives a diagnostic logit difference up to floating point error.",
+            }
+            if targets
+            else {}
+        ),
         "layers": layers,
         "attention": attention,
         "geometry": geometry.finish(),

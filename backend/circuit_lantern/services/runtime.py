@@ -27,6 +27,7 @@ from circuit_lantern.services.head_sweep import MAX_SWEEP_HEADS, head_ablation_s
 from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
+from circuit_lantern.services.scoring import resolve_tracked_targets
 from circuit_lantern.services.tokens import capture_token_limit, preview_tokens
 from circuit_lantern.services.tracing import summarize_trace
 from circuit_lantern.services.weights import (
@@ -441,6 +442,7 @@ class ModelRuntime:
         ablate_head: dict | None = None,
         expected_execution_id: str | None = None,
         attention_query_position: int = -1,
+        tracked_tokens: list[str] | None = None,
     ) -> dict:
         with self.operation():
             self._require_model()
@@ -472,6 +474,9 @@ class ModelRuntime:
                 raise ValueError(
                     f"Prompt is too long for interactive capture or the loaded context allowance. Shorten it to at most {prompt_limit} tokens."
                 )
+            tracked_targets = resolve_tracked_targets(
+                self.tokenizer, tracked_tokens or [], self.model.config.vocab_size
+            )
             inputs = {name: tensor.to(self.device) for name, tensor in encoded.items()}
             handles = []
             blocks = self._blocks()
@@ -524,6 +529,7 @@ class ModelRuntime:
                     self._final_norm(),
                     self.model.get_output_embeddings(),
                     raw_final=raw_final,
+                    tracked_targets=tracked_targets,
                     bypassed_hidden=bypassed_hidden,
                     ablate_layer=ablate_layer,
                     attention_query_position=resolved_attention_query
