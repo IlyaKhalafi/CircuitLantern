@@ -1,6 +1,7 @@
 "use client";
 import { useTheme } from "@/components/theme-provider";
 import { useI18n } from "@/i18n/provider";
+import { direction } from "@/i18n/locale";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { number } from "@/lib/api";
 import {
@@ -215,7 +216,7 @@ export function Heatmap({
   logarithmic?: boolean;
   height?: number;
 }) {
-  const { t } = useI18n();
+  const { t, locale } = useI18n();
   const { theme } = useTheme();
   const canvas = useRef<HTMLCanvasElement>(null);
   const maximum = useMemo(
@@ -328,12 +329,19 @@ export function Heatmap({
     );
   }
   const hovered = hover && data[hover.y]?.[hover.x];
-  const hoverText =
+  const readout =
     hover && hovered !== undefined
-      ? `${axisLabel(yLabels?.[hover.y], t("Row {v0}", { v0: hover.y }))} → ${axisLabel(xLabels?.[hover.x], t("Column {v0}", { v0: hover.x }))}  ${hovered?.toPrecision(4) ?? t("Unavailable")}`
-      : "";
+      ? {
+          row: axisLabel(yLabels?.[hover.y], t("Row {v0}", { v0: hover.y })),
+          column: axisLabel(
+            xLabels?.[hover.x],
+            t("Column {v0}", { v0: hover.x }),
+          ),
+          value: hovered?.toPrecision(4) ?? t("Unavailable"),
+        }
+      : null;
   return (
-    <div className="heatmap-wrapper">
+    <div className="heatmap-wrapper" dir={direction(locale)}>
       <div className="heatmap-surface">
         <canvas
           ref={canvas}
@@ -355,7 +363,16 @@ export function Heatmap({
             setKeyboard(false);
           }}
           onKeyDown={(event) => {
-            if (!columns || !rows) return;
+            if (
+              !columns ||
+              !rows ||
+              event.altKey ||
+              event.shiftKey ||
+              ((event.ctrlKey || event.metaKey) &&
+                event.key !== "Home" &&
+                event.key !== "End")
+            )
+              return;
             const next = { ...(hover || { x: 0, y: 0 }) };
             switch (event.key) {
               case "ArrowLeft":
@@ -440,8 +457,24 @@ export function Heatmap({
         </div>
         <span>{maximum.toPrecision(2)}</span>
       </div>
-      <p role="status" aria-live={keyboard ? "polite" : "off"}>
-        {hoverText || t(label)}
+      <p
+        role="status"
+        aria-live={keyboard ? "polite" : "off"}
+        dir={readout ? "ltr" : undefined}
+      >
+        {readout ? (
+          <>
+            <bdi dir="auto">{readout.row}</bdi>
+            {" → "}
+            <bdi dir="auto">{readout.column}</bdi>
+            {"  "}
+            <bdi dir={typeof hovered === "number" ? "ltr" : "auto"}>
+              {readout.value}
+            </bdi>
+          </>
+        ) : (
+          t(label)
+        )}
       </p>
       <small className="heatmap-help" id={helpId}>
         {t("Use arrow keys to inspect cells. Tap a cell on touch screens.")}

@@ -163,3 +163,95 @@ test("touch inspection preserves literal tokens and works in all five languages"
     await context.close();
   }
 });
+
+test("signed scientific heatmap values retain character order in RTL", async ({
+  page,
+}) => {
+  await page.route("**/api/trace", async (route) => {
+    const response = await route.fetch();
+    const trace = await response.json();
+    trace.tokens[0] = "\u0627\u0644\u0639\u0631\u0628\u064a\u0629";
+    trace.layers[0].label =
+      "\u0631\u062f\u06cc\u0641 \u0641\u0627\u0631\u0633\u06cc";
+    trace.layers[0].token_norms[0] = -1.234e-8;
+    await route.fulfill({ response, json: trace });
+  });
+  const { canvas, status } = await capture(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  mkdirSync(screenshots, { recursive: true });
+  for (const locale of ["fa", "ar"]) {
+    await page.locator(".language-select select").selectOption(locale);
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await canvas.focus();
+    await canvas.press("Control+Home");
+    const value = (-1.234e-8).toPrecision(4);
+    await expect(status).toContainText(value);
+    const positions = await status.evaluate((element, text) => {
+      const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+        const start = node.textContent?.indexOf(text) ?? -1;
+        if (start < 0) continue;
+        return [...text].map((_, index) => {
+          const range = document.createRange();
+          range.setStart(node, start + index);
+          range.setEnd(node, start + index + 1);
+          return range.getBoundingClientRect().left;
+        });
+      }
+      throw new Error("Missing signed measurement");
+    }, value);
+    await page.screenshot({
+      path: join(screenshots, "heatmap-signed-" + locale + ".png"),
+    });
+    expect(
+      positions.every((x, index) => !index || x > positions[index - 1]),
+    ).toBe(true);
+    const help = page.locator(".heatmap-help").first();
+    expect(
+      await help.evaluate((node) => getComputedStyle(node).direction),
+    ).toBe("rtl");
+  }
+});
+
+test("heatmap navigation preserves modified browser shortcuts", async ({
+  page,
+}) => {
+  const { canvas, status } = await capture(page);
+  await canvas.focus();
+  const initial = await status.innerText();
+  for (const modifiers of [
+    { altKey: true },
+    { ctrlKey: true },
+    { metaKey: true },
+    { shiftKey: true },
+    { shiftKey: true, ctrlKey: true },
+  ]) {
+    const nativeDefault = await canvas.evaluate(
+      (node, flags) =>
+        node.dispatchEvent(
+          new KeyboardEvent("keydown", {
+            key: "ArrowRight",
+            bubbles: true,
+            cancelable: true,
+            ...flags,
+          }),
+        ),
+      modifiers,
+    );
+    expect(nativeDefault).toBe(true);
+    await expect(status).toHaveText(initial);
+  }
+  const handled = await canvas.evaluate((node) =>
+    node.dispatchEvent(
+      new KeyboardEvent("keydown", {
+        key: "ArrowRight",
+        bubbles: true,
+        cancelable: true,
+      }),
+    ),
+  );
+  expect(handled).toBe(false);
+  await expect(status).not.toHaveText(initial);
+  await canvas.press("Control+Home");
+  await expect(status).toHaveText(initial);
+});
