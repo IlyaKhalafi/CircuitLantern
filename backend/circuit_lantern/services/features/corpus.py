@@ -26,6 +26,8 @@ class PreparedCorpus:
     special_tokens_excluded: bool
     first_position_excluded: bool
     token_limit: int
+    seed: int = 0
+    shared_prefixes_excluded: int = 0
 
     @property
     def train_indices(self) -> list[int]:
@@ -46,6 +48,8 @@ class PreparedCorpus:
             "special_tokens_excluded": self.special_tokens_excluded,
             "first_position_excluded": self.first_position_excluded,
             "token_limit": self.token_limit,
+            "split_seed": self.seed,
+            "shared_prefixes_excluded": self.shared_prefixes_excluded,
             "train_document_groups": len(
                 {
                     document["split_group"]
@@ -60,7 +64,7 @@ class PreparedCorpus:
                     if document["split"] == "validation"
                 }
             ),
-            "split_method": "Seeded split of whole document groups before token sampling. Unicode compatibility normalization, whitespace collapse and case folding group normalized text duplicates only for splitting. Paraphrases and overlapping templates are not deduplicated. Original text and tokenization are preserved.",
+            "split_method": "Seeded split of whole document groups before token sampling. Unicode compatibility normalization, whitespace collapse and case folding group normalized text duplicates only for splitting. Validation positions with an identical training token prefix and model inputs are excluded. Paraphrases are not deduplicated. Original text and tokenization are preserved.",
         }
 
 
@@ -143,8 +147,36 @@ def prepare_corpus(
             for position, token in enumerate(captured_ids)
             if token not in special and not (exclude_first_position and position == 0)
         )
+    # A causal state is determined by the entire input prefix, not the document suffix.
+    # Hash incrementally so exclusion remains linear in total corpus tokens.
+    prefix_keys = {}
+    for index, inputs in enumerate(encoded):
+        digest = hashlib.sha256()
+        keys = []
+        names = sorted(inputs)
+        for position in range(len(inputs["input_ids"])):
+            digest.update(
+                json.dumps(
+                    [(name, inputs[name][position]) for name in names],
+                    separators=(",", ":"),
+                ).encode()
+            )
+            keys.append(digest.digest())
+        prefix_keys[index] = keys
+    training_prefixes = {
+        prefix_keys[document][position] for document, position in candidates["train"]
+    }
+    previous_validation_count = len(candidates["validation"])
+    candidates["validation"] = [
+        (document, position)
+        for document, position in candidates["validation"]
+        if prefix_keys[document][position] not in training_prefixes
+    ]
+    shared_prefixes_excluded = previous_validation_count - len(candidates["validation"])
     if len(candidates["train"]) < 2 or not candidates["validation"]:
-        raise ValueError("The corpus needs at least two training tokens and one held out token.")
+        raise ValueError(
+            "The corpus needs at least two training tokens and one held out token after excluding shared prefixes. Use more varied documents or a longer context allowance."
+        )
     validation_count = min(len(candidates["validation"]), max(1, round(max_samples * 0.2)))
     train_count = min(len(candidates["train"]), max_samples - validation_count)
     validation_count = min(len(candidates["validation"]), max_samples - train_count)
@@ -182,6 +214,8 @@ def prepare_corpus(
         special_tokens_excluded=exclude_special_tokens,
         first_position_excluded=exclude_first_position,
         token_limit=token_limit,
+        seed=seed,
+        shared_prefixes_excluded=shared_prefixes_excluded,
     )
 
 

@@ -57,9 +57,9 @@ def test_special_token_exclusion_and_document_truncation_are_recorded(runtime):
     prepared = corpus(
         runtime,
         documents=["<eos> " + text for text in DOCUMENTS],
-        max_tokens=4,
+        max_tokens=6,
     )
-    assert prepared.token_limit == 4
+    assert prepared.token_limit == 6
     assert all(document["truncated"] for document in prepared.documents)
     assert all(
         document["token_ids"][0] == runtime.tokenizer.eos_token_id
@@ -70,7 +70,7 @@ def test_special_token_exclusion_and_document_truncation_are_recorded(runtime):
     included = corpus(
         runtime,
         documents=["<eos> " + text for text in DOCUMENTS],
-        max_tokens=4,
+        max_tokens=6,
         exclude_special_tokens=False,
         exclude_first_position=False,
     )
@@ -168,3 +168,19 @@ def test_first_position_policy_is_explicit_and_can_be_overridden(runtime):
     assert not included.first_position_excluded
     assert any(sample["position"] == 0 for sample in included.samples)
     assert included.fingerprint != excluded.fingerprint
+
+
+def test_validation_never_reuses_an_exact_training_prefix(runtime):
+    prepared = corpus(runtime, max_samples=32768)
+
+    def prefix(sample):
+        inputs = prepared.model_inputs[sample["document"]]
+        return tuple(
+            (key, tuple(values[: sample["position"] + 1])) for key, values in sorted(inputs.items())
+        )
+
+    train = {prefix(item) for item in prepared.samples if item["split"] == "train"}
+    validation = {prefix(item) for item in prepared.samples if item["split"] == "validation"}
+    assert train.isdisjoint(validation)
+    assert prepared.shared_prefixes_excluded > 0
+    assert prepared.description()["shared_prefixes_excluded"] == prepared.shared_prefixes_excluded

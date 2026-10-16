@@ -45,3 +45,19 @@ def test_equal_activation_examples_use_earliest_sample_indices():
     values = torch.ones(701, 2)
     rows = feature_statistics(model, values)
     assert [item["sample"] for item in rows[0]["examples"]] == list(range(6))
+
+
+def test_feature_statistics_separate_split_frequencies_and_tag_examples():
+    model = SparseAutoencoder(2, TrainingConfig(features=2))
+    with torch.no_grad():
+        model.encoder.copy_(torch.eye(2))
+        model.encoder_bias.zero_()
+        model.center.zero_()
+    values = torch.tensor([[1.0, 0], [1, 1], [0, 1], [0, 2]])
+    rows = feature_statistics(model, values, splits=["train", "train", "validation", "validation"])
+    assert rows[0]["frequency"] == 0.5
+    assert rows[0]["train_frequency"] == 1
+    assert rows[0]["validation_frequency"] == 0
+    assert all(example["split"] == "train" for example in rows[0]["examples"])
+    assert rows[1]["train_frequency"] == 0.5
+    assert rows[1]["validation_frequency"] == 1
