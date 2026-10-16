@@ -1,4 +1,5 @@
 from contextlib import asynccontextmanager
+from typing import Literal
 
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -90,8 +91,17 @@ def hardware():
 
 
 @app.get("/api/models")
-def models(q: str = Query(default="", max_length=180)):
-    return search_models(q)
+def models(
+    q: str = Query(default="", max_length=180),
+    sort: Literal[
+        "recommended", "trending", "downloads", "likes", "updated", "newest"
+    ] = "recommended",
+    days: int = Query(default=0, ge=0, le=365),
+    min_likes: int = Query(default=0, ge=0, le=1000000),
+    author: str = Query(default="", max_length=96, pattern=r"^[a-zA-Z0-9_.-]*$"),
+    limit: int = Query(default=24, ge=1, le=96),
+):
+    return search_models(q, sort=sort, days=days, min_likes=min_likes, author=author, limit=limit)
 
 
 @app.post("/api/models/metadata")

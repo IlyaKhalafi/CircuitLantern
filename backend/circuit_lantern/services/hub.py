@@ -1,6 +1,7 @@
 import json
 import re
 from copy import deepcopy
+from datetime import UTC, datetime, timedelta
 from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
@@ -67,28 +68,80 @@ CURATED_MODELS = [
 ]
 
 
-def search_models(query: str) -> list[dict]:
-    if not query.strip():
-        return CURATED_MODELS
-    api = HfApi()
-    models = api.list_models(
-        search=query.strip(),
+SEARCH_SORTS = {
+    "recommended": "downloads",
+    "trending": "trending_score",
+    "downloads": "downloads",
+    "likes": "likes",
+    "updated": "last_modified",
+    "newest": "created_at",
+}
+
+
+def search_models(
+    query: str,
+    *,
+    sort: str = "recommended",
+    days: int = 0,
+    min_likes: int = 0,
+    author: str = "",
+    limit: int = 24,
+) -> list[dict]:
+    if sort not in SEARCH_SORTS or days not in (0, 7, 30, 90, 365):
+        raise ValueError("Choose a supported model sort and time window.")
+    if not 0 <= min_likes <= 1000000 or not 1 <= limit <= 96:
+        raise ValueError("Choose a valid likes threshold and result limit.")
+    if not query.strip() and sort == "recommended" and not days and not min_likes and not author:
+        return deepcopy(CURATED_MODELS)
+    cutoff = datetime.now(UTC) - timedelta(days=days) if days else None
+    models = HfApi().list_models(
+        search=query.strip() or None,
+        author=author.strip() or None,
         pipeline_tag="text-generation",
-        sort="downloads",
-        limit=18,
+        sort=SEARCH_SORTS[sort],
+        direction=-1,
+        limit=500 if cutoff or min_likes else limit,
+        expand=[
+            "downloads",
+            "likes",
+            "lastModified",
+            "createdAt",
+            "library_name",
+            "gated",
+            "safetensors",
+        ],
     )
-    return [
-        {
-            "id": m.id,
-            "name": m.id.split("/")[-1],
-            "family": m.library_name or "transformers",
-            "parameters": "Hub model",
-            "description": m.id,
-            "tag": "Hugging Face",
-            "color": "blue",
-        }
-        for m in models
-    ]
+    results = []
+    for model in models:
+        date = model.created_at if sort == "newest" else model.last_modified
+        if cutoff and (date is None or date < cutoff):
+            continue
+        if min_likes and (model.likes or 0) < min_likes:
+            continue
+        parameters = getattr(model.safetensors, "total", None)
+        if parameters:
+            scale = 1e9 if parameters >= 1e9 else 1e6
+            parameter_label = f"{parameters / scale:.1f}{'B' if scale == 1e9 else 'M'}"
+        else:
+            parameter_label = "Hub model"
+        results.append(
+            {
+                "id": model.id,
+                "name": model.id.split("/")[-1],
+                "family": model.library_name or "transformers",
+                "parameters": parameter_label,
+                "description": model.id,
+                "tag": "Gated access" if model.gated else "Hugging Face",
+                "color": "blue",
+                "downloads": model.downloads,
+                "likes": model.likes,
+                "updated_at": model.last_modified.isoformat() if model.last_modified else None,
+                "created_at": model.created_at.isoformat() if model.created_at else None,
+            }
+        )
+        if len(results) >= limit:
+            break
+    return results
 
 
 def model_metadata(model_id: str, revision: str = "main") -> dict:
