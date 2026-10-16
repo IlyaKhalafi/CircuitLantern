@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import { api, bytes } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
+import { executionPath } from "@/lib/runtime";
 import type { Hardware, RuntimeState } from "@/lib/types";
 
 export default function HardwarePage() {
@@ -45,7 +46,9 @@ export default function HardwarePage() {
     setBusy(true);
     setError(null);
     try {
-      await api("/runtime", { method: "DELETE" });
+      await api(executionPath("/runtime", runtime?.metadata?.execution_id), {
+        method: "DELETE",
+      });
       await refresh();
     } catch (e) {
       setError((e as Error).message);

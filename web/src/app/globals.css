@@ -2546,3 +2546,9 @@ tbody tr.selectable:hover {
 .token-preview details[open] > summary svg {
   transform: rotate(90deg);
 }
+
+.trace-source {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  font: 9px var(--mono);
+}

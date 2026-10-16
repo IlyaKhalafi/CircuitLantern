@@ -7,6 +7,7 @@ import {
   Check,
   Download,
   Play,
+  RefreshCw,
   RotateCcw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -20,13 +21,18 @@ import {
 import { TraceResults } from "@/components/trace-results";
 import { TokenPreview } from "@/components/token-preview";
 import { useTokenPreview } from "@/lib/token-preview";
-import { api, downloadJSON, post } from "@/lib/api";
+import { downloadJSON, post } from "@/lib/api";
 import { interventionLabel } from "@/lib/interventions";
-import type { RuntimeState, Trace } from "@/lib/types";
+import type { Trace } from "@/lib/types";
+import { useRuntime } from "@/lib/runtime";
 
 export default function PlaygroundPage() {
-  const [runtime, setRuntime] = useState<RuntimeState | null>(null);
-  const [loading, setLoading] = useState(true);
+  const {
+    runtime,
+    loading,
+    error: runtimeError,
+    refresh: refreshRuntime,
+  } = useRuntime();
   const [prompt, setPrompt] = useState("The capital of France is");
   const [tokens, setTokens] = useState(16);
   const [captureAttention, setCaptureAttention] = useState(true);
@@ -44,26 +50,36 @@ export default function PlaygroundPage() {
     [prompt],
     tokens,
     !!runtime?.loaded && !busy,
+    runtime?.metadata?.execution_id,
   );
   const promptFits = tokenPreview.data?.prompts[0]?.fits ?? true;
   useEffect(() => {
-    api<RuntimeState>("/runtime")
-      .then((state) => {
-        setRuntime(state);
-        if (state.attention_head_targets?.length) {
-          setHeadLayer(state.attention_head_targets[0].layer);
-        }
-        const allowance =
-          state.context_length ?? state.metadata?.context_length ?? 2048;
-        setTokens((current) =>
-          current < allowance
-            ? current
-            : [64, 32, 16, 8, 4, 1].find((n) => n < allowance) || 1,
-        );
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
+    if (!runtime) return;
+    const targets = runtime.attention_head_targets || [];
+    if (targets.length) {
+      setHeadLayer((current) =>
+        targets.some((target) => target.layer === current)
+          ? current
+          : targets[0].layer,
+      );
+    }
+    setAblate((current) =>
+      current === "head"
+        ? targets.length
+          ? current
+          : ""
+        : current !== "" && +current >= (runtime.metadata?.num_layers ?? 0)
+          ? ""
+          : current,
+    );
+    const allowance =
+      runtime.context_length ?? runtime.metadata?.context_length ?? 2048;
+    setTokens((current) =>
+      current < allowance
+        ? current
+        : [64, 32, 16, 8, 4, 1].find((n) => n < allowance) || 1,
+    );
+  }, [runtime]);
   async function run(event: React.FormEvent) {
     event.preventDefault();
     setBusy(true);
@@ -72,6 +88,7 @@ export default function PlaygroundPage() {
     try {
       const result = await post<Trace>("/trace", {
         prompt,
+        expected_execution_id: runtime?.metadata?.execution_id ?? undefined,
         max_new_tokens: tokens,
         capture_attention: captureAttention,
         ablate_layer: ablate === "" || ablate === "head" ? null : +ablate,
@@ -109,12 +126,18 @@ export default function PlaygroundPage() {
   const headTarget = runtime?.attention_head_targets?.find(
     (target) => target.layer === headLayer,
   );
+  useEffect(() => {
+    setHead((current) =>
+      Math.min(current, Math.max(0, (headTarget?.heads ?? 1) - 1)),
+    );
+  }, [headTarget?.heads]);
   const compatibleBaseline =
     baseline?.prompt === trace?.prompt &&
     baseline?.revision === trace?.revision &&
     baseline?.model_id === trace?.model_id &&
     baseline?.execution_precision === trace?.execution_precision &&
     baseline?.device === trace?.device &&
+    baseline?.execution_id === trace?.execution_id &&
     JSON.stringify(baseline?.execution_config) ===
       JSON.stringify(trace?.execution_config) &&
     (trace?.ablate_layer != null || !!trace?.ablate_head)
@@ -131,17 +154,37 @@ export default function PlaygroundPage() {
             : "Watch information move through the model, one layer at a time."
         }
         actions={
-          trace && (
+          <>
             <button
               className="button secondary"
-              onClick={() => downloadJSON(trace, "activation-trace.json")}
+              disabled={loading || busy}
+              onClick={() => {
+                setError(null);
+                refreshRuntime();
+              }}
             >
-              <Download size={14} /> Export trace
+              <RefreshCw size={14} /> Refresh runtime
             </button>
-          )
+            {trace && (
+              <button
+                className="button secondary"
+                onClick={() => downloadJSON(trace, "activation-trace.json")}
+              >
+                <Download size={14} /> Export trace
+              </button>
+            )}
+          </>
         }
       />
-      <ErrorNotice message={error} />
+      <ErrorNotice message={runtimeError || error} />
+      {trace?.execution_id &&
+        runtime?.metadata?.execution_id &&
+        trace.execution_id !== runtime.metadata.execution_id && (
+          <div className="notice info">
+            This capture belongs to a previous model session. Its recorded model
+            and settings are preserved.
+          </div>
+        )}
       {loading ? (
         <Loading label="Connecting to model runtime" />
       ) : !runtime?.loaded ? (
@@ -292,8 +335,8 @@ export default function PlaygroundPage() {
           {ablate !== "" && ablate !== "head" && (
             <div className="notice info section-gap">
               Block bypass replaces the selected transformer block output with
-              its input residual stream. Run a baseline with the same prompt
-              first to compare residual magnitudes.
+              its input residual stream. Run a baseline in the same model
+              session with the same prompt to compare residual magnitudes.
             </div>
           )}
           {busy && (

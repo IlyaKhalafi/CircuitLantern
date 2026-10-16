@@ -74,7 +74,8 @@ test("an unavailable backend shows a useful error without a false empty-search r
 test("a busy model can be retried without suggesting a replacement checkpoint", async ({
   page,
 }) => {
-  await page.route("**/api/graph", (route) =>
+  const graphRoute = (url: URL) => url.pathname === "/api/graph";
+  await page.route(graphRoute, (route) =>
     route.fulfill({
       status: 409,
       contentType: "application/json",
@@ -88,7 +89,7 @@ test("a busy model can be retried without suggesting a replacement checkpoint", 
   await expect(
     page.getByRole("link", { name: "Choose a model" }),
   ).not.toBeVisible();
-  await page.unroute("**/api/graph");
+  await page.unroute(graphRoute);
   await page.getByRole("button", { name: "Retry explorer" }).click();
   await expect(
     page.getByText("Model architecture", { exact: true }),

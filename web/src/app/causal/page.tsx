@@ -2,7 +2,14 @@
 
 import { executionLabel } from "@/lib/execution";
 
-import { ArrowRight, Download, FlaskConical, Play, Square } from "lucide-react";
+import {
+  ArrowRight,
+  Download,
+  FlaskConical,
+  Play,
+  Square,
+  RefreshCw,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { SeriesChart } from "@/components/charts";
 import { TokenPreview } from "@/components/token-preview";
@@ -15,26 +22,31 @@ import {
   PageHeader,
   Panel,
 } from "@/components/ui";
-import { api, downloadJSON, number } from "@/lib/api";
+import { downloadJSON, number } from "@/lib/api";
 import { useBackgroundJob } from "@/lib/jobs";
-import type { CausalResult, RuntimeState } from "@/lib/types";
+import type { CausalResult } from "@/lib/types";
+import { useRuntime } from "@/lib/runtime";
 
 export default function CausalPage() {
-  const [runtime, setRuntime] = useState<RuntimeState | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [runtimeError, setRuntimeError] = useState<string | null>(null);
+  const {
+    runtime,
+    loading,
+    error: runtimeError,
+    refresh: refreshRuntime,
+  } = useRuntime();
   const [clean, setClean] = useState("The capital of France is");
   const [corrupted, setCorrupted] = useState("The capital of Poland is");
   const [target, setTarget] = useState("");
   const [position, setPosition] = useState("last");
   const [customPosition, setCustomPosition] = useState(0);
-  const { job, error, start, cancel, busy } =
+  const { job, error, clearError, start, cancel, busy } =
     useBackgroundJob<CausalResult>("lantern-causal-job");
   const result = job?.result;
   const tokenPreview = useTokenPreview(
     [clean, corrupted],
     0,
     !!runtime?.loaded && !busy,
+    runtime?.metadata?.execution_id,
   );
   const previews = tokenPreview.data?.prompts;
   const promptsFit =
@@ -50,13 +62,6 @@ export default function CausalPage() {
     (customPosition >= 0 &&
       customPosition <
         Math.min(captureLimit, previews?.[0]?.token_count ?? captureLimit));
-
-  useEffect(() => {
-    api<RuntimeState>("/runtime")
-      .then(setRuntime)
-      .catch((e) => setRuntimeError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
 
   useEffect(() => {
     if (!result) return;
@@ -77,6 +82,7 @@ export default function CausalPage() {
   async function run(event: React.FormEvent) {
     event.preventDefault();
     await start("/causal", {
+      expected_execution_id: runtime?.metadata?.execution_id ?? undefined,
       clean_prompt: clean,
       corrupted_prompt: corrupted,
       target,
@@ -92,17 +98,37 @@ export default function CausalPage() {
         title="Restore a signal. Measure the effect."
         description="Patch clean residual activations into a corrupted prompt, one transformer block at a time."
         actions={
-          result && (
+          <>
             <button
               className="button secondary"
-              onClick={() => downloadJSON(result, "causal-patching.json")}
+              disabled={loading || busy}
+              onClick={() => {
+                clearError();
+                refreshRuntime();
+              }}
             >
-              <Download size={14} /> Export sweep
+              <RefreshCw size={14} /> Refresh runtime
             </button>
-          )
+            {result && (
+              <button
+                className="button secondary"
+                onClick={() => downloadJSON(result, "causal-patching.json")}
+              >
+                <Download size={14} /> Export sweep
+              </button>
+            )}
+          </>
         }
       />
       <ErrorNotice message={runtimeError || error} />
+      {result?.execution_id &&
+        runtime?.metadata?.execution_id &&
+        result.execution_id !== runtime.metadata.execution_id && (
+          <div className="notice info">
+            These results belong to a previous model session. Their recorded
+            model and settings are preserved.
+          </div>
+        )}
       {loading ? (
         <Loading label="Connecting to model runtime" />
       ) : !runtime?.loaded ? (

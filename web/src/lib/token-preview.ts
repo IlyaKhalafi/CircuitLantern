@@ -14,8 +14,13 @@ export function useTokenPreview(
   prompts: string[],
   reservedTokens: number,
   enabled: boolean,
+  executionId?: string | null,
 ): TokenPreviewState {
-  const key = JSON.stringify({ prompts, reserved_tokens: reservedTokens });
+  const key = JSON.stringify({
+    prompts,
+    reserved_tokens: reservedTokens,
+    expected_execution_id: executionId ?? undefined,
+  });
   const [state, setState] = useState<TokenPreviewState & { key: string }>({
     key: "",
     data: null,

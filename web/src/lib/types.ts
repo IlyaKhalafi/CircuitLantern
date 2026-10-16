@@ -1,4 +1,5 @@
 export interface ExecutionProvenance {
+  execution_id?: string | null;
   execution_precision?: string;
   execution_context_length?: number;
   execution_config?: Record<string, unknown> | null;
@@ -134,6 +135,8 @@ export interface ModelGraph {
   total_parameters: number;
 }
 export interface MatrixMetrics extends ExecutionProvenance {
+  model_id?: string;
+  revision?: string;
   operator_1_norm?: number;
   nuclear_norm?: number | null;
   effective_rank?: number | null;
@@ -274,7 +277,7 @@ export interface TokenizedPrompt {
   truncated: boolean;
   fits: boolean;
 }
-export interface TokenPreviewResponse {
+export interface TokenPreviewResponse extends ExecutionProvenance {
   model_id: string;
   revision: string;
   token_limit: number;

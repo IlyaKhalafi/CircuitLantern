@@ -38,6 +38,12 @@ export function TraceResults({
         <span>{number(trace.duration_ms, 0)} ms</span>
         <span>{trace.device.toUpperCase()}</span>
         <span>{executionLabel(trace.execution_precision)}</span>
+        <span
+          className="trace-source"
+          title={`${trace.model_id} · ${trace.revision}`}
+        >
+          {trace.model_id} · {trace.revision.slice(0, 8)}
+        </span>
         {(trace.ablate_layer != null || trace.ablate_head) && (
           <span className="pill orange">{interventionLabel(trace)}</span>
         )}

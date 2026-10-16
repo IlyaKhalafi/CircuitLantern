@@ -90,6 +90,7 @@ export function useBackgroundJob<T>(storageKey: string) {
   return {
     job,
     error,
+    clearError: () => setError(null),
     start,
     cancel,
     busy: starting || (!!jobId && (!job || !terminalStates.has(job.status))),

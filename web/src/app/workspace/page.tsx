@@ -7,6 +7,7 @@ import {
   Layers3,
   Network,
   Search,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -20,6 +21,7 @@ import {
   PageHeader,
   Panel,
 } from "@/components/ui";
+import { executionPath } from "@/lib/runtime";
 import { api, downloadJSON, number } from "@/lib/api";
 import type { MatrixMetrics, ModelGraph, RuntimeState } from "@/lib/types";
 
@@ -34,17 +36,31 @@ export default function WorkspacePage() {
   const [analyzing, setAnalyzing] = useState(false);
   const [view, setView] = useState("graph");
   const requestId = useRef(0);
+  const refreshId = useRef(0);
   const detail = useRef<HTMLDivElement>(null);
   const refresh = useCallback(async () => {
+    const id = ++refreshId.current;
+    ++requestId.current;
+    setMetrics(null);
+    setSelected("");
+    setFilter("");
+    setLayer(null);
+    setGraph(null);
+    setAnalyzing(false);
     setLoading(true);
     setError(null);
     try {
       const state = await api<RuntimeState>("/runtime");
-      setGraph(state.loaded ? await api<ModelGraph>("/graph") : null);
+      const next = state.loaded
+        ? await api<ModelGraph>(
+            executionPath("/graph", state.metadata?.execution_id),
+          )
+        : null;
+      if (id === refreshId.current) setGraph(next);
     } catch (reason) {
-      setError((reason as Error).message);
+      if (id === refreshId.current) setError((reason as Error).message);
     } finally {
-      setLoading(false);
+      if (id === refreshId.current) setLoading(false);
     }
   }, []);
   useEffect(() => {
@@ -63,7 +79,10 @@ export default function WorkspacePage() {
     setError(null);
     try {
       const result = await api<MatrixMetrics>(
-        `/matrix?name=${encodeURIComponent(name)}`,
+        executionPath(
+          `/matrix?name=${encodeURIComponent(name)}`,
+          graph?.metadata.execution_id,
+        ),
       );
       if (id === requestId.current) {
         setMetrics(result);
@@ -91,11 +110,20 @@ export default function WorkspacePage() {
             : "A map of the computations behind every prediction."
         }
         actions={
-          graph && (
-            <Link href="/playground" className="button primary">
-              Trace a prompt <ArrowRight size={15} />
-            </Link>
-          )
+          <>
+            <button
+              className="button secondary"
+              disabled={loading}
+              onClick={refresh}
+            >
+              <RefreshCw size={14} /> Refresh explorer
+            </button>
+            {graph && (
+              <Link href="/playground" className="button primary">
+                Trace a prompt <ArrowRight size={15} />
+              </Link>
+            )}
+          </>
         }
       />
       <ErrorNotice message={error} />
@@ -299,9 +327,9 @@ export default function WorkspacePage() {
                     onClick={() =>
                       downloadJSON(
                         {
-                          model_id: graph.metadata.id,
-                          revision: graph.metadata.revision,
                           ...metrics,
+                          model_id: metrics.model_id ?? graph.metadata.id,
+                          revision: metrics.revision ?? graph.metadata.revision,
                         },
                         "matrix-analysis.json",
                       )
