@@ -1,5 +1,7 @@
 """Atomic immutable tensor artifacts with independently verified metadata."""
 
+from __future__ import annotations
+
 import hashlib
 import json
 import os
