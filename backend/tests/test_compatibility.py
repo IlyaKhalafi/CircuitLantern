@@ -325,3 +325,68 @@ def test_host_memory_is_not_credited_for_cuda_staging_or_unreadable_cgroup_usage
     assert any("host RAM" in b for b in result["blockers"])
     assert result["reclaimable_bytes"] == 0
     assert result["available_bytes"] == int(20 * 1024**3 * 0.85)
+
+
+@pytest.mark.parametrize("kind", ["fp4", "nf4"])
+@pytest.mark.parametrize(
+    ("capability", "compute", "fits"),
+    [(7.5, "bfloat16", False), (8, "bfloat16", True), (6, "float32", True), (7, "float16", True)],
+)
+def test_native_four_bit_compute_dtype_adds_its_own_gpu_requirement(
+    kind, capability, compute, fits
+):
+    result = assess_compatibility(
+        metadata(
+            quantizable_parameters=100_000_000,
+            quantization={
+                "quant_method": "bitsandbytes",
+                "load_in_4bit": True,
+                "bnb_4bit_quant_type": kind,
+                "bnb_4bit_compute_dtype": compute,
+            },
+        ),
+        quantized_hardware(capability=capability),
+        CompatibilityRequest(model_id="model", device="cuda", context_length=128),
+    )
+    assert result["compatible"] is fits
+    if not fits:
+        assert any("BF16 compute" in blocker for blocker in result["blockers"])
+
+
+@pytest.mark.parametrize("compute", ["float64", "int8", "torch.float32", {"dtype": "float32"}])
+def test_unsupported_native_compute_dtype_blocks_an_otherwise_fitting_checkpoint(compute):
+    result = assess_compatibility(
+        metadata(
+            quantizable_parameters=100_000_000,
+            quantization={
+                "quant_method": "bitsandbytes",
+                "load_in_4bit": True,
+                "bnb_4bit_quant_type": "nf4",
+                "bnb_4bit_compute_dtype": compute,
+            },
+        ),
+        quantized_hardware(),
+        CompatibilityRequest(model_id="model", device="cuda", context_length=128),
+    )
+    assert not result["compatible"]
+    assert any(
+        "unsupported bitsandbytes compute dtype" in blocker for blocker in result["blockers"]
+    )
+
+
+@pytest.mark.parametrize("kind", [None, {"format": "fp4"}])
+def test_invalid_native_codebook_returns_a_fit_report_instead_of_a_server_error(kind):
+    result = assess_compatibility(
+        metadata(
+            quantizable_parameters=100_000_000,
+            quantization={
+                "quant_method": "bitsandbytes",
+                "load_in_4bit": True,
+                "bnb_4bit_quant_type": kind,
+            },
+        ),
+        quantized_hardware(),
+        CompatibilityRequest(model_id="model", device="cpu", context_length=128),
+    )
+    assert not result["compatible"]
+    assert any("matrix adapter" in blocker for blocker in result["blockers"])

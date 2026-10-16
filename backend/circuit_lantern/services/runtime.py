@@ -122,6 +122,8 @@ class ModelRuntime:
         context_length: int = 128,
     ):
         try:
+            with self.lock:
+                options, resolved_precision = loading_options(metadata, precision, device)
             job.update(
                 status="downloading",
                 progress=10,
@@ -147,7 +149,6 @@ class ModelRuntime:
                     progress=70,
                     message="Loading model and building the weight index",
                 )
-                options, resolved_precision = loading_options(metadata, precision, device)
                 report = self._assess_fit(
                     metadata,
                     CompatibilityRequest(

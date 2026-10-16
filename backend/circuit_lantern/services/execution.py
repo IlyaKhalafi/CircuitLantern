@@ -52,6 +52,32 @@ def checkpoint_precision(metadata: dict) -> str | None:
     return "unsupported"
 
 
+def four_bit_compute_dtype(metadata: dict) -> str | None:
+    value = (metadata.get("quantization") or {}).get("bnb_4bit_compute_dtype")
+    if value is None:
+        return "float32"
+    return next(
+        (name for name, dtype in FLOAT_DTYPES.items() if value == name or value is dtype),
+        None,
+    )
+
+
+def native_four_bit_error(
+    metadata: dict, device: str, capability: float | None = None
+) -> str | None:
+    if checkpoint_precision(metadata) != "int4":
+        return None
+    config = metadata.get("quantization") or {}
+    if config.get("bnb_4bit_quant_type", "fp4") not in ("nf4", "fp4"):
+        return "This bitsandbytes 4-bit data type does not have a supported matrix adapter."
+    compute = four_bit_compute_dtype(metadata)
+    if compute is None:
+        return "The checkpoint uses an unsupported bitsandbytes compute dtype. FP32, FP16 and BF16 compute are supported."
+    if device == "cuda" and compute == "bfloat16" and capability is not None and capability < 8:
+        return "The checkpoint uses BF16 compute in its bitsandbytes layers. Native BF16 compute requires an Ampere or newer CUDA GPU."
+    return None
+
+
 def execution_precision(metadata: dict, requested: str) -> str:
     native = checkpoint_precision(metadata)
     return (native or "float32") if requested == "auto" else requested
@@ -61,7 +87,7 @@ def prepare_model_execution(model, precision: str, device: str):
     if precision == "int4" and device == "cpu":
         from bitsandbytes.nn import Linear4bit
 
-        # Keep canonical NF4 storage for float32 execution and matrix inspection.
+        # Keep canonical quantized storage for float32 residuals and matrix inspection.
         # The AVX512 BF16 repacker mutates quantization state and rejects some shapes.
         for module in model.modules():
             if isinstance(module, Linear4bit):
@@ -127,6 +153,17 @@ def loading_options(metadata: dict, requested: str, device: str) -> tuple[dict, 
         raise ValueError(
             "This checkpoint is already quantized. Select Auto or its existing execution format."
         )
+    if native == "int4":
+        capability = None
+        if (
+            device == "cuda"
+            and four_bit_compute_dtype(metadata) == "bfloat16"
+            and torch.cuda.is_available()
+        ):
+            capability = torch.cuda.get_device_capability(0)[0]
+        error = native_four_bit_error(metadata, device, capability)
+        if error:
+            raise ValueError(error)
     if precision not in FLOAT_DTYPES and precision not in PACKED_PRECISIONS:
         raise ValueError("This checkpoint format is not supported by the analysis runtime.")
     options = {"dtype": FLOAT_DTYPES.get(precision, torch.float32)}

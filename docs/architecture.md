@@ -19,7 +19,7 @@ flowchart LR
 
 `hardware.py` observes resources and runs tiny execution probes on the first visible CUDA device. It does not change device configuration or manage other workloads. `hub.py` resolves model metadata and immutable checkpoint revisions. `compatibility.py` is a pure decision function, making hardware requirements testable without a GPU or network.
 
-`architecture.py` derives logical parameter and quantizable weight counts from a model on meta tensors. `execution.py` resolves precision, probes kernel support and builds loading options. `weights.py` translates supported packed storage into logical matrices for analysis.
+`architecture.py` derives logical parameter and quantizable weight counts from a model on meta tensors. `execution.py` resolves precision, probes kernel support and builds loading options. It shares native four bit codebook and compute dtype validation with compatibility checks, including the BF16 GPU requirement. `weights.py` translates supported packed storage into logical matrices for analysis.
 
 `runtime.py` owns one model and tokenizer. Its operation lock serializes loading, unloading, matrix analysis and activation capture. Download workers update bounded in memory job records. Weight statistics use a small cache that is cleared whenever the model changes.
 

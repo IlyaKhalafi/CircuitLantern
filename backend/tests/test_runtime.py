@@ -92,3 +92,27 @@ def test_generation_must_leave_room_for_a_prompt_token(runtime):
     runtime.metadata["execution_context_length"] = 16
     with pytest.raises(ValueError, match="generation length exceeds"):
         runtime.trace("the", 16, False, None)
+
+
+def test_native_compute_mismatch_is_rejected_before_download_or_model_release(runtime):
+    active_model = runtime.model
+    job = {"status": "queued"}
+    metadata = dict(
+        runtime.metadata,
+        quantization={
+            "quant_method": "bitsandbytes",
+            "load_in_4bit": True,
+            "bnb_4bit_quant_type": "fp4",
+            "bnb_4bit_compute_dtype": "bfloat16",
+        },
+    )
+    with (
+        patch("torch.cuda.is_available", return_value=True),
+        patch("torch.cuda.get_device_capability", return_value=(7, 5)),
+        patch("circuit_lantern.services.runtime.snapshot_download") as download,
+    ):
+        runtime._load(job, metadata, "cuda", "auto")
+    assert job["status"] == "failed"
+    assert "Ampere" in job["message"]
+    assert runtime.model is active_model
+    download.assert_not_called()

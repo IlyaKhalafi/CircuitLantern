@@ -163,10 +163,17 @@ def test_quantized_causal_sweep_keeps_canonical_weights_and_removes_hooks(precis
     assert runtime.matrix(name)["frobenius_norm"] == pytest.approx(before)
 
 
-def test_native_bnb_fp4_checkpoint_can_be_traced_and_analyzed(tmp_path):
+@pytest.mark.parametrize("kind", ["fp4", "nf4"])
+@pytest.mark.parametrize("compute", ["float32", "float16", "bfloat16"])
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_native_four_bit_compute_configuration_survives_tracing_and_analysis(
+    tmp_path, kind, compute, device
+):
     pytest.importorskip("bitsandbytes")
-    if not quantization_capabilities()["cpu"].get("int4", {}).get("supported"):
-        pytest.skip("The installed CPU quantization kernel is unavailable.")
+    if device == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA is unavailable.")
+    if not quantization_capabilities()[device].get("int4", {}).get("supported"):
+        pytest.skip("The installed quantization kernel is unavailable.")
     from transformers import AutoModelForCausalLM, BitsAndBytesConfig
 
     model, tokenizer = tiny_gpt2()
@@ -178,7 +185,11 @@ def test_native_bnb_fp4_checkpoint_can_be_traced_and_analyzed(tmp_path):
         original,
         dtype=torch.float32,
         device_map={"": "cpu"},
-        quantization_config=BitsAndBytesConfig(load_in_4bit=True, bnb_4bit_quant_type="fp4"),
+        quantization_config=BitsAndBytesConfig(
+            load_in_4bit=True,
+            bnb_4bit_quant_type=kind,
+            bnb_4bit_compute_dtype=getattr(torch, compute),
+        ),
         attn_implementation="eager",
         local_files_only=True,
     )
@@ -189,12 +200,14 @@ def test_native_bnb_fp4_checkpoint_can_be_traced_and_analyzed(tmp_path):
     job = {}
     try:
         with patch("circuit_lantern.services.runtime.snapshot_download", return_value=str(packed)):
-            instance._load(job, metadata, "cpu")
+            instance._load(job, metadata, device)
         assert job["status"] == "ready", job
         trace = instance.trace("the capital", 1, False, None)
-        assert trace["execution_config"]["quantization"]["bnb_4bit_quant_type"] == "fp4"
+        assert trace["execution_config"]["quantization"]["bnb_4bit_quant_type"] == kind
+        assert trace["execution_config"]["quantization"]["bnb_4bit_compute_dtype"] == compute
+        assert trace["execution_config"]["residual_dtype"] == "float32"
         metrics = instance.matrix("transformer.h.0.attn.c_attn.weight")
-        assert metrics["source_format"] == "fp4"
+        assert metrics["source_format"] == kind
         assert metrics["shape"] == [48, 16]
         assert metrics["frobenius_norm"] > 0
     finally:

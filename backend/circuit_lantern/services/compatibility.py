@@ -4,6 +4,7 @@ from circuit_lantern.services.execution import (
     PACKED_PRECISIONS,
     checkpoint_precision,
     execution_precision,
+    native_four_bit_error,
 )
 
 GIB = 1024**3
@@ -47,12 +48,6 @@ def assess_compatibility(
         blockers.append(
             "8-bit checkpoints with floating point master weights are not supported for packed weight inspection. Use an inference checkpoint with llm_int8_has_fp16_weights disabled."
         )
-    if native == "int4" and (metadata.get("quantization") or {}).get(
-        "bnb_4bit_quant_type", "fp4"
-    ) not in ("nf4", "fp4"):
-        blockers.append(
-            "This bitsandbytes 4-bit data type does not have a supported matrix adapter."
-        )
     if precision in PACKED_PRECISIONS:
         supported = hardware.get("quantization", {}).get(request.device, {}).get(precision, {})
         if not supported.get("supported"):
@@ -72,7 +67,9 @@ def assess_compatibility(
         )
         if native == "int4":
             kind = (metadata.get("quantization") or {}).get("bnb_4bit_quant_type", "fp4")
-            runtime_precision = kind.upper() + " / FP32 residuals"
+            runtime_precision = (
+                kind.upper() if isinstance(kind, str) else "Unsupported 4-bit"
+            ) + " / FP32 residuals"
         warnings.append(
             "Packed weights remain quantized for execution. Matrix analysis dequantizes one selected matrix to float32. Embeddings, output heads and skipped modules remain unquantized."
         )
@@ -95,6 +92,9 @@ def assess_compatibility(
     gpus = hardware.get("gpus") or []
     execution_gpu = hardware.get("execution_gpu") or (gpus[0] if gpus else None)
     capability = execution_gpu["compute_capability"] if execution_gpu else 0
+    compute_error = native_four_bit_error(metadata, request.device, capability)
+    if compute_error:
+        blockers.append(compute_error)
     if request.device == "cuda" and not hardware["cuda_available"]:
         blockers.append(
             "The Python runtime has no usable CUDA device. Install a CUDA enabled PyTorch build or use CPU."
