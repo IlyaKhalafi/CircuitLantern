@@ -58,6 +58,12 @@ Open **Compare two features** to compare the selected feature with another dicti
 
 These are descriptive prompt statistics. Neighboring tokens are dependent observations, and a short prompt can give unstable correlations. Decoder geometry and activation overlap do not establish shared meaning or causal influence. Use novel prompts and measured interventions to investigate a hypothesis.
 
+Open **Set a feature coefficient** to set a constant decoded coefficient at the selected eligible prompt positions. Positive and negative values can change a direction even when its original coefficient is zero. This adapts the feature steering method in [Scaling Monosemanticity](https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html). For original coefficient `a`, chosen value `c`, decoder column `d` and recorded input scale `s`, the residual update is `s * (c - a) * d`. The original reconstruction error is retained.
+
+Values here use normalized SAE coefficient units. The paper reports strengths relative to training maxima; the interface shows the pooled recorded corpus maximum as a reference. Re-encoding the changed residual may produce different activations because decoder directions need not be orthogonal. The result reports effects on the next-token distribution and records the coefficient, feature, positions and source identity.
+
+Expand **Intervention precision** to compare the constructed float32 residual update with the realized change after conversion to the model residual dtype. Norm reductions use float64. A zero intended change has no defined relative rounding error.
+
 Use **Export feature inspection** to retain the captured coefficients, tokens, predictions and any intervention effect. **Export reconstruction** saves the loss measurements and scoring scope. Both exports include a UTC capture time, the current inference execution identity, and a separate dictionary source with weight and manifest checksums, training settings, corpus fingerprint and original training execution identity. Exporting uses the captured result without another model forward and remains available after unloading the model while the page stays open. Save the JSON before leaving or reloading the page.
 
 ## Measure feature circuits

@@ -1586,5 +1586,19 @@
   "Training": "学習",
   "Held out": "検証",
   "Cancellation requested": "キャンセルを要求しました",
-  "Cancel training": "学習をキャンセル"
+  "Cancel training": "学習をキャンセル",
+  "Set a feature coefficient": "特徴の係数を設定",
+  "A fixed coefficient can activate an inactive feature. Negative values reverse its decoded contribution.": "固定係数を設定すると、非活性の特徴も活性化できます。負の値は、そのデコードされた寄与を反転させます。",
+  "Values use normalized SAE coefficient units.": "値の単位は正規化されたSAE係数です。",
+  "Fixed coefficient": "固定係数",
+  "Apply fixed coefficient": "固定係数を適用",
+  "Allowed coefficient range": "係数の許容範囲",
+  "Recorded corpus maximum": "記録コーパスでの最大値",
+  "Uses the intervention positions selected above.": "上で選択した介入位置を使用します。",
+  "Re-encoding can produce a different activation.": "再エンコード後の活性値は異なる場合があります。",
+  "Baseline feature activations": "ベースラインの特徴活性",
+  "Intervention precision": "介入の精度",
+  "Intended residual change norm": "意図した残差変化のノルム",
+  "Realized residual change norm": "実際の残差変化のノルム",
+  "Relative rounding error": "相対丸め誤差"
 }

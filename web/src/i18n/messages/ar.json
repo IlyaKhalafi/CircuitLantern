@@ -1586,5 +1586,19 @@
   "Training": "تدريب",
   "Held out": "تحقق",
   "Cancellation requested": "تم طلب الإلغاء",
-  "Cancel training": "إلغاء التدريب"
+  "Cancel training": "إلغاء التدريب",
+  "Set a feature coefficient": "تعيين معامل ميزة",
+  "A fixed coefficient can activate an inactive feature. Negative values reverse its decoded contribution.": "يمكن للمعامل الثابت تنشيط ميزة غير نشطة. تعكس القيم السالبة مساهمتها بعد فك الترميز.",
+  "Values use normalized SAE coefficient units.": "القيم بوحدات معاملات المرمز التلقائي المتناثر المطبّعة.",
+  "Fixed coefficient": "معامل ثابت",
+  "Apply fixed coefficient": "تطبيق معامل ثابت",
+  "Allowed coefficient range": "نطاق المعامل المسموح",
+  "Recorded corpus maximum": "أقصى قيمة مسجلة في مجموعة النصوص",
+  "Uses the intervention positions selected above.": "تُستخدم مواضع التدخل المحددة أعلاه.",
+  "Re-encoding can produce a different activation.": "قد ينتج عن إعادة الترميز تنشيط مختلف.",
+  "Baseline feature activations": "تنشيطات الميزات في الحالة الأساسية",
+  "Intervention precision": "دقة التدخل",
+  "Intended residual change norm": "معيار التغير المستهدف في التيار المتبقي",
+  "Realized residual change norm": "معيار التغير المحقق في التيار المتبقي",
+  "Relative rounding error": "خطأ التقريب النسبي"
 }

@@ -5,6 +5,11 @@ import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
 import { Heatmap } from "@/components/charts";
 import {
+  FeatureSteeringControls,
+  FeatureInterventionLabel,
+  FeatureInterventionPrecision,
+} from "@/components/feature-steering";
+import {
   FeaturePairControls,
   FeaturePairResult,
 } from "@/components/feature-pair";
@@ -59,7 +64,11 @@ export function FeatureInspectionPanel({
       sequence.current++;
     };
   }, [dictionary.id, executionId]);
-  async function run(multiplier?: number, other?: number) {
+  async function run(
+    options: { multiplier?: number; other?: number; coefficient?: number } = {},
+  ) {
+    const { multiplier, other, coefficient } = options;
+    const intervening = multiplier !== undefined || coefficient !== undefined;
     const id = ++sequence.current;
     setBusy(true);
     setError(null);
@@ -69,12 +78,12 @@ export function FeatureInspectionPanel({
         {
           prompt,
           expected_execution_id: executionId,
-          feature: multiplier === undefined ? null : feature,
+          feature: intervening ? feature : null,
+          intervention_mode: coefficient === undefined ? "scale" : "set",
+          coefficient: coefficient ?? null,
           multiplier: multiplier ?? 0,
           position:
-            multiplier === undefined || position === "all"
-              ? null
-              : Number(position),
+            !intervening || position === "all" ? null : Number(position),
           comparison_features: other === undefined ? null : [feature, other],
         },
       );
@@ -165,15 +174,15 @@ export function FeatureInspectionPanel({
           </label>
           <button
             className="button secondary"
-            onClick={() => run(0)}
-            disabled={busy || !enabled}
+            onClick={() => run({ multiplier: 0 })}
+            disabled={busy || !enabled || !prompt.trim()}
           >
             {t("Ablate feature")}
           </button>
           <button
             className="button secondary"
-            onClick={() => run(2)}
-            disabled={busy || !enabled}
+            onClick={() => run({ multiplier: 2 })}
+            disabled={busy || !enabled || !prompt.trim()}
           >
             {t("Amplify feature")} ×2
           </button>
@@ -183,12 +192,20 @@ export function FeatureInspectionPanel({
             "Interventions change the selected decoded contribution and preserve the original reconstruction error.",
           )}
         </p>
+        <FeatureSteeringControls
+          busy={busy}
+          enabled={enabled && !!prompt.trim()}
+          maximum={
+            dictionary.feature_statistics[feature]?.max_activation ?? null
+          }
+          onApply={(coefficient) => run({ coefficient })}
+        />
         <FeaturePairControls
           feature={feature}
           featureCount={dictionary.features}
           busy={busy}
           enabled={enabled && !!prompt.trim()}
-          onCompare={(other) => run(undefined, other)}
+          onCompare={(other) => run({ other })}
         />
         {result && (
           <div className="feature-inspection-result">
@@ -225,6 +242,9 @@ export function FeatureInspectionPanel({
               <FeaturePairResult result={result} />
             ) : (
               <>
+                {result.intervention && (
+                  <h3>{t("Baseline feature activations")}</h3>
+                )}
                 {result.features.length > 0 && (
                   <Heatmap
                     data={result.features.map((row) => row.activations)}
@@ -256,17 +276,12 @@ export function FeatureInspectionPanel({
               {result.intervention && (
                 <div>
                   <h3>{t("Intervened predictions")}</h3>
-                  <p className="inline-note feature-intervention-evidence">
-                    {t("Feature {v0}", { v0: result.intervention.feature })}
-                    {" · ×"}
-                    {result.intervention.multiplier}
-                    {" · "}
-                    {result.intervention.position === null
-                      ? t("All eligible tokens")
-                      : t("Token position") +
-                        " " +
-                        result.intervention.position}
-                  </p>
+                  <FeatureInterventionLabel evidence={result.intervention} />
+                  {result.intervention.mode === "set" && (
+                    <p className="inline-note">
+                      {t("Values use normalized SAE coefficient units.")}
+                    </p>
+                  )}
                   <p dir="auto">{result.intervention.target_token}</p>
                   <Predictions rows={result.intervention.predictions} />
                 </div>
@@ -286,6 +301,9 @@ export function FeatureInspectionPanel({
                   value={number(result.intervention.kl_baseline_to_patched, 5)}
                 />
               </div>
+            )}
+            {result.intervention && (
+              <FeatureInterventionPrecision evidence={result.intervention} />
             )}
           </div>
         )}

@@ -1586,5 +1586,19 @@
   "Training": "Training",
   "Held out": "Held out",
   "Cancellation requested": "Cancellation requested",
-  "Cancel training": "Cancel training"
+  "Cancel training": "Cancel training",
+  "Set a feature coefficient": "Set a feature coefficient",
+  "A fixed coefficient can activate an inactive feature. Negative values reverse its decoded contribution.": "A fixed coefficient can activate an inactive feature. Negative values reverse its decoded contribution.",
+  "Values use normalized SAE coefficient units.": "Values use normalized SAE coefficient units.",
+  "Fixed coefficient": "Fixed coefficient",
+  "Apply fixed coefficient": "Apply fixed coefficient",
+  "Allowed coefficient range": "Allowed coefficient range",
+  "Recorded corpus maximum": "Recorded corpus maximum",
+  "Uses the intervention positions selected above.": "Uses the intervention positions selected above.",
+  "Re-encoding can produce a different activation.": "Re-encoding can produce a different activation.",
+  "Baseline feature activations": "Baseline feature activations",
+  "Intervention precision": "Intervention precision",
+  "Intended residual change norm": "Intended residual change norm",
+  "Realized residual change norm": "Realized residual change norm",
+  "Relative rounding error": "Relative rounding error"
 }

@@ -139,6 +139,25 @@ export interface FeaturePairComparison {
   scope: string;
 }
 
+export type FeatureIntervention = {
+  feature: number;
+  position: number | null;
+  target_token: string;
+  target_token_id: number;
+  target_log_probability_change: number;
+  kl_baseline_to_patched: number;
+  predictions: FeaturePrediction[];
+  rounding?: {
+    intended_delta_norm: number;
+    realized_delta_norm: number;
+    relative_rounding_error: number | null;
+    residual_dtype: string;
+  };
+} & (
+  | { mode?: "scale"; multiplier: number }
+  | { mode: "set"; coefficient: number; coefficient_units: "normalized_sae" }
+);
+
 export interface FeatureInspection extends FeatureMeasurement {
   feature_comparison?: FeaturePairComparison;
   prompt: string;
@@ -150,16 +169,7 @@ export interface FeatureInspection extends FeatureMeasurement {
   prompt_split: "train" | "validation" | "unseen";
   dictionary_training: DictionarySummary["training_summary"];
   baseline_predictions: FeaturePrediction[];
-  intervention?: {
-    feature: number;
-    multiplier: number;
-    position: number | null;
-    target_token: string;
-    target_token_id: number;
-    target_log_probability_change: number;
-    kl_baseline_to_patched: number;
-    predictions: FeaturePrediction[];
-  };
+  intervention?: FeatureIntervention;
 }
 export interface DictionaryEvaluation extends FeatureMeasurement {
   prompt: string;

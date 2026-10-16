@@ -1586,5 +1586,19 @@
   "Training": "Entraînement",
   "Held out": "Validation",
   "Cancellation requested": "Annulation demandée",
-  "Cancel training": "Annuler l’entraînement"
+  "Cancel training": "Annuler l’entraînement",
+  "Set a feature coefficient": "Définir un coefficient de caractéristique",
+  "A fixed coefficient can activate an inactive feature. Negative values reverse its decoded contribution.": "Un coefficient fixe peut activer une caractéristique inactive. Les valeurs négatives inversent sa contribution décodée.",
+  "Values use normalized SAE coefficient units.": "Les valeurs sont exprimées en coefficients normalisés du SAE.",
+  "Fixed coefficient": "Coefficient fixe",
+  "Apply fixed coefficient": "Appliquer le coefficient fixe",
+  "Allowed coefficient range": "Plage de coefficients autorisée",
+  "Recorded corpus maximum": "Maximum du corpus enregistré",
+  "Uses the intervention positions selected above.": "Utilise les positions d’intervention sélectionnées ci-dessus.",
+  "Re-encoding can produce a different activation.": "Le réencodage peut produire une activation différente.",
+  "Baseline feature activations": "Activations des caractéristiques de référence",
+  "Intervention precision": "Précision de l’intervention",
+  "Intended residual change norm": "Norme de variation résiduelle prévue",
+  "Realized residual change norm": "Norme de variation résiduelle réalisée",
+  "Relative rounding error": "Erreur d’arrondi relative"
 }

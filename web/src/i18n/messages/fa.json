@@ -1586,5 +1586,19 @@
   "Training": "آموزش",
   "Held out": "اعتبارسنجی",
   "Cancellation requested": "درخواست توقف ثبت شد",
-  "Cancel training": "توقف آموزش"
+  "Cancel training": "توقف آموزش",
+  "Set a feature coefficient": "تنظیم ضریب یک ویژگی",
+  "A fixed coefficient can activate an inactive feature. Negative values reverse its decoded contribution.": "یک ضریب ثابت می‌تواند ویژگی غیرفعال را فعال کند. مقادیر منفی سهم رمزگشایی‌شده آن را معکوس می‌کنند.",
+  "Values use normalized SAE coefficient units.": "مقادیر بر حسب ضرایب نرمال‌شده خودرمزگذار تنک هستند.",
+  "Fixed coefficient": "ضریب ثابت",
+  "Apply fixed coefficient": "اعمال ضریب ثابت",
+  "Allowed coefficient range": "بازه مجاز ضریب",
+  "Recorded corpus maximum": "بیشینه ثبت‌شده در پیکره",
+  "Uses the intervention positions selected above.": "از موقعیت‌های مداخله انتخاب‌شده در بالا استفاده می‌شود.",
+  "Re-encoding can produce a different activation.": "رمزگذاری دوباره می‌تواند فعال‌سازی متفاوتی ایجاد کند.",
+  "Baseline feature activations": "فعال‌سازی ویژگی‌ها در حالت مبنا",
+  "Intervention precision": "دقت مداخله",
+  "Intended residual change norm": "نرم تغییر مورد نظر در جریان باقیمانده",
+  "Realized residual change norm": "نرم تغییر محقق‌شده در جریان باقیمانده",
+  "Relative rounding error": "خطای نسبی گرد کردن"
 }
