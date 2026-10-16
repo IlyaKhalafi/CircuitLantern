@@ -53,7 +53,7 @@ async def value_error(request: Request, error: ValueError):
 @app.exception_handler(HfHubHTTPError)
 async def hub_error(request: Request, error: HfHubHTTPError):
     code = error.response.status_code if error.response else 502
-    message = "Hugging Face could not provide this model. Check the repository ID and access permissions. For gated models, set HF_TOKEN on the server."
+    message = "Hugging Face could not provide this model. Check the repository ID, revision and access permissions. For gated models, set HF_TOKEN on the server."
     return JSONResponse(
         status_code=code if code in (401, 403, 404) else 502, content={"detail": message}
     )

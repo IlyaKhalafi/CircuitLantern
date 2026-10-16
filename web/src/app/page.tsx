@@ -43,6 +43,7 @@ export default function LibraryPage() {
   const [device, setDevice] = useState("cpu");
   const [context, setContext] = useState(256);
   const [precision, setPrecision] = useState("auto");
+  const [revision, setRevision] = useState("main");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
   useEffect(() => {
@@ -76,8 +77,11 @@ export default function LibraryPage() {
     targetDevice = device,
     targetContext = context,
     targetPrecision = precision,
+    targetRevision = modelId === selected ? revision : "main",
   ) {
     const id = ++requestId.current;
+    const requestedRevision = targetRevision.trim() || "main";
+    setRevision(requestedRevision);
     setSelected(modelId);
     setReport(null);
     setError(null);
@@ -86,6 +90,7 @@ export default function LibraryPage() {
     try {
       const result = await post<Compatibility>("/models/compatibility", {
         model_id: modelId,
+        revision: requestedRevision,
         device: targetDevice,
         context_length: targetContext,
         precision: targetPrecision,
@@ -112,14 +117,24 @@ export default function LibraryPage() {
       }
       timer.current = setTimeout(() => poll(id), 1200);
     } catch (e) {
-      setError((e as Error).message);
+      setError(
+        `${(e as Error).message} The server may still be preparing the model. Check Server & runtime before retrying.`,
+      );
       setBusy(false);
+      setJob(null);
     }
   }
   async function load() {
     if (!selected || !report) return;
     setBusy(true);
     setError(null);
+    setJob({
+      id: "",
+      model_id: selected,
+      status: "queued",
+      progress: 0,
+      message: "Checking the pinned checkpoint before loading",
+    });
     try {
       const result = await post<Job>("/models/load", {
         model_id: selected,
@@ -133,6 +148,7 @@ export default function LibraryPage() {
     } catch (e) {
       setError((e as Error).message);
       setBusy(false);
+      setJob(null);
     }
   }
   const isDownloading = job && !["failed", "ready"].includes(job.status);
@@ -402,6 +418,55 @@ export default function LibraryPage() {
               </select>
             </label>
           </div>
+          <details className="estimate-details revision-details">
+            <summary>
+              Checkpoint revision <ChevronRight size={14} />
+            </summary>
+            <p>
+              Choose a branch, tag or full commit hash. Loading uses the exact
+              commit resolved by the deployment check.
+            </p>
+            <div className="revision-controls">
+              <label>
+                Hub revision
+                <input
+                  className="form-input"
+                  value={revision}
+                  maxLength={128}
+                  placeholder="main"
+                  disabled={!!isDownloading}
+                  autoComplete="off"
+                  spellCheck={false}
+                  onChange={(event) => {
+                    setRevision(event.target.value);
+                    ++requestId.current;
+                    setReport(null);
+                    setError(null);
+                    setBusy(false);
+                    setJob(null);
+                  }}
+                  onKeyDown={(event) => {
+                    if (
+                      event.key === "Enter" &&
+                      revision.trim() &&
+                      !isDownloading
+                    ) {
+                      event.preventDefault();
+                      check(selected);
+                    }
+                  }}
+                />
+              </label>
+              <button
+                type="button"
+                className="button secondary"
+                disabled={busy || !revision.trim()}
+                onClick={() => check(selected)}
+              >
+                Check revision
+              </button>
+            </div>
+          </details>
           <ErrorNotice message={error} />
           {busy && !report && (
             <Loading label="Reading checkpoint metadata and checking this server" />
@@ -483,7 +548,17 @@ export default function LibraryPage() {
                 <p>
                   Disk available{" "}
                   {hardware ? bytes(hardware.disk_free_bytes) : "loading"}.
-                  Checkpoint revision {report.metadata.revision.slice(0, 10)}.
+                  Checkpoint commit{" "}
+                  <a
+                    className="text-link"
+                    href={`https://huggingface.co/${selected}/tree/${encodeURIComponent(report.metadata.revision)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    title={report.metadata.revision}
+                  >
+                    {report.metadata.revision.slice(0, 10)}
+                  </a>
+                  .
                 </p>
               </details>
             </>

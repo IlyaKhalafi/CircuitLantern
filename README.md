@@ -11,6 +11,7 @@ Circuit Lantern runs locally with a Next.js frontend and a Python backend. Model
 ## What you can explore
 
 - **Hardware aware model selection** using available RAM, free VRAM, disk space, GPU compute capability and tested runtime kernels
+- **Pinned checkpoint revisions** from Hub branches, tags or full commit hashes, with the resolved commit included in experiments
 - **Selectable execution formats** with FP32, FP16, BF16, bitsandbytes NF4 and LLM.int8, including packed checkpoint loading and logical matrix inspection
 - **Interactive architecture graphs** with pan, zoom, transformer block selection and a searchable weight inventory
 - **Weight geometry** with pooled heatmaps, singular value spectra, cumulative energy, norms, spectral radius, stable rank, condition numbers, operator norms, numerical and effective rank, nuclear norms, distributions and sparsity
@@ -51,13 +52,15 @@ Start with **SmolLM2 135M** or **Pythia 70M** for research. Use **Tiny random GP
 
 ## A first investigation
 
-1. Select a model in the library and review its deployment report.
+1. Select a model in the library and review its deployment report. Expand Checkpoint revision to choose a training checkpoint or another Hub revision.
 2. Download the checkpoint and explore the architecture graph.
 3. Select a weight matrix and inspect its spectrum and distribution.
 4. Open the activation lab and trace a short prompt.
 5. Run the same prompt with one transformer block bypassed.
 6. Save both traces as experiments and record your observations.
 7. Open causal tracing to restore clean residual outputs in a corrupted prompt and measure target recovery across layers.
+
+Choose revisions using the same [branch, tag and commit conventions as Hugging Face](https://huggingface.co/docs/huggingface_hub/guides/download#download-a-specific-version). Branches and tags are resolved again on each deployment check. Metadata caches use immutable commits, and loading uses the checked commit even if a branch moves afterward. Editing a revision invalidates the previous fit report.
 
 ## Compatibility is more than memory
 

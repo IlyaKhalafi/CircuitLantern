@@ -2448,3 +2448,23 @@ tbody tr.selectable:hover {
 .matrix-detail {
   scroll-margin-top: 88px;
 }
+
+.revision-controls {
+  display: flex;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 12px 0 18px;
+}
+.revision-controls label {
+  flex: 1;
+  min-width: 0;
+}
+.revision-controls .button {
+  flex-shrink: 0;
+}
+@media (max-width: 420px) {
+  .revision-controls {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

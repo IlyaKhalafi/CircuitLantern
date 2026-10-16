@@ -1,4 +1,5 @@
 import json
+import re
 from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
@@ -89,8 +90,15 @@ def search_models(query: str) -> list[dict]:
     ]
 
 
-@lru_cache(maxsize=64)
 def model_metadata(model_id: str, revision: str = "main") -> dict:
+    # Branches and tags may move between deployment checks. Cache immutable commits only.
+    if not re.fullmatch(r"[0-9a-f]{40}", revision):
+        revision = HfApi().model_info(model_id, revision=revision, timeout=20).sha
+    return _metadata_at_revision(model_id, revision)
+
+
+@lru_cache(maxsize=64)
+def _metadata_at_revision(model_id: str, revision: str) -> dict:
     api = HfApi()
     info = api.model_info(model_id, revision=revision, files_metadata=True, timeout=20)
     config_path = hf_hub_download(model_id, "config.json", revision=info.sha)

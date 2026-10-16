@@ -57,6 +57,8 @@ def serve(port: int):
                 raise ValueError(
                     "The browser test server only provides the deterministic GPT-2 fixture."
                 )
+            if revision not in ("main", "step1000", metadata["revision"]):
+                raise ValueError("The requested test revision does not exist.")
             return dict(metadata)
 
         def fixture_download(*args, **kwargs):

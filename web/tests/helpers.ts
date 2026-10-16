@@ -8,10 +8,13 @@ export async function capturePage(
   await page.evaluate(async () => {
     await document.fonts.ready;
     document.getElementById("main-content")?.focus({ preventScroll: true });
-    window.scrollTo({ top: 0, left: 0, behavior: "instant" });
-    await new Promise<void>((resolve) =>
-      requestAnimationFrame(() => resolve()),
-    );
+    // Cancel in-flight inspector scrolling before capturing fixed page elements.
+    for (let frame = 0; frame < 4; frame++) {
+      window.scrollTo({ top: 0, left: 0, behavior: "instant" });
+      await new Promise<void>((resolve) =>
+        requestAnimationFrame(() => resolve()),
+      );
+    }
   });
   return page.screenshot({ fullPage: true, ...options });
 }

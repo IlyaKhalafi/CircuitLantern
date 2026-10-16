@@ -39,6 +39,7 @@ backend/.venv/bin/python -c '
 import socket, sys
 for port in map(int, sys.argv[1:]):
     with socket.socket() as connection:
+        connection.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
         try:
             connection.bind(("127.0.0.1", port))
         except OSError:

@@ -5,7 +5,7 @@ from unittest.mock import patch
 import pytest
 from model_fixtures import tiny_gpt2
 
-from circuit_lantern.services.hub import model_metadata
+from circuit_lantern.services.hub import _metadata_at_revision, model_metadata
 
 
 @pytest.fixture
@@ -31,7 +31,7 @@ def inspect(checkpoint, files, index=None):
         assert revision == info.sha
         return str(checkpoint / name)
 
-    model_metadata.cache_clear()
+    _metadata_at_revision.cache_clear()
     with (
         patch("circuit_lantern.services.hub.HfApi") as api,
         patch(
@@ -101,3 +101,34 @@ def test_alternative_or_adapter_weights_without_a_default_checkpoint_are_not_loa
     assert not result["has_safetensors"]
     assert result["weight_files"] == []
     assert result["download_files"] == ["config.json"]
+
+
+def test_moving_branch_resolves_fresh_commits_while_pinned_metadata_is_cached(checkpoint):
+    _metadata_at_revision.cache_clear()
+    current = ["a" * 40]
+
+    def model_info(model_id, revision, **kwargs):
+        return SimpleNamespace(
+            sha=current[0] if revision == "main" else revision,
+            siblings=[SimpleNamespace(rfilename="model.safetensors", size=1000)],
+            safetensors=SimpleNamespace(total=123),
+            gated=False,
+            downloads=0,
+        )
+
+    with (
+        patch("circuit_lantern.services.hub.HfApi") as api,
+        patch(
+            "circuit_lantern.services.hub.hf_hub_download",
+            return_value=str(checkpoint / "config.json"),
+        ) as download,
+    ):
+        api.return_value.model_info.side_effect = model_info
+        first = model_metadata("test-model", "main")
+        assert first["revision"] == "a" * 40
+        current[0] = "b" * 40
+        second = model_metadata("test-model", "main")
+        assert second["revision"] == "b" * 40
+        assert model_metadata("test-model", first["revision"]) == first
+        assert model_metadata("test-model", second["revision"]) == second
+        assert download.call_count == 2
