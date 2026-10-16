@@ -178,3 +178,21 @@ def test_bypassed_block_capture_matches_the_residual_used_by_the_next_block(atte
     assert after["relative_update"] == 0
     assert after["predictions"] == before["predictions"]
     assert all(not block._forward_hooks for block in runtime._blocks())
+
+    # Independently bypass the block, then compare the real final distribution.
+    def identity_block(module, args, kwargs, output):
+        hidden = args[0] if args else kwargs["hidden_states"]
+        return (hidden, *output[1:]) if isinstance(output, tuple) else hidden
+
+    handle = runtime._blocks()[layer].register_forward_hook(identity_block, with_kwargs=True)
+    try:
+        with torch.inference_mode():
+            logits = runtime.model(**runtime.tokenizer("the capital", return_tensors="pt")).logits
+            probabilities = logits[0, -1].float().softmax(-1)
+    finally:
+        handle.remove()
+    final_lens = result["layers"][-1]["predictions"]
+    for prediction in result["predictions"] + final_lens:
+        token_id = prediction["token_id"]
+        assert prediction["probability"] == pytest.approx(float(probabilities[token_id]), abs=1e-7)
+    assert all(not block._forward_hooks for block in runtime._blocks())

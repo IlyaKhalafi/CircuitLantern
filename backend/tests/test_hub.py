@@ -146,3 +146,37 @@ def test_default_context_is_read_from_the_supported_architecture(checkpoint):
     config_path.write_text(json.dumps(config))
     result = inspect(checkpoint, {"model.safetensors": 1000})
     assert result["context_length"] == 1024
+
+
+@pytest.mark.parametrize(
+    "index",
+    [
+        {},
+        [],
+        {"weight_map": None},
+        {"weight_map": []},
+        {"weight_map": {}},
+        {"weight_map": {"a": []}},
+        {"weight_map": {"a": 7}},
+        {"weight_map": {"a": 7, "b": "model-1.safetensors"}},
+        {"weight_map": {"a": "missing.safetensors"}},
+    ],
+)
+def test_malformed_shard_indexes_report_a_validation_error(checkpoint, index):
+    with pytest.raises(ValueError, match="checkpoint index"):
+        inspect(checkpoint, {"config.json": 100, "model.safetensors.index.json": 200}, index)
+
+
+@pytest.mark.parametrize("config", [[], None, {"text_config": None}, {"text_config": []}])
+def test_non_object_model_configurations_report_a_validation_error(checkpoint, config):
+    (checkpoint / "config.json").write_text(json.dumps(config))
+    with pytest.raises(ValueError, match="configuration"):
+        inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
+
+
+@pytest.mark.parametrize("size", [None, -1, True])
+def test_unknown_checkpoint_sizes_cannot_be_presented_as_a_complete_download_budget(
+    checkpoint, size
+):
+    with pytest.raises(ValueError, match="file sizes are unavailable"):
+        inspect(checkpoint, {"config.json": 100, "model.safetensors": size})

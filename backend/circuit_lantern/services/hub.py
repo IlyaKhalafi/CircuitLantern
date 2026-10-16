@@ -97,6 +97,31 @@ def model_metadata(model_id: str, revision: str = "main") -> dict:
     return _metadata_at_revision(model_id, revision)
 
 
+def _checkpoint_shards(index: object, available: dict) -> list[str]:
+    weight_map = index.get("weight_map") if isinstance(index, dict) else None
+    if (
+        not isinstance(weight_map, dict)
+        or not weight_map
+        or any(
+            not isinstance(key, str) or not key or not isinstance(value, str)
+            for key, value in weight_map.items()
+        )
+    ):
+        raise ValueError("The checkpoint index must contain a nonempty tensor to shard mapping.")
+    names = sorted(set(weight_map.values()))
+    if any(
+        name not in available
+        or PurePosixPath(name).is_absolute()
+        or ".." in PurePosixPath(name).parts
+        or not name.endswith(".safetensors")
+        for name in names
+    ):
+        raise ValueError(
+            "The checkpoint index references invalid or unavailable safetensors files."
+        )
+    return names
+
+
 @lru_cache(maxsize=64)
 def _metadata_at_revision(model_id: str, revision: str) -> dict:
     api = HfApi()
@@ -104,7 +129,12 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
     config_path = hf_hub_download(model_id, "config.json", revision=info.sha)
     with open(config_path) as file:
         raw = json.load(file)
+    if not isinstance(raw, dict):
+        # Invalid remote JSON is a request validation failure.
+        raise ValueError("The model configuration must contain a JSON object.")  # noqa: TRY004
     config = raw.get("text_config", raw)
+    if not isinstance(config, dict):
+        raise ValueError("The model text configuration must contain a JSON object.")  # noqa: TRY004
     tensor_info = info.safetensors
     parameters = tensor_info.total if tensor_info else None
     siblings = {entry.rfilename: entry for entry in info.siblings}
@@ -113,17 +143,7 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
     elif "model.safetensors.index.json" in siblings:
         index_path = hf_hub_download(model_id, "model.safetensors.index.json", revision=info.sha)
         with open(index_path) as file:
-            weight_names = sorted(set(json.load(file)["weight_map"].values()))
-        if any(
-            name not in siblings
-            or PurePosixPath(name).is_absolute()
-            or ".." in PurePosixPath(name).parts
-            or not name.endswith(".safetensors")
-            for name in weight_names
-        ):
-            raise ValueError(
-                "The checkpoint index references invalid or unavailable safetensors files."
-            )
+            weight_names = _checkpoint_shards(json.load(file), siblings)
     else:
         # AutoModel expects the standard filename or its shard index.
         # Alternative variants and adapter-only files cannot establish a loadable checkpoint.
@@ -135,6 +155,15 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         if any(fnmatch(name, pattern) for pattern in ("*.json", "*.txt", "*.model", "*.tiktoken"))
     ]
     download_files = sorted(set(weight_names + assets))
+    if any(
+        not isinstance(siblings[name].size, int)
+        or isinstance(siblings[name].size, bool)
+        or siblings[name].size < 0
+        for name in download_files
+    ):
+        raise ValueError(
+            "The checkpoint file sizes are unavailable. Storage compatibility cannot be verified."
+        )
     download_bytes = sum(siblings[name].size or 0 for name in download_files)
     try:
         layout = architecture_layout(str(Path(config_path).parent))
