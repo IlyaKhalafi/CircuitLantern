@@ -1,32 +1,8 @@
 import type { Trace } from "@/lib/types";
-
-function canonical(value: unknown): unknown {
-  if (Array.isArray(value)) return value.map(canonical);
-  if (value && typeof value === "object")
-    return Object.fromEntries(
-      Object.entries(value)
-        .sort(([a], [b]) => a.localeCompare(b))
-        .map(([key, item]) => [key, canonical(item)]),
-    );
-  return value;
-}
-
-function profileKnown(trace: Trace) {
-  const config = trace.execution_config;
-  return (
-    !!trace.execution_precision &&
-    !!config &&
-    [
-      "precision",
-      "device",
-      "residual_dtype",
-      "torch_version",
-      "transformers_version",
-    ].every(
-      (field) => typeof config[field] === "string" && config[field] !== "",
-    )
-  );
-}
+import {
+  executionProfileKnown,
+  sameExecutionProfile,
+} from "@/lib/comparison-profile";
 
 export function hasComparisonMeasurements(trace: Trace): boolean {
   return (
@@ -79,14 +55,9 @@ export function traceComparisonProblem(
     selected.token_ids.some((id, index) => id !== reference.token_ids[index])
   )
     return "These prompts do not align. Comparison requires the same prompt and vocabulary IDs at every token position.";
-  if (!profileKnown(selected) || !profileKnown(reference))
+  if (!executionProfileKnown(selected) || !executionProfileKnown(reference))
     return "Execution settings are missing from an older capture. Save new traces with recorded precision and library versions to compare them.";
-  if (
-    selected.device !== reference.device ||
-    selected.execution_precision !== reference.execution_precision ||
-    JSON.stringify(canonical(selected.execution_config)) !==
-      JSON.stringify(canonical(reference.execution_config))
-  )
+  if (!sameExecutionProfile(selected, reference))
     return "Execution settings differ. Comparison requires matching precision, quantization, device, context allowance and library versions.";
   if (
     typeof selected.capture_attention !== "boolean" ||

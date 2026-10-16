@@ -8,7 +8,10 @@ import type { CausalResult } from "@/lib/types";
 
 export function CausalResults({ result }: { result: CausalResult }) {
   const partial =
-    result.complete === false || result.cancelled || !!result.error;
+    result.complete === false ||
+    result.cancelled ||
+    !!result.error ||
+    result.layers.length !== result.total_layers;
   return (
     <>
       <div className="trace-meta">

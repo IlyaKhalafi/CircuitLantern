@@ -1,5 +1,5 @@
 import { SavedMatrixComparison } from "@/components/saved-matrix-comparison";
-import { CausalResults } from "@/components/causal-results";
+import { SavedCausalComparison } from "@/components/saved-causal-comparison";
 import { HeadSweepResults } from "@/components/head-sweep-results";
 import { SavedTraceComparison } from "@/components/saved-trace-comparison";
 import type { Experiment } from "@/lib/types";
@@ -30,7 +30,14 @@ export function ExperimentResult({
     ) : null;
   if (experiment.kind === "causal")
     return experiment.result ? (
-      <CausalResults result={experiment.result} />
+      <SavedCausalComparison
+        experiment={experiment}
+        result={experiment.result}
+        experiments={experiments}
+        libraryLoading={libraryLoading}
+        libraryError={libraryError}
+        onRetryLibrary={onRetryLibrary}
+      />
     ) : null;
   if (experiment.kind === "head_sweep")
     return experiment.result ? (

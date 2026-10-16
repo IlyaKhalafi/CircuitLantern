@@ -27,6 +27,12 @@ def sweep(runtime, **overrides):
 def test_last_block_patch_restores_clean_target_score(runtime):
     result = sweep(runtime)
     assert len(result["layers"]) == 2
+    assert result["token_ids"] == runtime.tokenizer.encode(result["clean_prompt"])
+    assert result["corrupted_token_ids"] == runtime.tokenizer.encode(result["corrupted_prompt"])
+    assert result["tokens"] == [runtime.tokenizer.decode([i]) for i in result["token_ids"]]
+    assert result["corrupted_tokens"] == [
+        runtime.tokenizer.decode([i]) for i in result["corrupted_token_ids"]
+    ]
     assert result["layers"][-1]["log_probability"] == pytest.approx(
         result["clean"]["log_probability"]
     )

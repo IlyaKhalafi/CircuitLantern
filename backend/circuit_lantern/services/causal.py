@@ -51,8 +51,10 @@ def activation_patch_sweep(
         raise ValueError("Patch position is outside the tokenized prompt.")
     if blocks is None:
         raise ValueError("Activation patching is not supported for this architecture yet.")
-    clean_tokens = [tokenizer.decode([i]) for i in clean.input_ids[0].tolist()]
-    corrupted_tokens = [tokenizer.decode([i]) for i in corrupted.input_ids[0].tolist()]
+    clean_ids = clean.input_ids[0].tolist()
+    corrupted_ids = corrupted.input_ids[0].tolist()
+    clean_tokens = [tokenizer.decode([i]) for i in clean_ids]
+    corrupted_tokens = [tokenizer.decode([i]) for i in corrupted_ids]
     clean = {k: v.to(device) for k, v in clean.items()}
     corrupted = {k: v.to(device) for k, v in corrupted.items()}
     cache, handles = {}, []
@@ -128,6 +130,8 @@ def activation_patch_sweep(
         "corrupted_prompt": corrupted_prompt,
         "tokens": clean_tokens,
         "corrupted_tokens": corrupted_tokens,
+        "token_ids": clean_ids,
+        "corrupted_token_ids": corrupted_ids,
         "target_token": tokenizer.decode([target_id]),
         "requested_target": target,
         "target_token_id": target_id,

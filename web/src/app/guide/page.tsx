@@ -174,6 +174,13 @@ export default function GuidePage() {
             spectrum tails remain unavailable. Norm changes compare magnitudes
             and do not measure the distance between weight matrices.
           </p>
+          <p>
+            Saved residual patch sweeps can compare positions when their prompt
+            pair, target, checkpoint, execution settings and baseline scores
+            match. Overlay patch effects and recovery, then export the source
+            records with per block changes. Unmeasured blocks remain
+            unavailable.
+          </p>
         </article>
       </div>
       <div className="guide-callout">

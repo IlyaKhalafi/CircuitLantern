@@ -299,6 +299,8 @@ export interface CausalResult extends ExecutionProvenance {
   clean_prompt: string;
   corrupted_prompt: string;
   tokens: string[];
+  token_ids?: number[];
+  corrupted_token_ids?: number[];
   corrupted_tokens: string[];
   target_token: string;
   target_token_id: number;

@@ -17,6 +17,19 @@ import {
   YAxis,
 } from "recharts";
 
+function hasIsolatedValue(
+  data: Record<string, number | string | null>[],
+  key: string,
+) {
+  const known = (index: number) => {
+    const value = data[index]?.[key];
+    return typeof value === "number" && Number.isFinite(value);
+  };
+  return data.some(
+    (_, index) => known(index) && !known(index - 1) && !known(index + 1),
+  );
+}
+
 export function SeriesChart({
   data,
   series,
@@ -74,6 +87,7 @@ export function SeriesChart({
                 stroke={item.color}
                 fill={item.color}
                 fillOpacity={0.09}
+                dot={hasIsolatedValue(data, item.key) ? { r: 3 } : false}
                 strokeWidth={1.7}
               />
             ) : (
@@ -84,7 +98,7 @@ export function SeriesChart({
                 dataKey={item.key}
                 name={item.label}
                 stroke={item.color}
-                dot={false}
+                dot={hasIsolatedValue(data, item.key) ? { r: 3 } : false}
                 strokeWidth={1.7}
               />
             ),
