@@ -34,6 +34,14 @@ Pooled feature frequencies and activating contexts describe the complete capture
 
 Dictionary records and weights remain available after unloading the language model. Annotations are separate from immutable scientific measurements. Safetensors weights and manifests have checksums. Startup recovery and publication use an interprocess artifact lock. Deleting a dictionary removes its weights and examples while retaining previously saved circuit measurements.
 
+## Compare decoder directions
+
+Open a saved dictionary, select a feature and expand **Related decoder directions**. Rank the other decoder columns by highest or lowest signed cosine. Follow a result to its activating contexts and annotations. This comparison runs on the CPU from verified saved weights and remains available after unloading the language model.
+
+The comparison normalizes each column and accumulates in float64, using bounded chunks rather than a full pairwise matrix. It excludes the selected feature and zero directions. Equal scores are ordered by feature number. Inactive features are included, and displayed frequencies describe the recorded corpus. The JSON export retains the checkpoint revision, execution settings, capture point and checksums of the source weights and manifest.
+
+Decoder overlap describes geometry. It does not establish shared meaning, activation correlation or causal influence. In particular, negative cosine is not evidence that two features are semantic opposites. Anthropic's [April 2025 research update](https://transformer-circuits.pub/2025/april-update/index.html) discusses antipodal decoder pairs and differences between SAE and transcoder geometry.
+
 ## Test a prompt
 
 Inspect features to see normalized SAE coefficients across prompt positions. Gray cells are excluded positions. Ranking and averages use eligible positions only. Prompt labels compare normalized document groups with the recorded corpus. A prompt without a matching document can still share phrases or prefixes with training text.

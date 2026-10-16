@@ -165,3 +165,30 @@ export type FeatureRunSummary = Pick<
   FeatureCircuit,
   "id" | "kind" | "created_at" | "prompt" | "complete" | "dictionary_ids"
 >;
+
+export interface DecoderDirections {
+  format: string;
+  dictionary_id: string;
+  model_id: string;
+  revision: string;
+  execution_id: string;
+  execution_precision: string;
+  execution_config: Record<string, unknown>;
+  dictionary_method: DictionarySummary["method"];
+  input_dim: number;
+  layer: number;
+  capture_point: string;
+  weights_sha256: string;
+  manifest_sha256: string;
+  feature: number;
+  compared_features: number;
+  highest: DecoderDirection[];
+  lowest: DecoderDirection[];
+  convention: string;
+}
+export interface DecoderDirection {
+  feature: number;
+  cosine: number;
+  frequency: number | null;
+  label: string;
+}

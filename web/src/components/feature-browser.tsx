@@ -4,6 +4,7 @@ import { Download, Save } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
 import { SeriesChart } from "@/components/charts";
+import { FeatureDirections } from "@/components/feature-directions";
 import { api, downloadJSON, number } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
 import type { DictionaryManifest } from "@/lib/features";
@@ -275,6 +276,11 @@ export function FeatureBrowser({
                 <Save size={14} />
                 {t("Save annotation")}
               </button>
+              <FeatureDirections
+                dictionaryId={dictionary.id}
+                feature={feature}
+                onSelect={select}
+              />
               <h3>{t("Strongest activating contexts")}</h3>
               {!selected.examples.length && (
                 <p className="muted">

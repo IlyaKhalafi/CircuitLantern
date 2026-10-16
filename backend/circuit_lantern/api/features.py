@@ -1,6 +1,8 @@
 """No code sparse dictionary and feature circuit endpoints."""
 
-from fastapi import APIRouter, HTTPException, Request
+from typing import Annotated
+
+from fastapi import APIRouter, HTTPException, Path, Query, Request
 from fastapi.responses import StreamingResponse
 from starlette.background import BackgroundTask
 
@@ -11,6 +13,7 @@ from circuit_lantern.feature_schemas import (
     FeatureLabelRequest,
 )
 from circuit_lantern.services.features.circuits import feature_ablation_graph
+from circuit_lantern.services.features.directions import dictionary_directions
 from circuit_lantern.services.features.inference import evaluate_prompt, inspect_prompt
 
 router = APIRouter(prefix="/api/features", tags=["features"])
@@ -74,6 +77,19 @@ def label(identifier: str, feature: int, payload: FeatureLabelRequest, request: 
     return request.app.state.features.store.label_feature(
         identifier, feature, payload.label, payload.notes
     )
+
+
+@router.get("/dictionaries/{identifier}/features/{feature}/directions")
+def directions(
+    identifier: str,
+    feature: Annotated[int, Path(ge=0, le=65535)],
+    request: Request,
+    limit: int = Query(default=8, ge=1, le=32),
+):
+    try:
+        return dictionary_directions(request.app.state.features.store, identifier, feature, limit)
+    except FileNotFoundError as error:
+        raise HTTPException(404, str(error)) from error
 
 
 @router.post("/dictionaries/{identifier}/inspect")
