@@ -93,6 +93,10 @@ wait_for_service "http://127.0.0.1:$backend_port/api/health" "$run_dir/backend.l
 (
   cd "$web_snapshot"
   npm run build
+)
+
+(
+  cd "$web_snapshot"
   LANTERN_BACKEND_URL="http://127.0.0.1:$backend_port" exec node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$web_port"
 ) > "$run_dir/web.log" 2>&1 &
 web_pid=$!
