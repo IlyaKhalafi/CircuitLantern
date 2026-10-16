@@ -165,3 +165,16 @@ def test_head_sweep_supports_verified_architectures_and_query_heads(attention_mo
     assert result["heads"][-1]["head"] == expected_heads - 1
     assert all(row["kl_divergence"] >= 0 for row in result["heads"])
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())
+
+
+@pytest.mark.parametrize("layer", [0, 1])
+def test_bypassed_block_capture_matches_the_residual_used_by_the_next_block(attention_model, layer):
+    runtime = attention_model
+    result = runtime.trace("the capital", 1, True, layer)
+    before, after = result["layers"][layer : layer + 2]
+    assert after["norm"] == before["norm"]
+    assert after["token_norms"] == before["token_norms"]
+    assert after["update_norm"] == 0
+    assert after["relative_update"] == 0
+    assert after["predictions"] == before["predictions"]
+    assert all(not block._forward_hooks for block in runtime._blocks())

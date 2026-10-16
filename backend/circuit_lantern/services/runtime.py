@@ -451,6 +451,7 @@ class ModelRuntime:
             handles = []
             blocks = self._blocks()
             head_intervention = None
+            bypassed_hidden = []
             if ablate_head is not None:
                 if ablate_layer is not None:
                     raise ValueError(
@@ -465,6 +466,7 @@ class ModelRuntime:
 
                 def bypass(module, args, kwargs, output):
                     hidden = args[0] if args else kwargs["hidden_states"]
+                    bypassed_hidden[:] = [hidden]
                     return (hidden, *output[1:]) if isinstance(output, tuple) else hidden
 
                 handles.append(blocks[ablate_layer].register_forward_hook(bypass, with_kwargs=True))
@@ -495,6 +497,11 @@ class ModelRuntime:
                 layers = []
                 geometry = ResidualGeometry()
                 for index, hidden in enumerate(outputs.hidden_states):
+                    # Some Transformers recorders run inside forward before our bypass hook.
+                    # Keep their final normalized state, but replace a bypassed block capture.
+                    is_final = index == len(outputs.hidden_states) - 1
+                    if bypassed_hidden and index == ablate_layer + 1 and not is_final:
+                        hidden = bypassed_hidden[0]
                     # The final hidden state is already normalized by Transformers.
                     projected = (
                         final_norm(hidden)
@@ -508,7 +515,6 @@ class ModelRuntime:
                         )
                     probabilities = torch.softmax(logits[0, -1], dim=-1)
                     values, indices = probabilities.topk(min(5, probabilities.numel()))
-                    is_final = index == len(outputs.hidden_states) - 1
                     raw_hidden = raw_final[0] if is_final and raw_final else hidden
                     vector = raw_hidden[0].float()
                     label = "Embedding" if index == 0 else f"Layer {index - 1}"
