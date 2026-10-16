@@ -115,6 +115,7 @@ test("editing a revision invalidates in-flight checks and reopening restores mai
 
 test("lost download polling releases the dialog with a useful recovery message", async ({
   page,
+  request,
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Tiny random GPT-2/ }).click();
@@ -126,13 +127,31 @@ test("lost download polling releases the dialog with a useful recovery message",
       body: JSON.stringify({ detail: "Connection interrupted." }),
     }),
   );
+  const loading = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/api/models/load") && response.status() === 202,
+  );
   await page.getByRole("button", { name: "Download & explore" }).click();
-  await expect(
-    page.getByText(/The server may still be preparing the model/),
-  ).toBeVisible();
-  await expect(
-    page.getByRole("button", { name: "Close compatibility check" }),
-  ).toBeEnabled();
-  await page.getByRole("button", { name: "Close compatibility check" }).click();
-  await expect(page.getByRole("dialog")).not.toBeVisible();
+  const job = await (await loading).json();
+  try {
+    await expect(
+      page.getByText(/The server may still be preparing the model/),
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: "Close compatibility check" }),
+    ).toBeEnabled();
+    await page
+      .getByRole("button", { name: "Close compatibility check" })
+      .click();
+    await expect(page.getByRole("dialog")).not.toBeVisible();
+  } finally {
+    // Browser polling is interrupted, but the real server job still owns the model.
+    await expect
+      .poll(
+        async () =>
+          (await (await request.get("/api/jobs/" + job.id)).json()).status,
+      )
+      .toBe("ready");
+  }
+  expect((await (await request.get("/api/runtime")).json()).loaded).toBe(true);
 });

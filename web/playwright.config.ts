@@ -3,6 +3,8 @@ import { defineConfig } from "@playwright/test";
 export default defineConfig({
   testDir: "./tests",
   fullyParallel: false,
+  reporter: "list",
+  maxFailures: process.env.CI ? 1 : undefined,
   workers: 1,
   timeout: 120000,
   expect: { timeout: 15000 },
