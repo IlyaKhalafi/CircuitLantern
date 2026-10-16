@@ -1,6 +1,6 @@
 from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 
 
 class ModelRequest(BaseModel):
@@ -20,11 +20,23 @@ class CompatibilityRequest(ModelRequest):
     device: Literal["cpu", "cuda"] = "cpu"
 
 
+class HeadAblation(BaseModel):
+    layer: int = Field(ge=0)
+    head: int = Field(ge=0)
+
+
 class TraceRequest(BaseModel):
     prompt: str = Field(min_length=1, max_length=8000)
     max_new_tokens: int = Field(default=16, ge=1, le=64)
     capture_attention: bool = True
     ablate_layer: int | None = Field(default=None, ge=0)
+    ablate_head: HeadAblation | None = None
+
+    @model_validator(mode="after")
+    def exclusive_intervention(self):
+        if self.ablate_layer is not None and self.ablate_head is not None:
+            raise ValueError("Choose either a block bypass or a head ablation for one trace.")
+        return self
 
 
 class ExperimentRequest(BaseModel):

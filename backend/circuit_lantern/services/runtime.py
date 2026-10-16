@@ -10,7 +10,7 @@ from huggingface_hub import snapshot_download
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
-from circuit_lantern.schemas import CompatibilityRequest
+from circuit_lantern.schemas import CompatibilityRequest, HeadAblation
 from circuit_lantern.services.attention import attention_summary
 from circuit_lantern.services.cache import checkpoint_cache
 from circuit_lantern.services.causal import activation_patch_sweep
@@ -23,6 +23,7 @@ from circuit_lantern.services.execution import (
 )
 from circuit_lantern.services.geometry import ResidualGeometry
 from circuit_lantern.services.hardware import hardware_snapshot
+from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
 from circuit_lantern.services.weights import (
@@ -186,6 +187,7 @@ class ModelRuntime:
                     "device": device,
                     "precision": resolved_precision,
                     "context_length": context_limit,
+                    "attention_head_targets": attention_head_targets(self._blocks()),
                 }
                 job.update(status="ready", progress=100, message="Model is ready for inspection")
             except Exception as error:  # noqa: BLE001 - worker failures must reach the job record
@@ -359,7 +361,12 @@ class ModelRuntime:
 
     @torch.inference_mode()
     def trace(
-        self, prompt: str, max_new_tokens: int, capture_attention: bool, ablate_layer: int | None
+        self,
+        prompt: str,
+        max_new_tokens: int,
+        capture_attention: bool,
+        ablate_layer: int | None,
+        ablate_head: dict | None = None,
     ) -> dict:
         with self.operation():
             self._require_model()
@@ -386,6 +393,15 @@ class ModelRuntime:
             inputs = {name: tensor.to(self.device) for name, tensor in encoded.items()}
             handles = []
             blocks = self._blocks()
+            head_intervention = None
+            if ablate_head is not None:
+                if ablate_layer is not None:
+                    raise ValueError(
+                        "Choose either a block bypass or a head ablation for one trace."
+                    )
+                target = HeadAblation.model_validate(ablate_head)
+                handle, head_intervention = install_head_ablation(blocks, target.layer, target.head)
+                handles.append(handle)
             if ablate_layer is not None:
                 if blocks is None or not 0 <= ablate_layer < len(blocks):
                     raise ValueError("The selected layer cannot be bypassed in this architecture.")
@@ -509,6 +525,7 @@ class ModelRuntime:
                     "duration_ms": round((time.perf_counter() - started) * 1000),
                     "device": self.device,
                     "ablate_layer": ablate_layer,
+                    "ablate_head": head_intervention,
                     "method": f"Logit lens {'with the model final normalization' if final_norm is not None else 'without final normalization for this architecture'}. Intermediate predictions are diagnostic projections, not calibrated probabilities.",
                     "final_state_normalized": not bool(raw_final),
                 }

@@ -196,3 +196,20 @@ def test_native_bnb_fp4_checkpoint_can_be_traced_and_analyzed(tmp_path):
         assert metrics["frobenius_norm"] > 0
     finally:
         instance.executor.shutdown(wait=True)
+
+
+def test_head_ablation_keeps_loaded_precision_and_removes_hooks(precision_runtime):
+    runtime, _, precision = precision_runtime
+    runtime.trace("the capital", 1, False, None)
+    before = {
+        name: parameter.detach().clone() for name, parameter in runtime.model.named_parameters()
+    }
+    targets = runtime.state()["attention_head_targets"]
+    assert len(targets) == 2
+    result = runtime.trace("the capital", 2, True, None, {"layer": 0, "head": 1})
+    assert result["execution_precision"] == precision
+    assert result["ablate_head"]["head"] == 1
+    assert result["ablate_head"]["scope"] == "all_prompt_and_generated_tokens"
+    assert all(not module._forward_pre_hooks for module in runtime.model.modules())
+    for name, parameter in runtime.model.named_parameters():
+        assert torch.equal(before[name], parameter)
