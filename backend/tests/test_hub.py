@@ -174,9 +174,97 @@ def test_non_object_model_configurations_report_a_validation_error(checkpoint, c
         inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
 
 
-@pytest.mark.parametrize("size", [None, -1, True])
+@pytest.mark.parametrize("size", [None, -1, True, "unknown", [], {}])
 def test_unknown_checkpoint_sizes_cannot_be_presented_as_a_complete_download_budget(
     checkpoint, size
 ):
     with pytest.raises(ValueError, match="file sizes are unavailable"):
         inspect(checkpoint, {"config.json": 100, "model.safetensors": size})
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "hidden_size",
+        "num_attention_heads",
+        "num_hidden_layers",
+        "vocab_size",
+        "num_key_value_heads",
+        "head_dim",
+    ],
+)
+@pytest.mark.parametrize("value", [None, "invalid", True, -1])
+def test_malformed_dimensions_return_validation_errors(checkpoint, field, value):
+    path = checkpoint / "config.json"
+    config = json.loads(path.read_text())
+    config[field] = value
+    path.write_text(json.dumps(config))
+    if field in ("num_key_value_heads", "head_dim") and value is None:
+        metadata = inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
+        assert metadata["num_kv_heads" if field == "num_key_value_heads" else field] == (
+            metadata["num_heads"]
+            if field == "num_key_value_heads"
+            else metadata["hidden_size"] // metadata["num_heads"]
+        )
+        return
+    with pytest.raises(ValueError, match="configuration has an invalid"):
+        inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
+
+
+def test_invalid_json_uses_an_actionable_configuration_error(checkpoint):
+    (checkpoint / "config.json").write_text("{")
+    with pytest.raises(ValueError, match="configuration contains invalid JSON"):
+        inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
+
+
+@pytest.mark.parametrize("value", [False, True, 1, "fp8", [], {}, ["fp8"]])
+def test_malformed_quantization_metadata_reports_a_validation_error(checkpoint, value):
+    path = checkpoint / "config.json"
+    config = json.loads(path.read_text())
+    config["quantization_config"] = value
+    path.write_text(json.dumps(config))
+    with pytest.raises(ValueError, match="quantization configuration"):
+        inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
+
+
+@pytest.mark.parametrize("content", [b"\xff", b"[" * 2000])
+def test_unreadable_or_excessively_nested_json_reports_a_validation_error(checkpoint, content):
+    (checkpoint / "config.json").write_bytes(content)
+    with pytest.raises(ValueError, match="configuration contains invalid JSON"):
+        inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
+
+
+def test_model_metadata_reads_utf8_configuration_text(checkpoint):
+    path = checkpoint / "config.json"
+    config = json.loads(path.read_text())
+    config["display_name"] = "مدل پژوهشی"
+    path.write_text(json.dumps(config, ensure_ascii=False), encoding="utf-8")
+    assert (
+        inspect(checkpoint, {"model.safetensors": 1000})["config"]["display_name"]
+        == config["display_name"]
+    )
+
+
+def test_outer_null_quantization_preserves_the_nested_text_configuration(checkpoint):
+    from circuit_lantern.services.execution import checkpoint_precision
+
+    path = checkpoint / "config.json"
+    config = json.loads(path.read_text())
+    quantization = {
+        "quant_method": "bitsandbytes",
+        "load_in_4bit": True,
+        "bnb_4bit_quant_type": "nf4",
+    }
+    config["quantization_config"] = quantization
+    path.write_text(
+        json.dumps(
+            {
+                "model_type": "unsupported_container",
+                "quantization_config": None,
+                "text_config": config,
+            }
+        )
+    )
+    metadata = inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
+    assert metadata["quantization"] == quantization
+    assert checkpoint_precision(metadata) == "int4"

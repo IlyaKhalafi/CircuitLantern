@@ -122,19 +122,56 @@ def _checkpoint_shards(index: object, available: dict) -> list[str]:
     return names
 
 
+def _checkpoint_json(path: str, error_message: str):
+    try:
+        with open(path, encoding="utf-8") as file:
+            return json.load(file)
+    except (json.JSONDecodeError, UnicodeError, RecursionError) as error:
+        raise ValueError(error_message) from error
+
+
+def _config_dimension(config: dict, key: str, alias: str = "", default: int = 0) -> int:
+    value = config.get(key, config.get(alias, default))
+    if not isinstance(value, int) or isinstance(value, bool) or value < 0:
+        raise ValueError(
+            f"The model configuration has an invalid {key} value. Expected a nonnegative integer."
+        )
+    return value
+
+
 @lru_cache(maxsize=64)
 def _metadata_at_revision(model_id: str, revision: str) -> dict:
     api = HfApi()
     info = api.model_info(model_id, revision=revision, files_metadata=True, timeout=20)
     config_path = hf_hub_download(model_id, "config.json", revision=info.sha)
-    with open(config_path) as file:
-        raw = json.load(file)
+    raw = _checkpoint_json(config_path, "The model configuration contains invalid JSON.")
     if not isinstance(raw, dict):
         # Invalid remote JSON is a request validation failure.
         raise ValueError("The model configuration must contain a JSON object.")  # noqa: TRY004
     config = raw.get("text_config", raw)
     if not isinstance(config, dict):
         raise ValueError("The model text configuration must contain a JSON object.")  # noqa: TRY004
+    hidden = _config_dimension(config, "hidden_size", "n_embd")
+    layers = _config_dimension(config, "num_hidden_layers", "n_layer")
+    heads = _config_dimension(config, "num_attention_heads", "n_head", 1)
+    vocab = _config_dimension(config, "vocab_size")
+    kv_heads = (
+        _config_dimension(config, "num_key_value_heads", default=heads)
+        if config.get("num_key_value_heads") is not None
+        else heads
+    )
+    head_dim = (
+        _config_dimension(config, "head_dim")
+        if config.get("head_dim") is not None
+        else hidden // max(heads, 1)
+    )
+    quantization = raw.get("quantization_config")
+    if quantization is None:
+        quantization = config.get("quantization_config")
+    if quantization is not None and (not isinstance(quantization, dict) or not quantization):
+        raise ValueError(
+            "The checkpoint quantization configuration must be a nonempty JSON object."
+        )
     tensor_info = info.safetensors
     parameters = tensor_info.total if tensor_info else None
     siblings = {entry.rfilename: entry for entry in info.siblings}
@@ -142,13 +179,12 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         weight_names = ["model.safetensors"]
     elif "model.safetensors.index.json" in siblings:
         index_path = hf_hub_download(model_id, "model.safetensors.index.json", revision=info.sha)
-        with open(index_path) as file:
-            weight_names = _checkpoint_shards(json.load(file), siblings)
+        index = _checkpoint_json(index_path, "The checkpoint index contains invalid JSON.")
+        weight_names = _checkpoint_shards(index, siblings)
     else:
         # AutoModel expects the standard filename or its shard index.
         # Alternative variants and adapter-only files cannot establish a loadable checkpoint.
         weight_names = []
-    weight_bytes = sum(siblings[name].size or 0 for name in weight_names)
     assets = [
         name
         for name in siblings
@@ -164,6 +200,7 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         raise ValueError(
             "The checkpoint file sizes are unavailable. Storage compatibility cannot be verified."
         )
+    weight_bytes = sum(siblings[name].size for name in weight_names)
     download_bytes = sum(siblings[name].size or 0 for name in download_files)
     try:
         layout = architecture_layout(str(Path(config_path).parent))
@@ -173,15 +210,13 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         layout = {}
         architecture_supported = False
         architecture_error = str(error)[:250]
-    hidden = config.get("hidden_size", config.get("n_embd", 0))
-    layers = config.get("num_hidden_layers", config.get("n_layer", 0))
-    heads = config.get("num_attention_heads", config.get("n_head", 1))
-    vocab = config.get("vocab_size", 0)
-    quantization = raw.get("quantization_config", config.get("quantization_config"))
     if layout:
         parameters = layout["parameters"]
     if not parameters and hidden and layers:
-        intermediate = config.get("intermediate_size") or config.get("n_inner") or hidden * 4
+        intermediate_config = {key: value for key, value in config.items() if value is not None}
+        intermediate = _config_dimension(
+            intermediate_config, "intermediate_size", "n_inner", hidden * 4
+        )
         parameters = int(2 * vocab * hidden + layers * (4 * hidden**2 + 3 * hidden * intermediate))
     return {
         "id": model_id,
@@ -203,8 +238,8 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         "hidden_size": hidden,
         "num_layers": layers,
         "num_heads": heads,
-        "num_kv_heads": config.get("num_key_value_heads") or heads,
-        "head_dim": config.get("head_dim") or hidden // max(heads, 1),
+        "num_kv_heads": kv_heads,
+        "head_dim": head_dim,
         "context_length": config.get("max_position_embeddings")
         or config.get("n_positions")
         or layout.get("context_length"),
