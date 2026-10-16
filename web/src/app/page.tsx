@@ -25,7 +25,11 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { api, bytes, number, post } from "@/lib/api";
-import { executionFormats } from "@/lib/execution";
+import {
+  executionFormats,
+  executionLabel,
+  fourBitFormat,
+} from "@/lib/execution";
 import type { Compatibility, Hardware, Job, ModelCard } from "@/lib/types";
 import { ErrorNotice, Loading, Metric, PageHeader } from "@/components/ui";
 
@@ -412,7 +416,12 @@ export default function LibraryPage() {
               >
                 {executionFormats.map(([value, label]) => (
                   <option key={value} value={value}>
-                    {label}
+                    {value === "int4" &&
+                    fourBitFormat(report?.metadata.quantization)
+                      ? executionLabel(value, {
+                          quantization: report?.metadata.quantization,
+                        })
+                      : label}
                   </option>
                 ))}
               </select>

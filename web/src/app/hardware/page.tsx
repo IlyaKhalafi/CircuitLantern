@@ -282,7 +282,10 @@ export default function HardwarePage() {
                       <span>Execution format</span>
                       <strong>
                         {runtime?.loaded
-                          ? executionLabel(runtime.precision)
+                          ? executionLabel(
+                              runtime.precision,
+                              runtime.metadata?.execution_config,
+                            )
                           : "No model loaded"}
                       </strong>
                     </div>

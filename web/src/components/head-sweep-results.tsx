@@ -46,7 +46,9 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
         <span className="trace-source">{result.model_id}</span>
         {result.cancelled && <span>Cancelled between forwards</span>}
         <span>revision {result.revision.slice(0, 8)}</span>
-        <span>{executionLabel(result.execution_precision)}</span>
+        <span>
+          {executionLabel(result.execution_precision, result.execution_config)}
+        </span>
         <span>{result.device.toUpperCase()}</span>
         <span>{number(result.duration_ms, 0)} ms</span>
       </div>

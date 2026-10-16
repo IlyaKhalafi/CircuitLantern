@@ -4,6 +4,7 @@ import argparse
 import hashlib
 import os
 import tempfile
+import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -51,17 +52,66 @@ def serve(port: int):
             "config": model.config.to_dict(),
         }
         del model, tokenizer
+        native_metadata = None
+        native_checkpoint = directory / "fp4-checkpoint"
+        native_lock = threading.Lock()
+
+        def fp4_metadata():
+            nonlocal native_metadata
+            with native_lock:
+                if native_metadata is None:
+                    import torch
+                    from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
+
+                    from circuit_lantern.services.execution import prepare_model_execution
+
+                    packed = AutoModelForCausalLM.from_pretrained(
+                        checkpoint,
+                        dtype=torch.float32,
+                        device_map={"": "cpu"},
+                        quantization_config=BitsAndBytesConfig(
+                            load_in_4bit=True,
+                            bnb_4bit_quant_type="fp4",
+                            bnb_4bit_compute_dtype=torch.float32,
+                        ),
+                        attn_implementation="eager",
+                        local_files_only=True,
+                    )
+                    prepare_model_execution(packed, "int4", "cpu")
+                    packed.save_pretrained(native_checkpoint, safe_serialization=True)
+                    AutoTokenizer.from_pretrained(
+                        checkpoint, local_files_only=True
+                    ).save_pretrained(native_checkpoint)
+                    packed_weight = native_checkpoint / "model.safetensors"
+                    fingerprint = hashlib.sha256(packed_weight.read_bytes()).hexdigest()
+                    native_metadata = dict(
+                        metadata,
+                        revision="fixture-fp4-" + fingerprint[:32],
+                        weight_bytes=packed_weight.stat().st_size,
+                        quantization=packed.config.quantization_config.to_dict(),
+                        config=packed.config.to_dict(),
+                    )
+                return dict(native_metadata)
 
         def fixture_metadata(model_id: str, revision: str = "main"):
             if model_id != metadata["id"]:
                 raise ValueError(
                     "The browser test server only provides the deterministic GPT-2 fixture."
                 )
+            if revision == "fp4" or (
+                native_metadata is not None and revision == native_metadata["revision"]
+            ):
+                return fp4_metadata()
             if revision not in ("main", "step1000", metadata["revision"]):
                 raise ValueError("The requested test revision does not exist.")
             return dict(metadata)
 
         def fixture_download(*args, **kwargs):
+            if (
+                native_metadata is not None
+                and kwargs.get("revision") == native_metadata["revision"]
+            ):
+                return str(native_checkpoint)
             return str(checkpoint)
 
         main.model_metadata = fixture_metadata

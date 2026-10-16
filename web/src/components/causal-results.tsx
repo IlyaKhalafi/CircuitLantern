@@ -17,7 +17,9 @@ export function CausalResults({ result }: { result: CausalResult }) {
         {result.cancelled && <span>Cancelled between forwards</span>}
         <span>{number(result.duration_ms, 0)} ms</span>
         <span>revision {result.revision.slice(0, 8)}</span>
-        <span>{executionLabel(result.execution_precision)}</span>
+        <span>
+          {executionLabel(result.execution_precision, result.execution_config)}
+        </span>
         {result.device && <span>{result.device.toUpperCase()}</span>}
       </div>
       <div className="metrics-grid">

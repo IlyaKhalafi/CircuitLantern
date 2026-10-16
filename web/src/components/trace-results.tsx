@@ -38,7 +38,9 @@ export function TraceResults({
         <span>{trace.tokens.length} prompt tokens</span>
         <span>{number(trace.duration_ms, 0)} ms</span>
         <span>{trace.device.toUpperCase()}</span>
-        <span>{executionLabel(trace.execution_precision)}</span>
+        <span>
+          {executionLabel(trace.execution_precision, trace.execution_config)}
+        </span>
         <span
           className="trace-source"
           title={`${trace.model_id} · ${trace.revision}`}
