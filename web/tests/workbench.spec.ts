@@ -1,3 +1,4 @@
+import { capturePage } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 test.describe.serial("research workflow", () => {
@@ -11,7 +12,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByRole("button", { name: /Tiny random GPT-2/ }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/library-desktop.png",
       fullPage: true,
     });
@@ -26,7 +27,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByRole("button", { name: "Download & explore" }),
     ).toBeDisabled();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/compatibility-blocked.png",
       fullPage: true,
     });
@@ -34,7 +35,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Ready to explore on this server"),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/compatibility-ready.png",
       fullPage: true,
     });
@@ -52,7 +53,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("All weight matrices", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/explorer-desktop.png",
       fullPage: true,
     });
@@ -67,7 +68,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Frobenius norm", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/matrix-inspector.png",
       fullPage: true,
     });
@@ -75,7 +76,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByRole("columnheader", { name: "SHAPE" }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/weight-inventory.png",
       fullPage: true,
     });
@@ -88,7 +89,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Capture complete", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/activation-residual.png",
       fullPage: true,
     });
@@ -96,7 +97,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Watch predictions take shape", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/activation-logit-lens.png",
       fullPage: true,
     });
@@ -105,7 +106,7 @@ test.describe.serial("research workflow", () => {
       page.getByRole("img", { name: /Hover over a cell/ }),
     ).toBeVisible();
     await page.getByLabel("Attention layer").selectOption("2");
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/activation-attention.png",
       fullPage: true,
     });
@@ -113,7 +114,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Next token distribution", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/activation-logits.png",
       fullPage: true,
     });
@@ -122,7 +123,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Block 1 bypassed", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/activation-intervention.png",
       fullPage: true,
     });
@@ -142,7 +143,7 @@ test.describe.serial("research workflow", () => {
         .getByRole("button", { name: /Browser verification experiment/ })
         .first(),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/experiments-list.png",
       fullPage: true,
     });
@@ -159,7 +160,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByRole("button", { name: "Changes saved" }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/experiment-detail.png",
       fullPage: true,
     });
@@ -173,7 +174,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Python runtime", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/hardware-desktop.png",
       fullPage: true,
     });
@@ -185,7 +186,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByRole("heading", { name: "Read the measurement labels" }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/guide-desktop.png",
       fullPage: true,
     });
@@ -193,7 +194,7 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("This path is still unexplored.", { exact: true }),
     ).toBeVisible();
-    await page.screenshot({
+    await capturePage(page, {
       path: "../artifacts/screenshots/not-found.png",
       fullPage: true,
     });
@@ -220,7 +221,7 @@ test.describe.serial("research workflow", () => {
         () => document.documentElement.scrollWidth > window.innerWidth,
       );
       expect(overflow, `Page ${path} should fit a phone`).toBe(false);
-      await page.screenshot({
+      await capturePage(page, {
         path: `../artifacts/screenshots/${path === "/" ? "library" : path.slice(1)}-mobile.png`,
         fullPage: true,
       });

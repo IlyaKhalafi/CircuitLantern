@@ -134,6 +134,9 @@ export interface Prediction {
   logit?: number;
 }
 export interface LayerTrace {
+  update_norm?: number | null;
+  update_rms?: number | null;
+  relative_update?: number | null;
   layer: number;
   label: string;
   rms: number;
@@ -150,7 +153,18 @@ export interface Attention {
   head_entropy: number[];
   heads: number;
 }
+export interface TraceGeometry {
+  labels: string[];
+  cka: (number | null)[][];
+  token_cosine: (number | null)[][];
+  sampled_positions: number[];
+  token_count: number;
+  minimum_samples: number;
+  undefined_layers: number[];
+  method: string;
+}
 export interface Trace {
+  geometry?: TraceGeometry;
   execution_precision?: string;
   model_id: string;
   revision: string;

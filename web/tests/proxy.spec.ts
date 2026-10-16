@@ -1,3 +1,4 @@
+import { capturePage } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 test("the API proxy preserves validation errors and missing-resource status", async ({
@@ -64,7 +65,7 @@ test("an unavailable backend shows a useful error without a false empty-search r
   await expect(
     page.getByText("No models found.", { exact: false }),
   ).not.toBeVisible();
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/backend-unavailable.png",
     fullPage: true,
   });

@@ -1,3 +1,4 @@
+import { capturePage } from "./helpers";
 import { expect, test } from "@playwright/test";
 import AxeBuilder from "@axe-core/playwright";
 
@@ -10,7 +11,7 @@ test("NF4 selection loads packed weights, traces and exports logical statistics"
   await expect(page.getByText("Ready to explore on this server")).toBeVisible();
   await page.getByText("How this estimate works").click();
   await expect(page.getByText(/NF4 \/ FP32 compute/)).toBeVisible();
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/compatibility-nf4.png",
     fullPage: true,
   });
@@ -43,7 +44,7 @@ test("NF4 selection loads packed weights, traces and exports logical statistics"
   expect(analysis.quantized).toBe(true);
   expect(analysis.source_format).toBe("nf4");
   expect(analysis.frobenius_norm).toBeGreaterThan(0);
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/matrix-nf4.png",
     fullPage: true,
   });
@@ -62,7 +63,7 @@ test("NF4 selection loads packed weights, traces and exports logical statistics"
     page.getByText("Capture complete", { exact: true }),
   ).toBeVisible();
   await expect(page.getByText("NF4 · 4 bit", { exact: true })).toBeVisible();
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/activation-nf4.png",
     fullPage: true,
   });

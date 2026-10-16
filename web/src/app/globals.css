@@ -2195,7 +2195,7 @@ tbody tr.selectable:hover {
   }
   .tabs {
     max-width: 100%;
-    overflow: auto;
+    flex-wrap: wrap;
   }
   .tabs button {
     padding: 7px 11px;

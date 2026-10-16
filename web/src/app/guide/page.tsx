@@ -147,6 +147,13 @@ export default function GuidePage() {
       <div className="guide-callout">
         <h2>Read the measurement labels</h2>
         <p>
+          Representation geometry compares layer CKA across prompt token
+          positions, final residual token directions, and each block's update
+          magnitude. CKA needs at least three positions with nonzero centered
+          variance. Gray cells mark undefined comparisons. These are diagnostics
+          within one prompt.
+        </p>
+        <p>
           Large matrices use randomized SVD on the full matrix to bound compute
           cost. The leading 64 spectral components are approximate. Full matrix
           norms and descriptive statistics use every element. Heatmap cells

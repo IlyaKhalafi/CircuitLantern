@@ -1,3 +1,4 @@
+import { capturePage } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 test("activation patching runs on the loaded checkpoint and exports evidence", async ({
@@ -23,7 +24,7 @@ test("activation patching runs on the loaded checkpoint and exports evidence", a
   ).toBeVisible();
   await page.getByRole("main").focus();
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/causal-desktop.png",
     fullPage: true,
   });
@@ -53,7 +54,7 @@ test("activation patching runs on the loaded checkpoint and exports evidence", a
   ).toBe(false);
   await page.getByRole("main").focus();
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/causal-mobile.png",
     fullPage: true,
   });

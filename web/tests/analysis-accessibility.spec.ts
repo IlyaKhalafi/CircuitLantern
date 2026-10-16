@@ -1,3 +1,4 @@
+import { capturePage } from "./helpers";
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
@@ -53,7 +54,7 @@ test("weight inspector charts and matrix labels remain accessible", async ({
   await expectAccessible(page);
   await page.getByRole("main").focus();
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/matrix-accessible.png",
     fullPage: true,
   });
@@ -74,7 +75,7 @@ test("activation results expose readable charts and attention controls", async (
   await expectAccessible(page);
   await page.getByRole("main").focus();
   await page.evaluate(() => window.scrollTo(0, 0));
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/activation-accessible.png",
     fullPage: true,
   });

@@ -383,7 +383,7 @@ export default function WorkspacePage() {
                         label: "Condition number",
                         value: metrics.condition_number,
                       },
-                      { label: "L1 norm", value: metrics.l1_norm },
+                      { label: "Entrywise L1 norm", value: metrics.l1_norm },
                       { label: "Infinity norm", value: metrics.infinity_norm },
                       {
                         label: "Exact zeros",

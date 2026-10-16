@@ -1,3 +1,4 @@
+import { capturePage } from "./helpers";
 import { expect, test } from "@playwright/test";
 
 test("a researcher can focus a block and inspect a matrix directly", async ({
@@ -20,7 +21,7 @@ test("a researcher can focus a block and inspect a matrix directly", async ({
     .first();
   await expect(matrix).toBeVisible();
   await page.waitForTimeout(300);
-  await page.screenshot({
+  await capturePage(page, {
     path: "../artifacts/screenshots/graph-block-focus.png",
     fullPage: true,
   });

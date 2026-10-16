@@ -7,7 +7,6 @@ from contextlib import contextmanager
 
 import torch
 from huggingface_hub import snapshot_download
-from torch.nn import functional
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
@@ -18,6 +17,7 @@ from circuit_lantern.services.execution import (
     loading_options,
     prepare_model_execution,
 )
+from circuit_lantern.services.geometry import ResidualGeometry
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
 from circuit_lantern.services.weights import logical_weight, model_weight_inventory
@@ -363,7 +363,7 @@ class ModelRuntime:
                 unembed = self.model.get_output_embeddings()
                 tokens = [self.tokenizer.decode([i]) for i in inputs["input_ids"][0].tolist()]
                 layers = []
-                previous = None
+                geometry = ResidualGeometry()
                 for index, hidden in enumerate(outputs.hidden_states):
                     # The final hidden state is already normalized by Transformers.
                     projected = (
@@ -381,21 +381,16 @@ class ModelRuntime:
                     is_final = index == len(outputs.hidden_states) - 1
                     raw_hidden = raw_final[0] if is_final and raw_final else hidden
                     vector = raw_hidden[0].float()
+                    label = "Embedding" if index == 0 else f"Layer {index - 1}"
+                    update = geometry.observe(vector, label)
                     layers.append(
                         {
                             "layer": index - 1,
-                            "label": "Embedding" if index == 0 else f"Layer {index - 1}",
+                            "label": label,
+                            **update,
                             "capture_point": "residual_post"
                             if not is_final or raw_final
                             else "final_normalized",
-                            "rms": float(vector.square().mean().sqrt()),
-                            "norm": float(vector[-1].norm()),
-                            "token_norms": vector.norm(dim=-1).cpu().tolist(),
-                            "cosine_similarity": float(
-                                functional.cosine_similarity(vector[-1], previous, dim=0)
-                            )
-                            if previous is not None
-                            else None,
                             "entropy": float(
                                 -(probabilities * probabilities.clamp_min(1e-30).log()).sum()
                             ),
@@ -413,7 +408,6 @@ class ModelRuntime:
                             ],
                         }
                     )
-                    previous = vector[-1]
                 attention = []
                 if outputs.attentions is not None:
                     for index, tensor in enumerate(outputs.attentions):
@@ -454,6 +448,7 @@ class ModelRuntime:
                     "continuation": continuation,
                     "layers": layers,
                     "attention": attention,
+                    "geometry": geometry.finish(),
                     "predictions": [
                         {
                             "token": self.tokenizer.decode([int(i)]),

@@ -127,15 +127,25 @@ export function Heatmap({
   label,
   xLabels,
   yLabels,
+  maxAbs,
 }: {
-  data: number[][];
+  data: (number | null)[][];
   sequential?: boolean;
   label: string;
   xLabels?: string[];
   yLabels?: string[];
+  maxAbs?: number;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
-  const maximum = Math.max(...data.flat().map(Math.abs), 1e-15);
+  const maximum =
+    maxAbs ??
+    Math.max(
+      ...data
+        .flat()
+        .filter((value): value is number => value !== null)
+        .map(Math.abs),
+      1e-15,
+    );
   useEffect(() => {
     const context = canvas.current?.getContext("2d");
     if (!context || !data.length || !data[0].length) return;
@@ -147,6 +157,16 @@ export function Heatmap({
     context.canvas.height = rows * cellHeight;
     data.forEach((row, y) =>
       row.forEach((value, x) => {
+        if (value === null) {
+          context.fillStyle = "#e7ebf0";
+          context.fillRect(
+            x * cellWidth,
+            y * cellHeight,
+            cellWidth,
+            cellHeight,
+          );
+          return;
+        }
         const strength = Math.min(1, Math.abs(value) / maximum);
         const low = sequential ? [247, 247, 243] : [246, 245, 243];
         const high = value >= 0 ? [206, 139, 85] : [87, 121, 161];
@@ -183,7 +203,7 @@ export function Heatmap({
             ),
           );
           setHover(
-            `${yLabels?.[y] || `Row ${y}`} → ${xLabels?.[x] || `Column ${x}`}  ${data[y][x].toPrecision(4)}`,
+            `${yLabels?.[y] || `Row ${y}`} → ${xLabels?.[x] || `Column ${x}`}  ${data[y][x]?.toPrecision(4) ?? "Undefined"}`,
           );
         }}
         onMouseLeave={() => setHover("")}

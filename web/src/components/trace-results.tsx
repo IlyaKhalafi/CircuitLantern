@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Heatmap, SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
+import { RepresentationGeometry } from "@/components/representation-geometry";
 import { number } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
 import type { Trace } from "@/lib/types";
@@ -70,6 +71,9 @@ export function TraceResults({
           { id: "lens", name: "Logit lens" },
           { id: "attention", name: "Attention" },
           { id: "logits", name: "Next token logits" },
+          ...(trace.geometry
+            ? [{ id: "geometry", name: "Representation geometry" }]
+            : []),
         ].map((t) => (
           <button
             key={t.id}
@@ -134,6 +138,9 @@ export function TraceResults({
             />
           </Panel>
         </>
+      )}
+      {tab === "geometry" && trace.geometry && (
+        <RepresentationGeometry geometry={trace.geometry} trace={trace} />
       )}
       {tab === "lens" && (
         <Panel

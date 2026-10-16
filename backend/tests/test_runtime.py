@@ -19,6 +19,8 @@ def test_trace_last_residual_is_before_final_normalization(runtime):
 def test_block_bypass_preserves_input_residual_and_hooks_are_removed(runtime):
     trace = runtime.trace("the capital", 1, False, 1)
     assert trace["layers"][1]["norm"] == pytest.approx(trace["layers"][2]["norm"])
+    assert trace["layers"][2]["update_norm"] == 0
+    assert trace["layers"][2]["relative_update"] == 0
     assert all(not block._forward_hooks for block in runtime.model.transformer.h)
 
 
