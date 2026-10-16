@@ -5,6 +5,8 @@ import { executionLabel } from "@/lib/execution";
 import { ArrowRight, Download, FlaskConical, Play, Square } from "lucide-react";
 import { useEffect, useState } from "react";
 import { SeriesChart } from "@/components/charts";
+import { TokenPreview } from "@/components/token-preview";
+import { useTokenPreview } from "@/lib/token-preview";
 import {
   EmptyState,
   ErrorNotice,
@@ -29,10 +31,25 @@ export default function CausalPage() {
   const { job, error, start, cancel, busy } =
     useBackgroundJob<CausalResult>("lantern-causal-job");
   const result = job?.result;
+  const tokenPreview = useTokenPreview(
+    [clean, corrupted],
+    0,
+    !!runtime?.loaded && !busy,
+  );
+  const previews = tokenPreview.data?.prompts;
+  const promptsFit =
+    !previews ||
+    (previews.every((prompt) => prompt.fits) &&
+      previews[0].token_count === previews[1].token_count);
   const captureLimit = Math.min(
     runtime?.max_prompt_tokens ?? 128,
     runtime?.context_length ?? runtime?.metadata?.context_length ?? 2048,
   );
+  const positionFits =
+    position !== "custom" ||
+    (customPosition >= 0 &&
+      customPosition <
+        Math.min(captureLimit, previews?.[0]?.token_count ?? captureLimit));
 
   useEffect(() => {
     api<RuntimeState>("/runtime")
@@ -131,6 +148,15 @@ export default function CausalPage() {
                   />
                 </label>
               </div>
+              <TokenPreview
+                preview={tokenPreview}
+                labels={["Clean", "Corrupted"]}
+              />
+              {position === "custom" && !positionFits && (
+                <p className="token-preview-warning" role="status">
+                  Choose a patch position within the tokenized prompts.
+                </p>
+              )}
               <div className="form-grid">
                 <label>
                   Target next token
@@ -167,7 +193,10 @@ export default function CausalPage() {
                       aria-label="Patch token position"
                       type="number"
                       min={0}
-                      max={Math.max(0, captureLimit - 1)}
+                      max={Math.max(
+                        0,
+                        (previews?.[0]?.token_count ?? captureLimit) - 1,
+                      )}
                       value={customPosition}
                       onChange={(e) => setCustomPosition(+e.target.value)}
                       disabled={busy}
@@ -193,7 +222,13 @@ export default function CausalPage() {
                   <button
                     className="button primary"
                     type="submit"
-                    disabled={busy || !clean.trim() || !corrupted.trim()}
+                    disabled={
+                      busy ||
+                      !clean.trim() ||
+                      !corrupted.trim() ||
+                      !promptsFit ||
+                      !positionFits
+                    }
                   >
                     <Play size={13} />
                     {busy ? "Running sweep" : "Run patch sweep"}

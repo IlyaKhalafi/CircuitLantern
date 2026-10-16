@@ -22,8 +22,19 @@ test("selected context allowance survives loading and bounds capture with genera
   await page
     .getByLabel("Prompt", { exact: true })
     .fill("the ".repeat(9).trim());
-  await page.getByRole("button", { name: "Run & trace" }).click();
-  await expect(page.getByText(/Shorten it to at most 8 tokens/)).toBeVisible();
+  await expect(
+    page.getByText("Prompt 9 / 8 tokens", { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Run & trace" }),
+  ).toBeDisabled();
+  const rejected = await request.post("/api/trace", {
+    data: { prompt: "the ".repeat(9).trim(), max_new_tokens: 8 },
+  });
+  expect(rejected.status()).toBe(400);
+  expect((await rejected.json()).detail).toMatch(
+    /Shorten it to at most 8 tokens/,
+  );
   await page.getByLabel("Generated tokens").selectOption("4");
   await expect(
     page.getByText(/Up to 12 prompt tokens with this generation length/),

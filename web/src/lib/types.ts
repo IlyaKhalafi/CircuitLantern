@@ -264,3 +264,20 @@ export interface CausalResult extends ExecutionProvenance {
   recovery_defined: boolean;
   method: string;
 }
+
+export interface TokenizedPrompt {
+  token_count: number;
+  token_ids: number[];
+  tokens: string[];
+  pieces: string[];
+  special_tokens: boolean[];
+  truncated: boolean;
+  fits: boolean;
+}
+export interface TokenPreviewResponse {
+  model_id: string;
+  revision: string;
+  token_limit: number;
+  reserved_tokens: number;
+  prompts: TokenizedPrompt[];
+}

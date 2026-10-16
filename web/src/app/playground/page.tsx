@@ -18,6 +18,8 @@ import {
   Panel,
 } from "@/components/ui";
 import { TraceResults } from "@/components/trace-results";
+import { TokenPreview } from "@/components/token-preview";
+import { useTokenPreview } from "@/lib/token-preview";
 import { api, downloadJSON, post } from "@/lib/api";
 import { interventionLabel } from "@/lib/interventions";
 import type { RuntimeState, Trace } from "@/lib/types";
@@ -38,6 +40,12 @@ export default function PlaygroundPage() {
   const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
   const [saving, setSaving] = useState(false);
+  const tokenPreview = useTokenPreview(
+    [prompt],
+    tokens,
+    !!runtime?.loaded && !busy,
+  );
+  const promptFits = tokenPreview.data?.prompts[0]?.fits ?? true;
   useEffect(() => {
     api<RuntimeState>("/runtime")
       .then((state) => {
@@ -165,6 +173,7 @@ export default function PlaygroundPage() {
                 maxLength={8000}
                 required
               />
+              <TokenPreview preview={tokenPreview} />
               <div className="prompt-suggestions">
                 {[
                   "The capital of France is",
@@ -268,6 +277,7 @@ export default function PlaygroundPage() {
                   disabled={
                     busy ||
                     !prompt.trim() ||
+                    !promptFits ||
                     promptLimit < 1 ||
                     (ablate === "head" && !headTarget)
                   }

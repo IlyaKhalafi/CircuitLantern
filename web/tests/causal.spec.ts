@@ -60,10 +60,13 @@ test("activation patching runs on the loaded checkpoint and exports evidence", a
   });
 
   await page.getByLabel("Corrupted prompt").fill("The capital");
-  await page.getByRole("button", { name: "Run patch sweep" }).click();
-  await expect(page.getByRole("main").getByRole("alert")).toContainText(
-    "same length",
-  );
+  await expect(
+    page.getByText(/Clean and corrupted prompts have different token counts/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("button", { name: "Run patch sweep" }),
+  ).toBeDisabled();
+  await page.getByLabel("Corrupted prompt").fill("The capital of Poland is");
   await expect(
     page.getByRole("button", { name: "Run patch sweep" }),
   ).toBeEnabled();
