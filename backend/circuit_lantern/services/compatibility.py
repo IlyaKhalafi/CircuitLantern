@@ -127,17 +127,26 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
     )
     residual_bytes = (layers + 1) * request.batch_size * request.context_length * hidden * 4
     capture_tokens = min(request.context_length, hardware.get("max_prompt_tokens", 128))
-    attention_bytes = layers * heads * capture_tokens**2 * 4
+    attention_bytes = request.batch_size * layers * heads * capture_tokens**2 * 4
+    config = metadata.get("config") or {}
+    intermediate = config.get("intermediate_size") or config.get("n_inner") or hidden * 4
+    activation_bytes = 3 * request.batch_size * capture_tokens * intermediate * 4
+    logits_bytes = 5 * request.batch_size * capture_tokens * (metadata.get("vocab_size") or 0) * 4
     workspace_bytes = (
         (
             metadata.get("largest_matrix_elements")
             or hidden * max(hidden * 4, metadata.get("vocab_size") or 0)
         )
         * 4
-        if precision != "float32"
-        else 0
+        * (1 if precision == "float32" else 2)
     )
-    overhead_bytes = max(256 * 1024**2, weight_bytes * 0.15) + residual_bytes + attention_bytes
+    overhead_bytes = (
+        max(256 * 1024**2, weight_bytes * 0.15)
+        + residual_bytes
+        + attention_bytes
+        + activation_bytes
+        + logits_bytes
+    )
     required_bytes = weight_bytes + kv_bytes + overhead_bytes + workspace_bytes
     native_bytes = PRECISION_BYTES.get(metadata.get("dtype"), 4)
     disk_bytes = (
@@ -170,7 +179,7 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
             f"Requested context exceeds this model's {metadata['context_length']:,} token context window."
         )
     warnings.append(
-        "Matrix statistics use float32. The memory budget includes execution weights, a conservative KV cache allowance, capture overhead and temporary matrix analysis space."
+        "Matrix values use float32. Small full spectra use float64 arithmetic. The budget includes execution weights, logit and MLP buffers, a KV cache allowance, capture overhead and temporary matrix analysis space."
     )
     warnings.append(
         "Fit is an estimate for one visible execution device. Other running jobs can change available memory before loading."
@@ -196,6 +205,8 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         "weight_bytes": int(weight_bytes),
         "analysis_weight_bytes": int(weight_bytes),
         "analysis_workspace_bytes": int(workspace_bytes),
+        "activation_bytes": int(activation_bytes),
+        "logits_bytes": int(logits_bytes),
         "kv_cache_bytes": int(kv_bytes),
         "overhead_bytes": int(overhead_bytes),
         "required_bytes": int(required_bytes),

@@ -44,6 +44,10 @@ test("NF4 selection loads packed weights, traces and exports logical statistics"
   expect(analysis.quantized).toBe(true);
   expect(analysis.source_format).toBe("nf4");
   expect(analysis.frobenius_norm).toBeGreaterThan(0);
+  expect(analysis.nuclear_norm).toBeGreaterThan(0);
+  expect(analysis.numerical_rank).toBeGreaterThan(0);
+  expect(analysis.operator_1_norm).toBeGreaterThan(0);
+  expect(analysis.spectrum_precision).toBe("float64");
   await capturePage(page, {
     path: "../artifacts/screenshots/matrix-nf4.png",
     fullPage: true,

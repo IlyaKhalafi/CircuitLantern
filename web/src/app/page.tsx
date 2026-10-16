@@ -470,7 +470,9 @@ export default function LibraryPage() {
                 <p>
                   Execution format {report.runtime_precision}. Resident weights{" "}
                   {bytes(report.weight_bytes)}. Matrix workspace{" "}
-                  {bytes(report.analysis_workspace_bytes || 0)}.
+                  {bytes(report.analysis_workspace_bytes || 0)}. Logit buffers{" "}
+                  {bytes(report.logits_bytes || 0)}. MLP buffers{" "}
+                  {bytes(report.activation_bytes || 0)}.
                 </p>
                 {report.warnings.map((w, i) => (
                   <p key={i}>{w}</p>

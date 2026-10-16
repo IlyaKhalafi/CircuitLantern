@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { number } from "@/lib/api";
 import {
   Area,
   AreaChart,
@@ -99,7 +100,7 @@ export function Histogram({
           <CartesianGrid vertical={false} strokeDasharray="3 4" />
           <XAxis
             dataKey="value"
-            tickFormatter={(v) => v.toFixed(2)}
+            tickFormatter={(v) => number(v, 2)}
             tickLine={false}
             axisLine={false}
             minTickGap={30}
@@ -144,7 +145,7 @@ export function Heatmap({
         .flat()
         .filter((value): value is number => value !== null)
         .map(Math.abs),
-      1e-15,
+      0,
     );
   useEffect(() => {
     const context = canvas.current?.getContext("2d");
@@ -167,7 +168,8 @@ export function Heatmap({
           );
           return;
         }
-        const strength = Math.min(1, Math.abs(value) / maximum);
+        const strength =
+          maximum > 0 ? Math.min(1, Math.abs(value) / maximum) : 0;
         const low = sequential ? [247, 247, 243] : [246, 245, 243];
         const high = value >= 0 ? [206, 139, 85] : [87, 121, 161];
         context.fillStyle = `rgb(${low.map((v, i) => Math.round(v + (high[i] - v) * strength)).join(",")})`;
@@ -209,7 +211,9 @@ export function Heatmap({
         onMouseLeave={() => setHover("")}
       />
       <div className="heatmap-key">
-        <span>{sequential ? "0" : `−${maximum.toPrecision(2)}`}</span>
+        <span>
+          {sequential || maximum === 0 ? "0" : `−${maximum.toPrecision(2)}`}
+        </span>
         <div
           style={
             sequential

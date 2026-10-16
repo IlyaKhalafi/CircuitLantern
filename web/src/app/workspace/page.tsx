@@ -50,6 +50,11 @@ export default function WorkspacePage() {
   useEffect(() => {
     refresh();
   }, [refresh]);
+  useEffect(() => {
+    if (metrics)
+      detail.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [metrics]);
+
   async function inspect(name: string) {
     const id = ++requestId.current;
     setSelected(name);
@@ -62,14 +67,6 @@ export default function WorkspacePage() {
       );
       if (id === requestId.current) {
         setMetrics(result);
-        setTimeout(
-          () =>
-            detail.current?.scrollIntoView({
-              behavior: "smooth",
-              block: "start",
-            }),
-          50,
-        );
       }
     } catch (e) {
       if (id === requestId.current) setError((e as Error).message);
@@ -325,8 +322,8 @@ export default function WorkspacePage() {
                     Spectral norm and stable rank use a randomized SVD on the
                     full matrix. The leading 64 singular values are approximate.
                     Cumulative energy is measured against the full matrix
-                    Frobenius norm. The condition number is unavailable without
-                    an exact spectrum.
+                    Frobenius norm. Condition numbers, nuclear norms and full
+                    rank measures are unavailable without a complete spectrum.
                   </div>
                 )}
                 <div className="two-column">
@@ -343,7 +340,7 @@ export default function WorkspacePage() {
                     title="Singular value spectrum"
                     subtitle={
                       metrics.spectrum_exact
-                        ? "Exact spectrum · first 128 singular values"
+                        ? "Full SVD in float64 · first 128 singular values"
                         : "Full matrix randomized SVD · leading 64 components"
                     }
                   >
@@ -383,8 +380,21 @@ export default function WorkspacePage() {
                         label: "Condition number",
                         value: metrics.condition_number,
                       },
+                      {
+                        label: "Operator 1 norm",
+                        value: metrics.operator_1_norm,
+                      },
                       { label: "Entrywise L1 norm", value: metrics.l1_norm },
                       { label: "Infinity norm", value: metrics.infinity_norm },
+                      {
+                        label: "Numerical rank",
+                        value: metrics.numerical_rank,
+                      },
+                      {
+                        label: "Effective rank",
+                        value: metrics.effective_rank,
+                      },
+                      { label: "Nuclear norm", value: metrics.nuclear_norm },
                       {
                         label: "Exact zeros",
                         value: `${number(metrics.sparsity * 100)}%`,
@@ -404,6 +414,19 @@ export default function WorkspacePage() {
                       </div>
                     ))}
                   </div>
+                  <p className="inline-note">
+                    Operator 1 norm is the maximum absolute column sum.
+                    Entrywise L1 sums every absolute element. Effective rank
+                    uses the entropy of normalized singular values.
+                    {metrics.spectrum_exact && (
+                      <span>
+                        {" "}
+                        Numerical rank uses threshold{" "}
+                        {number(metrics.rank_tolerance, 3)}. Condition numbers
+                        are omitted for numerical rank deficiency.
+                      </span>
+                    )}
+                  </p>
                 </Panel>
                 <div className="two-column section-gap">
                   <Panel

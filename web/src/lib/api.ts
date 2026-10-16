@@ -42,9 +42,12 @@ export function bytes(value: number) {
 
 export function number(value: number | null | undefined, digits = 3) {
   if (value == null || !Number.isFinite(value)) return "N/A";
+  const magnitude = Math.abs(value);
+  if (magnitude > 0 && (magnitude < 10 ** -digits || magnitude >= 1e12))
+    return value.toExponential(Math.min(digits, 5));
   return Intl.NumberFormat("en", {
     maximumFractionDigits: digits,
-    notation: value > 1e6 ? "compact" : "standard",
+    notation: magnitude > 1e6 ? "compact" : "standard",
   }).format(value);
 }
 

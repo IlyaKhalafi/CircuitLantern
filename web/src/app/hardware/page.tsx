@@ -178,7 +178,7 @@ export default function HardwarePage() {
                 {[
                   {
                     title: "FP32 / FP16 / BF16 execution",
-                    text: "Choose the execution format. Matrix statistics use float32.",
+                    text: "Choose execution format. Matrix values are inspected in float32.",
                     supported: true,
                     badge: "Supported",
                   },
@@ -190,7 +190,7 @@ export default function HardwarePage() {
                     text:
                       precision === "int4"
                         ? "Packed execution and dequantized matrix inspection. Different from native NVFP4."
-                        : "8-bit weights with float32 residual states and matrix statistics.",
+                        : "LLM.int8 weights with float32 residuals. Full small spectra use float64.",
                     supported:
                       !!hardware.quantization?.cpu[precision]?.supported ||
                       !!hardware.quantization?.cuda[precision]?.supported,

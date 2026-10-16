@@ -103,7 +103,7 @@ def test_nf4_budgets_unquantized_modules_and_float32_matrix_workspace():
     )
     assert result["compatible"]
     assert result["weight_bytes"] == 24_000_000 * 4 + 100_000_000 * 0.625
-    assert result["analysis_workspace_bytes"] == 40_000_000
+    assert result["analysis_workspace_bytes"] == 80_000_000
     assert result["download_bytes"] == model["weight_bytes"]
 
 
@@ -203,3 +203,19 @@ def test_training_style_int8_master_weights_are_not_mistaken_for_packed_storage(
     )
     assert not result["compatible"]
     assert any("master weights" in blocker for blocker in result["blockers"])
+
+
+def test_logit_and_mlp_buffers_are_included_in_analysis_memory():
+    model = metadata(vocab_size=250_000, config={"intermediate_size": 4096})
+    result = assess_compatibility(
+        model,
+        hardware(),
+        CompatibilityRequest(
+            model_id="model",
+            context_length=128,
+            batch_size=2,
+        ),
+    )
+    assert result["logits_bytes"] == 5 * 2 * 128 * 250_000 * 4
+    assert result["activation_bytes"] == 3 * 2 * 128 * 4096 * 4
+    assert result["overhead_bytes"] > result["logits_bytes"] + result["activation_bytes"]

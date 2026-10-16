@@ -72,6 +72,8 @@ export interface Compatibility {
   weight_bytes: number;
   analysis_weight_bytes: number;
   analysis_workspace_bytes?: number;
+  activation_bytes?: number;
+  logits_bytes?: number;
   kv_cache_bytes: number;
   overhead_bytes: number;
   required_bytes: number;
@@ -106,6 +108,12 @@ export interface ModelGraph {
   total_parameters: number;
 }
 export interface MatrixMetrics {
+  operator_1_norm?: number;
+  nuclear_norm?: number | null;
+  effective_rank?: number | null;
+  numerical_rank?: number | null;
+  rank_tolerance?: number | null;
+  spectrum_precision?: string;
   source_format?: string;
   quantized?: boolean;
   execution_precision?: string;
