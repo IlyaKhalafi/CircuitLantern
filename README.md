@@ -13,11 +13,14 @@ Check the hardware, load a model, follow a prompt through its layers and keep th
 
 ## What you can investigate
 
-- **Hardware fit.** Check available RAM, VRAM, disk space, GPU architecture and execution kernels before downloading. Quantization support depends on the device and runtime, not just model size.
-- **Weight geometry.** Zoom into transformer blocks, select logical matrices and inspect singular values, spectral radius, norms, rank, distributions and spectral energy.
-- **Prompt traces.** Trace residual streams, token activation norms, intermediate predictions, full vocabulary confidence, entropy and attention routing. Explore individual prompt positions without another forward pass.
-- **Causal interventions.** Restore clean residual activations in corrupted prompts or zero individual attention heads. Inspect target score changes, recovery and distribution divergence, with completed measurements retained when a sweep stops.
-- **Research notebook.** Save traces, matrix analyses and sweeps with checkpoint revisions, execution settings and observations. Compare saved evidence and export the original records with derived measurements, even after unloading the model.
+- **Model discovery.** Browse Hugging Face models by trending score, downloads, likes or recency. Narrow the results by author, date window and popularity.
+- **Hardware fit.** Check RAM, VRAM, disk space, GPU architecture and execution kernels before downloading. Quantization support depends on the device and runtime, not just model size.
+- **Weight geometry.** Follow attention, MLP and residual connections inside transformer blocks. Select logical matrices to inspect singular values, spectral radius, norms, rank, distributions and spectral energy.
+- **Prompt traces.** Follow residual streams, intermediate predictions, vocabulary confidence, entropy and attention routing. Explore captured token positions without another forward pass.
+- **Checkpoint changes.** Compare a base model with a finetuned version using retained weights, layer activations and final output distributions. Keep both revisions and execution settings with the results.
+- **Sparse features.** Train ReLU or TopK sparse autoencoders from a text corpus. Inspect held out reconstruction, activating contexts and feature interventions, then save graphs of measured downstream effects.
+- **Causal interventions.** Restore clean residual activations in corrupted prompts or zero attention heads. Inspect target score changes, recovery and distribution divergence, with completed measurements retained when a sweep stops.
+- **Research notebook.** Save traces, matrix analyses and sweeps with checkpoint revisions, execution settings and observations. Compare saved evidence and export the source records after unloading the model.
 
 ## Run locally
 
@@ -38,21 +41,29 @@ For Docker with explicit GPU access, run `python3 scripts/deploy.py --gpus 0 --p
 
 ## Inside the lab
 
-![Zoomable transformer graph with a selected block and its weight matrices](docs/images/model-explorer.png)
+![Attention dataflow showing Q, K, V projections, the output matrix and the residual connection](docs/images/block-dataflow-attention.png)
+
+[Model overview](docs/images/model-explorer.png) · [MLP connections](docs/images/block-dataflow-mlp.png) · [Dark theme](docs/images/block-dataflow-dark.png)
 
 | Deployment checks | Weight geometry |
 | --- | --- |
-| [![Hardware-aware deployment report](docs/images/deployment-check.png)](docs/images/deployment-check.png) | [![Logical weight heatmap, singular values and matrix properties](docs/images/weight-analysis.png)](docs/images/weight-analysis.png) |
+| [![Hardware and kernel compatibility report before model loading](docs/images/deployment-check.png)](docs/images/deployment-check.png) | [![Logical weight heatmap, singular values and matrix properties](docs/images/weight-analysis.png)](docs/images/weight-analysis.png) |
 | Check the selected device, execution format and memory budget. | Explore structure and spectra without a wall of individual numbers. |
 | **Residual streams** | **Causal comparisons** |
-| [![Residual magnitudes, prediction uncertainty and token by layer activation heatmap](docs/images/activation-lab.png)](docs/images/activation-lab.png) | [![Saved residual patch sweeps comparing token positions and recovery](docs/images/causal-comparison.png)](docs/images/causal-comparison.png) |
-| Follow a prompt through the model's captured internal states. | Compare patch positions against a shared baseline and keep the source evidence. |
+| [![Residual magnitudes, prediction uncertainty and token activation heatmap](docs/images/activation-lab.png)](docs/images/activation-lab.png) | [![Measured residual patch effects and recovery across transformer blocks](docs/images/causal-comparison.png)](docs/images/causal-comparison.png) |
+| Follow a prompt through the model's captured internal states. | Compare patch positions against a shared baseline and retain the evidence. |
+| **Sparse dictionaries** | **Feature circuits** |
+| [![Trained sparse dictionary with held out metrics and activating contexts](docs/images/sparse-features.png)](docs/images/sparse-features.png) | [![Measured effects of feature ablations on downstream features and a target prediction](docs/images/feature-circuit.png)](docs/images/feature-circuit.png) |
+| Inspect learned directions, examples and reconstruction quality. | Test a feature hypothesis through interventions and saved output effects. |
+| **Hub discovery** | **Checkpoint comparison** |
+| [![Hugging Face discovery with trending models and ranking controls](docs/images/hub-trending.png)](docs/images/hub-trending.png) | [![Base and instruct checkpoint comparison with weight deltas and residual drift](docs/images/checkpoint-comparison.png)](docs/images/checkpoint-comparison.png) |
+| Find a checkpoint using familiar rankings and focused filters. | Measure weight, residual and prediction changes between model versions. |
 
-Screenshots use a trained SmolLM2 135M checkpoint. Open any preview for the full image.
+Measurements shown here use trained SmolLM2 135M base and instruct checkpoints. Screenshots capture a normal viewport with the complete sidebar. Open any preview for the full image.
 
 ## Know what you are measuring
 
-Intermediate logit lens predictions are diagnostic projections. Attention patterns describe routing and do not establish causal importance. Matrix analyses distinguish exact measurements from spectral estimates, and missing results remain unavailable.
+Intermediate logit lens predictions are diagnostic projections. Attention patterns describe routing and do not establish causal importance. Feature circuit edges measure downstream ablation effects, not direct causal connections. Checkpoint comparisons assume aligned model coordinates. Matrix analyses distinguish exact measurements from estimates, and missing results remain unavailable.
 
 Execution supports FP32, FP16, BF16, bitsandbytes NF4, native bitsandbytes FP4 checkpoints and LLM.int8 on supported CPU or CUDA paths. Native FP8 and NVFP4 analysis adapters remain pending. NVFP4 requires Blackwell hardware as well as a compatible runtime.
 
@@ -60,6 +71,8 @@ Execution supports FP32, FP16, BF16, bitsandbytes NF4, native bitsandbytes FP4 c
 
 - [Setup](docs/setup.md) covers CUDA installation, configuration and remote access.
 - [Measurements](docs/measurements.md) explains capture conventions, interventions and comparisons.
+- [Sparse features](docs/features.md) covers dictionary training, validation, interventions and research references.
+- [Checkpoint comparisons](docs/checkpoints.md) explains retained references, alignment checks and model drift.
 - [Development](docs/development.md) covers checks and browser verification.
 - [Architecture](docs/architecture.md) describes the service boundaries and current limits.
 
