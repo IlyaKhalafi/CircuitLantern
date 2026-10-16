@@ -88,6 +88,7 @@ def summarize_trace(
         **(
             {
                 "tracked_targets": targets,
+                "target_rank_method": "One plus the number of vocabulary logits strictly greater than the target at the same layer and prompt position. Equal logits share a rank. Ranks use the projected logits before probability normalization and do not require another model forward.",
                 "target_score_method": "Full vocabulary log probabilities in float64 at every prompt position after the recorded logit lens projection. Subtracting stored target log probabilities gives a diagnostic logit difference up to floating point error.",
             }
             if targets

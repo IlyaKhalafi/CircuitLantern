@@ -19,7 +19,16 @@ def _summarize_chunk(logits: torch.Tensor, target_ids: tuple[int, ...]) -> dict:
         "token_prediction_probabilities": top.cpu().tolist(),
         "token_entropies": entropy.cpu().tolist(),
         **(
-            {"token_target_log_probabilities": log_probs[:, target_ids].cpu().tolist()}
+            {
+                "token_target_log_probabilities": log_probs[:, target_ids].cpu().tolist(),
+                # Reduce one target at a time to bound the vocabulary workspace.
+                "token_target_ranks": torch.stack(
+                    [(logits > logits[:, target_id, None]).sum(-1) + 1 for target_id in target_ids],
+                    dim=-1,
+                )
+                .cpu()
+                .tolist(),
+            }
             if target_ids
             else {}
         ),
@@ -48,7 +57,7 @@ def summarize_token_logits(logits: torch.Tensor, target_ids: tuple[int, ...] = (
         "token_prediction_ids": [],
         "token_prediction_probabilities": [],
         "token_entropies": [],
-        **({"token_target_log_probabilities": []} if target_ids else {}),
+        **({"token_target_log_probabilities": [], "token_target_ranks": []} if target_ids else {}),
     }
     step = max(1, MAX_LOGIT_ELEMENTS // logits.shape[1])
     for start in range(0, logits.shape[0], step):
