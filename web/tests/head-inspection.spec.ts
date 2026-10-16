@@ -238,9 +238,7 @@ for (const unavailable of ["unloaded", "revision"] as const) {
     await page
       .getByRole("link", { name: "Open model library", exact: true })
       .click();
-    await page
-      .getByRole("link", { name: "Activation lab", exact: true })
-      .click();
+    await page.getByRole("link", { name: "Research lab", exact: true }).click();
     await expect(
       page.getByRole("button", { name: "Discard head inspection draft" }),
     ).toBeVisible();

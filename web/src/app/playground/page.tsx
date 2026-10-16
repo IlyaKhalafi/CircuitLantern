@@ -1,4 +1,5 @@
 "use client";
+import { ResearchNavigation } from "@/components/research-navigation";
 import { useI18n } from "@/i18n/provider";
 import {
   Activity,
@@ -207,6 +208,7 @@ export default function PlaygroundPage() {
           </>
         }
       />
+      <ResearchNavigation />
       <ErrorNotice message={runtimeError || error} />
       <HeadInspectionNotice inspection={inspection} />
       {trace?.execution_id &&

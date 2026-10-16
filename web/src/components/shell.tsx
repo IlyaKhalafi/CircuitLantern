@@ -26,8 +26,7 @@ import type { RuntimeState } from "@/lib/types";
 const navigation = [
   { href: "/", label: "Model library", icon: Box },
   { href: "/workspace", label: "Model explorer", icon: Network },
-  { href: "/playground", label: "Activation lab", icon: Activity },
-  { href: "/causal", label: "Causal tracing", icon: GitBranch },
+  { href: "/playground", label: "Research lab", icon: Activity },
   { href: "/experiments", label: "Experiments", icon: FlaskConical },
   { href: "/hardware", label: "Server & runtime", icon: Cpu },
 ];
@@ -66,10 +65,21 @@ export function Shell({ children }: { children: React.ReactNode }) {
     };
   }, [path]);
   const activeRoute = (href: string) =>
-    path === href || (href !== "/" && path.startsWith(href + "/"));
+    path === href ||
+    (href !== "/" && path.startsWith(href + "/")) ||
+    (href === "/playground" &&
+      (path === "/features" || path.startsWith("/causal")));
   const current = navigation.find((item) => activeRoute(item.href));
   const currentLabel =
-    path === "/causal/heads" ? "Head ablation" : current?.label;
+    path === "/causal/heads"
+      ? "Head ablation"
+      : path === "/causal"
+        ? "Causal tracing"
+        : path === "/features"
+          ? "Feature lab"
+          : path === "/playground"
+            ? "Activation lab"
+            : current?.label;
   useEffect(() => {
     document.title =
       t(

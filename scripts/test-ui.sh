@@ -47,19 +47,34 @@ for port in map(int, sys.argv[1:]):
 ' "$backend_port" "$web_port"
 
 # Build an independent snapshot so tests cannot replace a running Next.js build
-# or rewrite generated types in the working tree. Installed dependencies are copied
-# locally, including relative package links, without another network installation.
+# or rewrite generated types in the working tree. Read only dependency files use
+# hard links on the same filesystem, preserving package links without another
+# installation. Source files and generated build output remain independent.
 backend/.venv/bin/python - "$web_snapshot" <<'PY'
+import os
 import shutil
 import sys
+from pathlib import Path
+
+def copy_dependency(source, destination):
+    try:
+        os.link(source, destination)
+    except OSError:
+        shutil.copy2(source, destination)
 
 shutil.copytree(
     "web",
     sys.argv[1],
     symlinks=True,
     ignore=shutil.ignore_patterns(
-        ".next", "test-results", "*.tsbuildinfo", ".env", ".env.*", ".git", "AGENTS.md"
+        ".next", "node_modules", "test-results", "*.tsbuildinfo", ".env", ".env.*", ".git", "AGENTS.md"
     ),
+)
+shutil.copytree(
+    "web/node_modules",
+    Path(sys.argv[1]) / "node_modules",
+    symlinks=True,
+    copy_function=copy_dependency,
 )
 PY
 

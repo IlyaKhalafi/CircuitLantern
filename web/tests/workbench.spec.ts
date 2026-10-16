@@ -227,9 +227,7 @@ test.describe.serial("research workflow", () => {
       });
     }
     await page.getByRole("button", { name: "Open navigation" }).click();
-    await page
-      .getByRole("link", { name: "Activation lab", exact: true })
-      .click();
+    await page.getByRole("link", { name: "Research lab", exact: true }).click();
     await expect(page).toHaveURL(/playground/);
   });
 });
