@@ -238,6 +238,12 @@ test("an invalid target preserves the previous capture and editable draft", asyn
 }) => {
   await prepare(page, ["France", "Poland"]);
   const trace = await capture(page);
+  await page.route("**/api/targets/preview", (route) =>
+    route.fulfill({
+      status: 503,
+      json: { detail: "Target preview unavailable" },
+    }),
+  );
   await page.getByLabel("Target token 1", { exact: true }).fill("the capital");
   await page.getByRole("button", { name: "Run & trace", exact: true }).click();
   await expect(page.getByRole("main").getByRole("alert")).toContainText(

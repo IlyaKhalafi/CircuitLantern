@@ -26,6 +26,7 @@ import {
 import type { HeadInspectionDraft } from "@/lib/inspection";
 import { TokenPreview } from "@/components/token-preview";
 import { useTokenPreview } from "@/lib/token-preview";
+import { useTargetPreview } from "@/lib/target-preview";
 import { downloadJSON, post } from "@/lib/api";
 import { interventionLabel } from "@/lib/interventions";
 import type { Trace } from "@/lib/types";
@@ -58,6 +59,12 @@ export default function PlaygroundPage() {
     !!runtime?.loaded && !busy,
     runtime?.metadata?.execution_id,
   );
+  const targetPreview = useTargetPreview(
+    trackedTokens,
+    !!runtime?.loaded && !busy,
+    runtime?.metadata?.execution_id,
+  );
+  const targetsFit = targetPreview.data?.valid ?? true;
   const promptFits = tokenPreview.data?.prompts[0]?.fits ?? true;
   const queryTokens = tokenPreview.data?.prompts[0]?.tokens ?? [];
   const attentionQueryFits =
@@ -355,6 +362,7 @@ export default function PlaygroundPage() {
                     busy ||
                     !prompt.trim() ||
                     !promptFits ||
+                    !targetsFit ||
                     !attentionQueryFits ||
                     inspection.pending ||
                     promptLimit < 1 ||
@@ -401,6 +409,7 @@ export default function PlaygroundPage() {
               )}
               <TrackedTokenInputs
                 tokens={trackedTokens}
+                preview={targetPreview}
                 onChange={setTrackedTokens}
                 disabled={busy || inspection.pending}
               />

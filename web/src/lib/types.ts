@@ -219,6 +219,27 @@ export interface TraceGeometry {
   undefined_layers: number[];
   method: string;
 }
+export interface TargetTokenPreview {
+  requested_text: string;
+  token_count: number;
+  token_ids: number[];
+  tokens: string[];
+  pieces: (string | null)[];
+  special_tokens: boolean[];
+  truncated: boolean;
+  skipped: boolean;
+  valid: boolean;
+  error: string | null;
+  duplicate_of: number | null;
+}
+export interface TargetPreviewResponse extends ExecutionProvenance {
+  model_id: string;
+  revision: string;
+  targets: TargetTokenPreview[];
+  valid: boolean;
+  max_targets: number;
+  max_target_characters: number;
+}
 export interface TrackedTarget {
   requested_text: string;
   token_id: number;

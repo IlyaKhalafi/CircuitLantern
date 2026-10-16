@@ -2804,19 +2804,52 @@ a.experiment-card {
 }
 
 .tracked-token-row {
-  display: flex;
-  align-items: flex-end;
-  gap: 10px;
+  margin: 16px 0;
 }
 .tracked-token-row label {
-  flex: 1;
-  min-width: 0;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 7px;
+  display: block;
+  margin: 0 0 7px;
 }
-.tracked-token-row .icon-button {
-  margin-bottom: 10px;
+.tracked-token-control {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.tracked-token-control input {
+  min-width: 0;
+  flex: 1;
+}
+.tracked-token-control .icon-button {
+  flex-shrink: 0;
+}
+.attention-capture-options summary .pill {
+  margin-left: 8px;
+}
+.target-resolution {
+  font-size: 11px;
+  overflow-wrap: anywhere;
+}
+.target-resolution p {
+  margin: 7px 0;
+}
+.target-resolution.invalid p {
+  color: #a54e23;
+}
+.target-token-pieces {
+  margin-top: 7px;
+}
+.target-token-pieces > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 8px 0;
+}
+.target-token-pieces code {
+  background: #f4f0e9;
+  padding: 3px 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
 }
 .target-trajectory-title {
   padding: 18px 20px 0;
