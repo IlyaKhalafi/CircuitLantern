@@ -22,6 +22,7 @@ from circuit_lantern.services.execution import (
     loading_options,
     prepare_model_execution,
 )
+from circuit_lantern.services.generation import decode_generation, generation_settings
 from circuit_lantern.services.geometry import ResidualGeometry
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
@@ -528,15 +529,12 @@ class ModelRuntime:
                         if tensor is None:
                             continue
                         attention.append({"layer": index, **attention_summary(tensor)})
-                generated = self.model.generate(
-                    **inputs,
-                    max_new_tokens=max_new_tokens,
-                    do_sample=False,
-                    pad_token_id=self.tokenizer.eos_token_id,
-                    use_cache=True,
-                )
-                continuation = self.tokenizer.decode(
-                    generated[0, token_count:], skip_special_tokens=True
+                settings = generation_settings(self.tokenizer, max_new_tokens)
+                generated = self.model.generate(**inputs, **settings)
+                decoded = decode_generation(
+                    self.tokenizer,
+                    inputs["input_ids"][0].cpu().tolist(),
+                    generated[0].cpu().tolist(),
                 )
                 final_probabilities = torch.softmax(outputs.logits[0, -1].float(), -1)
                 top_values, top_indices = final_probabilities.topk(
@@ -547,7 +545,9 @@ class ModelRuntime:
                     "prompt": prompt,
                     "tokens": tokens,
                     "token_ids": inputs["input_ids"][0].cpu().tolist(),
-                    "continuation": continuation,
+                    **decoded,
+                    "generation_settings": settings,
+                    "capture_attention": capture_attention,
                     "layers": layers,
                     "attention": attention,
                     "geometry": geometry.finish(),
