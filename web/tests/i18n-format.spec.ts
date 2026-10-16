@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import assert from "node:assert/strict";
 
 import { createElement } from "react";
 
@@ -35,24 +36,27 @@ function argumentsOf(message: IntlMessageFormat) {
 }
 
 test("every catalog preserves message arguments and formats plural branches", () => {
+  const originals = Object.entries(en).map(([key, source]) => ({
+    key,
+    args: argumentsOf(
+      new IntlMessageFormat(source, "en", undefined, { ignoreTag: true }),
+    ),
+  }));
+  const keys = Object.keys(en).sort();
   for (const [locale, messages] of Object.entries({ en, fa, ar, ja, fr })) {
-    expect(Object.keys(messages).sort(), locale).toEqual(
-      Object.keys(en).sort(),
-    );
-    for (const [key, source] of Object.entries(en)) {
-      const original = new IntlMessageFormat(source, "en", undefined, {
-        ignoreTag: true,
-      });
+    // These synchronous checks need no browser polling or trace step per message.
+    assert.deepEqual(Object.keys(messages).sort(), keys, locale);
+    for (const { key, args } of originals) {
       const translated = new IntlMessageFormat(
         (messages as Record<string, string>)[key],
         locale,
         undefined,
         { ignoreTag: true },
       );
-      const args = argumentsOf(original),
-        actual = argumentsOf(translated);
-      expect([...actual.keys()].sort(), locale + " " + key).toEqual(
+      assert.deepEqual(
+        [...argumentsOf(translated).keys()].sort(),
         [...args.keys()].sort(),
+        locale + " " + key,
       );
       for (const count of [0, 1, 2, 6]) {
         const values = Object.fromEntries(
@@ -61,10 +65,10 @@ test("every catalog preserves message arguments and formats plural branches", ()
             numeric ? count : "RESEARCH_VALUE",
           ]),
         );
-        expect(
+        assert.doesNotThrow(
           () => translated.format(values),
           locale + " " + key,
-        ).not.toThrow();
+        );
       }
     }
   }
