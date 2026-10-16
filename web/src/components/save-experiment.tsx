@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import { Bookmark, Check } from "lucide-react";
@@ -7,12 +7,20 @@ import { ErrorNotice } from "@/components/ui";
 import { truncateText } from "@/lib/text";
 import type { Experiment, Trace } from "@/lib/types";
 import { post } from "@/lib/api";
-
 type ExperimentSource =
-  | { kind: "job"; id: string }
-  | { kind: "matrix"; id: string; executionId?: string }
-  | { kind: "trace"; trace: Trace };
-
+  | {
+      kind: "job";
+      id: string;
+    }
+  | {
+      kind: "matrix";
+      id: string;
+      executionId?: string;
+    }
+  | {
+      kind: "trace";
+      trace: Trace;
+    };
 export function SaveExperiment({
   source,
   defaultName,
@@ -22,12 +30,12 @@ export function SaveExperiment({
   defaultName: string;
   disabled?: boolean;
 }) {
+  const { t } = useI18n();
   const [name, setName] = useState(truncateText(defaultName, 100));
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState<Experiment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
-
   async function save(event: React.FormEvent) {
     event.preventDefault();
     if (pending.current || saved || disabled || !name.trim()) return;
@@ -62,16 +70,16 @@ export function SaveExperiment({
       setSaving(false);
     }
   }
-
   return (
     <>
       <form className="save-form" onSubmit={save}>
         <input
+          dir="auto"
           className="form-input"
-          aria-label="Experiment name"
+          aria-label={t("Experiment name")}
           value={name}
           onChange={(event) => setName(truncateText(event.target.value, 100))}
-          placeholder="Name this experiment"
+          placeholder={t("Name this experiment")}
           maxLength={200}
           disabled={disabled || saving || !!saved}
           required
@@ -82,17 +90,17 @@ export function SaveExperiment({
         >
           {saved ? <Check size={14} /> : <Bookmark size={14} />}
           {saved
-            ? "Saved to experiments"
+            ? t("Saved to experiments")
             : saving
-              ? "Saving experiment"
-              : "Save experiment"}
+              ? t("Saving experiment")
+              : t("Save experiment")}
         </button>
         {saved && (
           <Link
             className="button secondary"
             href={`/experiments?experiment=${saved.id}`}
           >
-            View saved experiment
+            {t("View saved experiment")}
           </Link>
         )}
       </form>

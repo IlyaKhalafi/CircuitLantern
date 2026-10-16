@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { SeriesChart } from "@/components/charts";
@@ -16,12 +16,10 @@ import {
   patchPositionLabel,
 } from "@/lib/causal-comparison";
 import type { CausalResult, Experiment } from "@/lib/types";
-
 const series = [
-  { key: "selected", label: "Selected sweep", color: "#d57b43" },
-  { key: "reference", label: "Reference sweep", color: "#97adc6" },
+  { key: "selected", label: "Selected sweep", color: "var(--accent)" },
+  { key: "reference", label: "Reference sweep", color: "var(--blue)" },
 ];
-
 function Source({
   label,
   record,
@@ -31,6 +29,7 @@ function Source({
   record: Experiment;
   result: CausalResult;
 }) {
+  const { t, rich } = useI18n();
   const partial =
     result.complete === false ||
     result.cancelled ||
@@ -39,35 +38,46 @@ function Source({
   return (
     <div className="matrix-comparison-source">
       <strong>
-        {label} · {record.name}
+        {t(label)} · {record.name}
       </strong>
       <p>{patchPositionLabel(result)}</p>
       <p>
-        {partial ? "Partial" : "Complete"} · {result.layers.length} of{" "}
-        {result.total_layers} blocks measured
+        {rich("{v0} \u00B7 {v1} of {v2} blocks measured", {
+          v0: partial ? t("Partial") : t("Complete"),
+          v1: result.layers.length,
+          v2: result.total_layers,
+        })}
       </p>
       <p>
-        {result.model_id} · revision {result.revision}
+        {rich("{v0} \u00B7 revision {v1}", {
+          v0: result.model_id,
+          v1: result.revision,
+        })}
       </p>
       <p>
-        {executionLabel(result.execution_precision, result.execution_config)} ·{" "}
-        {result.device?.toUpperCase()}
+        {t(executionLabel(result.execution_precision, result.execution_config))}{" "}
+        · {result.device?.toUpperCase()}
       </p>
-      <p>Model session {result.execution_id ?? "unavailable"}</p>
+      <p>
+        {rich("Model session {v0}", {
+          v0: result.execution_id ?? t("unavailable"),
+        })}
+      </p>
       {result.error && (
         <p>
-          Stopped
-          {result.failed_layer == null
-            ? ""
-            : " at block " + result.failed_layer}{" "}
-          · {result.error}
+          {rich("Stopped{v0} \u00B7 {v1}", {
+            v0:
+              result.failed_layer == null
+                ? ""
+                : " at block " + result.failed_layer,
+            v1: result.error,
+          })}
         </p>
       )}
-      {result.cancelled && <p>Cancelled between forwards</p>}
+      {result.cancelled && <p>{t("Cancelled between forwards")}</p>}
     </div>
   );
 }
-
 export function SavedCausalComparison({
   experiment,
   result,
@@ -83,6 +93,7 @@ export function SavedCausalComparison({
   libraryError: string | null;
   onRetryLibrary: () => void;
 }) {
+  const { t, rich } = useI18n();
   const params = useSearchParams();
   const referenceId = params.get("compare");
   const { selected: reference, loading, error } = useExperiment(referenceId);
@@ -103,12 +114,14 @@ export function SavedCausalComparison({
   return (
     <>
       <Panel
-        title="Compare residual patches"
-        subtitle="Compare saved patch positions using the same prompt pair and baseline scores."
+        title={t("Compare residual patches")}
+        subtitle={t(
+          "Compare saved patch positions using the same prompt pair and baseline scores.",
+        )}
         className="trace-comparison"
       >
         <SavedReferencePicker
-          label="Reference patch sweep"
+          label={t("Reference patch sweep")}
           referenceId={referenceId}
           reference={reference}
           candidates={candidates}
@@ -138,19 +151,24 @@ export function SavedCausalComparison({
                 )
               }
             >
-              <Download size={14} /> Export comparison
+              <Download size={14} />
+              {t("Export comparison")}
             </button>
           )}
         </SavedReferencePicker>
-        {loading && <Loading label="Opening reference patch sweep" />}
+        {loading && <Loading label={t("Opening reference patch sweep")} />}
         <ErrorNotice message={error || problem} />
         {reference &&
           referenceResult &&
           hasCausalComparisonMeasurements(referenceResult) && (
             <div className="matrix-comparison-sources">
-              <Source label="Selected" record={experiment} result={result} />
               <Source
-                label="Reference"
+                label={t("Selected")}
+                record={experiment}
+                result={result}
+              />
+              <Source
+                label={t("Reference")}
                 record={reference}
                 result={referenceResult}
               />
@@ -159,24 +177,30 @@ export function SavedCausalComparison({
         {comparable && (
           <>
             <p className="inline-note" role="status">
-              Checkpoint, prompt vocabulary IDs, target, execution settings and
-              baseline scores match. Patch positions may differ.
-              {result.execution_id !== comparable.execution_id &&
-                " The captures come from different model sessions."}
+              {rich(
+                "Checkpoint, prompt vocabulary IDs, target, execution settings and baseline scores match. Patch positions may differ.{v0}",
+                {
+                  v0:
+                    result.execution_id !== comparable.execution_id &&
+                    t(" The captures come from different model sessions."),
+                },
+              )}
             </p>
             <p className="inline-note">
-              {
-                differences.filter((row) => row.delta_difference !== null)
-                  .length
-              }{" "}
-              of {result.total_layers} blocks have measurements in both
-              captures. Missing blocks are unavailable and are not treated as
-              zero.
+              {rich(
+                "{v0} of {v1} blocks have measurements in both captures. Missing blocks are unavailable and are not treated as zero.",
+                {
+                  v0: differences.filter((row) => row.delta_difference !== null)
+                    .length,
+                  v1: result.total_layers,
+                },
+              )}
             </p>
             {(result.position === null || comparable.position === null) && (
               <p className="inline-note">
-                Restoring all token positions is a sanity check. It does not
-                localize a signal to one position.
+                {t(
+                  "Restoring all token positions is a sanity check. It does not localize a signal to one position.",
+                )}
               </p>
             )}
           </>
@@ -186,8 +210,10 @@ export function SavedCausalComparison({
         <>
           <div className="two-column">
             <Panel
-              title="Patch effect comparison"
-              subtitle="Target log probability change from the shared corrupted baseline in nats."
+              title={t("Patch effect comparison")}
+              subtitle={t(
+                "Target log probability change from the shared corrupted baseline in nats.",
+              )}
             >
               <SeriesChart
                 data={differences.map((row) => ({
@@ -199,8 +225,10 @@ export function SavedCausalComparison({
               />
             </Panel>
             <Panel
-              title="Recovery comparison"
-              subtitle="One is clean baseline recovery. Zero is no change from the corrupted baseline."
+              title={t("Recovery comparison")}
+              subtitle={t(
+                "One is clean baseline recovery. Zero is no change from the corrupted baseline.",
+              )}
             >
               {result.recovery_defined ? (
                 <SeriesChart
@@ -213,54 +241,59 @@ export function SavedCausalComparison({
                 />
               ) : (
                 <p className="inline-note">
-                  Normalized recovery is undefined for this prompt pair. The raw
-                  log probability changes remain comparable.
+                  {t(
+                    "Normalized recovery is undefined for this prompt pair. The raw log probability changes remain comparable.",
+                  )}
                 </p>
               )}
             </Panel>
           </div>
           <Panel
-            title="Patch measurement changes"
-            subtitle="Selected minus reference, aligned by transformer block."
+            title={t("Patch measurement changes")}
+            subtitle={t(
+              "Selected minus reference, aligned by transformer block.",
+            )}
           >
             <details className="comparison-values">
-              <summary>Inspect per block changes</summary>
+              <summary>{t("Inspect per block changes")}</summary>
               <p className="inline-note">
-                Raw changes use nats. Normalized recovery changes use the shared
-                baseline gap. Missing measurements remain unavailable.
+                {t(
+                  "Raw changes use nats. Normalized recovery changes use the shared baseline gap. Missing measurements remain unavailable.",
+                )}
               </p>
               <div
                 className="table-wrap"
                 role="region"
-                aria-label="Patch comparison measurements"
+                aria-label={t("Patch comparison measurements")}
                 tabIndex={0}
               >
                 <table className="causal-comparison-table">
                   <caption className="sr-only">
-                    Selected and reference patch effects for each transformer
-                    block
+                    {t(
+                      "Selected and reference patch effects for each transformer block",
+                    )}
                   </caption>
                   <thead>
                     <tr>
-                      <th>BLOCK</th>
-                      <th>SELECTED EFFECT</th>
-                      <th>REFERENCE EFFECT</th>
-                      <th>EFFECT CHANGE</th>
-                      <th>SELECTED RECOVERY</th>
-                      <th>REFERENCE RECOVERY</th>
-                      <th>RECOVERY CHANGE</th>
+                      <th>{t("BLOCK")}</th>
+                      <th>{t("SELECTED EFFECT")}</th>
+                      <th>{t("REFERENCE EFFECT")}</th>
+                      <th>{t("EFFECT CHANGE")}</th>
+                      <th>{t("SELECTED RECOVERY")}</th>
+                      <th>{t("REFERENCE RECOVERY")}</th>
+                      <th>{t("RECOVERY CHANGE")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {differences.map((row) => (
                       <tr key={row.layer}>
                         <th scope="row">{row.layer}</th>
-                        <td>{number(row.selected_delta, 5)}</td>
-                        <td>{number(row.reference_delta, 5)}</td>
-                        <td>{number(row.delta_difference, 5)}</td>
-                        <td>{number(row.selected_recovery, 5)}</td>
-                        <td>{number(row.reference_recovery, 5)}</td>
-                        <td>{number(row.recovery_difference, 5)}</td>
+                        <td>{t(number(row.selected_delta, 5))}</td>
+                        <td>{t(number(row.reference_delta, 5))}</td>
+                        <td>{t(number(row.delta_difference, 5))}</td>
+                        <td>{t(number(row.selected_recovery, 5))}</td>
+                        <td>{t(number(row.reference_recovery, 5))}</td>
+                        <td>{t(number(row.recovery_difference, 5))}</td>
                       </tr>
                     ))}
                   </tbody>

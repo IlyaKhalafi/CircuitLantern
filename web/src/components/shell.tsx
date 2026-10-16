@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import {
   Activity,
   ArrowUpRight,
@@ -15,11 +15,12 @@ import {
   X,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
+import { LanguageSelect } from "@/components/language-select";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { api } from "@/lib/api";
 import type { RuntimeState } from "@/lib/types";
-
 const navigation = [
   { href: "/", label: "Model library", icon: Box },
   { href: "/workspace", label: "Model explorer", icon: Network },
@@ -28,10 +29,41 @@ const navigation = [
   { href: "/experiments", label: "Experiments", icon: FlaskConical },
   { href: "/hardware", label: "Server & runtime", icon: Cpu },
 ];
-
 export function Shell({ children }: { children: React.ReactNode }) {
+  const { t } = useI18n();
   const path = usePathname();
   const [open, setOpen] = useState(false);
+  const [mobile, setMobile] = useState(false);
+  const toggleRef = useRef<HTMLButtonElement>(null);
+  useEffect(() => {
+    const desktop = window.matchMedia("(min-width: 721px)");
+    const closeOnDesktop = () => {
+      setMobile(!desktop.matches);
+      if (desktop.matches) setOpen(false);
+    };
+    closeOnDesktop();
+    desktop.addEventListener("change", closeOnDesktop);
+    return () => desktop.removeEventListener("change", closeOnDesktop);
+  }, []);
+  useEffect(() => {
+    if (!open) return;
+    const escape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setOpen(false);
+        toggleRef.current?.focus();
+      }
+    };
+    document.addEventListener("keydown", escape);
+    return () => document.removeEventListener("keydown", escape);
+  }, [open]);
+  useEffect(() => {
+    if (!mobile || !open) return;
+    const previous = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = previous;
+    };
+  }, [mobile, open]);
   const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   useEffect(() => {
@@ -59,41 +91,62 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const current = navigation.find((item) => activeRoute(item.href));
   const currentLabel =
     path === "/causal/heads" ? "Head ablation" : current?.label;
-
+  useEffect(() => {
+    document.title =
+      t(
+        currentLabel || (path === "/guide" ? "Field guide" : "Page not found"),
+      ) + " · Circuit Lantern";
+  }, [currentLabel, path, t]);
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">
-        Skip to content
+        {t("Skip to content")}
       </a>
       <button
-        className="mobile-toggle icon-button"
+        ref={toggleRef}
+        className={
+          "mobile-toggle icon-button" + (open ? " navigation-open" : "")
+        }
+        aria-expanded={open}
+        aria-controls="workbench-navigation"
         onClick={() => setOpen(!open)}
-        aria-label={open ? "Close navigation" : "Open navigation"}
+        aria-label={open ? t("Close navigation") : t("Open navigation")}
       >
         {open ? <X /> : <Menu />}
       </button>
       {open && (
         <div className="sidebar-backdrop" onClick={() => setOpen(false)} />
       )}
-      <aside className={`sidebar ${open ? "open" : ""}`}>
+      <aside
+        inert={mobile && !open ? true : undefined}
+        id="workbench-navigation"
+        className={`sidebar ${open ? "open" : ""}`}
+      >
         <Link href="/" className="brand" onClick={() => setOpen(false)}>
           <span className="brand-mark">
-            <GitBranch size={23} />
+            <Image
+              src="/brand/lantern.webp"
+              alt=""
+              width={52}
+              height={52}
+              preload
+            />
           </span>
           <span>
             Circuit<span className="brand-light">Lantern</span>
-            <small>MECHANISTIC INTERPRETABILITY</small>
+            <small>{t("MECHANISTIC INTERPRETABILITY")}</small>
           </span>
         </Link>
         <div className="workspace-label">
           <span className="workspace-avatar">L</span>
           <div>
-            Local workspace<small>Personal research environment</small>
+            {t("Local workspace")}
+            <small>{t("Personal research environment")}</small>
           </div>
           <ChevronRight size={14} />
         </div>
-        <div className="nav-label">WORKBENCH</div>
-        <nav aria-label="Main navigation">
+        <div className="nav-label">{t("WORKBENCH")}</div>
+        <nav aria-label={t("Main navigation")}>
           {navigation.map((item) => (
             <Link
               key={item.href}
@@ -109,7 +162,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               className={`nav-item ${activeRoute(item.href) ? "active" : ""}`}
             >
               <item.icon size={18} />
-              {item.label}
+              {t(item.label)}
               {activeRoute(item.href) && <span className="active-dot" />}
             </Link>
           ))}
@@ -118,12 +171,15 @@ export function Shell({ children }: { children: React.ReactNode }) {
           <div className="orbit-mark">
             <Layers3 size={28} />
           </div>
-          <h3>Understand what’s inside.</h3>
+          <h3>{t("Understand what\u2019s inside.")}</h3>
           <p>
-            From individual weights to the circuits that shape a prediction.
+            {t(
+              "From individual weights to the circuits that shape a prediction.",
+            )}
           </p>
           <Link href="/guide" onClick={() => setOpen(false)}>
-            Explore the field guide <ArrowUpRight size={14} />
+            {t("Explore the field guide")}
+            <ArrowUpRight size={14} />
           </Link>
         </div>
         <div className="sidebar-bottom">
@@ -132,50 +188,62 @@ export function Shell({ children }: { children: React.ReactNode }) {
             target="_blank"
             rel="noreferrer"
           >
-            <GitBranch size={16} /> GitHub repository <ArrowUpRight size={14} />
+            <GitBranch size={16} />
+            {t("GitHub repository")}
+            <ArrowUpRight size={14} />
           </a>
-          <Link href="/guide">
-            <BookOpen size={16} /> Documentation <ChevronRight size={14} />
+          <Link href="/guide" onClick={() => setOpen(false)}>
+            <BookOpen size={16} />
+            {t("Documentation")}
+            <ChevronRight size={14} />
           </Link>
           <div className="version">
-            <span className="status-dot" /> Circuit Lantern <span>v0.1.0</span>
+            <span className="status-dot" />
+            {t("Circuit Lantern")}
+            <span>v0.1.0</span>
           </div>
         </div>
       </aside>
-      <div className="main-shell">
+      <div className="main-shell" inert={mobile && open ? true : undefined}>
         <div className="topbar">
           <div className="breadcrumb">
-            <span>Workbench</span>
+            <span>{t("Workbench")}</span>
             <ChevronRight size={13} />
             <strong>
-              {currentLabel ||
-                (path === "/guide" ? "Field guide" : "Page not found")}
+              {t(
+                currentLabel ||
+                  (path === "/guide" ? "Field guide" : "Page not found"),
+              )}
             </strong>
           </div>
-          <div className="runtime-status">
-            <span className={`status-dot ${online ? "" : "offline"}`} />
-            <span role="status">
-              {online === null
-                ? "Connecting to backend"
-                : online
-                  ? "Backend connected"
-                  : "Backend offline"}
-            </span>
-            <span className="topbar-divider" />
-            <span className="mono">
-              {runtime?.loaded
-                ? runtime.metadata?.id.split("/").pop()
-                : "No model loaded"}
-            </span>
+          <div className="topbar-tools">
+            <LanguageSelect />
+            <div className="runtime-status">
+              <span className={`status-dot ${online ? "" : "offline"}`} />
+              <span role="status">
+                {online === null
+                  ? t("Connecting to backend")
+                  : online
+                    ? t("Backend connected")
+                    : t("Backend offline")}
+              </span>
+              <span className="topbar-divider" />
+              <span className="mono">
+                {runtime?.loaded
+                  ? runtime.metadata?.id.split("/").pop()
+                  : t("No model loaded")}
+              </span>
+            </div>
           </div>
         </div>
         <main id="main-content" tabIndex={-1}>
           {children}
         </main>
         <footer className="main-footer">
-          <span>Built for the questions behind the predictions.</span>
+          <span>{t("Built for the questions behind the predictions.")}</span>
           <span>
-            <span className="status-dot" /> Local research workspace
+            <span className="status-dot" />
+            {t("Local research workspace")}
           </span>
         </footer>
       </div>

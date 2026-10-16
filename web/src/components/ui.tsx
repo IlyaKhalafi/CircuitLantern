@@ -1,7 +1,8 @@
+"use client";
+import { useI18n } from "@/i18n/provider";
 import { AlertCircle, ArrowUpRight, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
-
 export function PageHeader({
   eyebrow,
   title,
@@ -17,26 +18,36 @@ export function PageHeader({
     <header className="page-header">
       <div>
         <div className="eyebrow">{eyebrow}</div>
-        <h1>{title}</h1>
+        <h1 dir="auto">{title}</h1>
         <p>{description}</p>
       </div>
       {actions && <div className="header-actions">{actions}</div>}
     </header>
   );
 }
-export function ErrorNotice({ message }: { message: string | null }) {
+export function ErrorNotice({
+  message,
+}: {
+  message: string | readonly string[] | null;
+}) {
+  const { t } = useI18n();
   return message ? (
     <div role="alert" className="notice error">
       <AlertCircle size={17} />
-      <span>{message}</span>
+      <span>
+        {(typeof message === "string" ? [message] : message)
+          .map((part) => t(part))
+          .join(" ")}
+      </span>
     </div>
   ) : null;
 }
 export function Loading({ label = "Loading" }: { label?: string }) {
+  const { t } = useI18n();
   return (
     <div className="loading" role="status">
       <LoaderCircle size={20} className="spin" />
-      <span>{label}</span>
+      <span>{t(label)}</span>
     </div>
   );
 }
@@ -53,14 +64,15 @@ export function EmptyState({
   href?: string;
   action?: string;
 }) {
+  const { t, localize } = useI18n();
   return (
     <div className="empty-state">
       <div className="empty-icon">{icon}</div>
-      <h2>{title}</h2>
-      <p>{children}</p>
+      <h2>{t(title)}</h2>
+      <p>{localize(children)}</p>
       {href && (
         <Link className="button primary" href={href}>
-          {action}
+          {localize(action)}
           <ArrowUpRight size={16} />
         </Link>
       )}
@@ -76,11 +88,12 @@ export function Metric({
   value: ReactNode;
   note?: string;
 }) {
+  const { t } = useI18n();
   return (
     <div className="metric">
-      <span>{label}</span>
+      <span>{t(label)}</span>
       <strong>{value}</strong>
-      {note && <small>{note}</small>}
+      {note && <small>{t(note)}</small>}
     </div>
   );
 }
@@ -97,14 +110,15 @@ export function Panel({
   action?: ReactNode;
   className?: string;
 }) {
+  const { t, localize } = useI18n();
   return (
     <section className={`panel ${className}`}>
       <div className="panel-header">
         <div>
-          <h2>{title}</h2>
-          {subtitle && <p>{subtitle}</p>}
+          <h2>{t(title)}</h2>
+          {subtitle && <p>{t(subtitle)}</p>}
         </div>
-        {action}
+        {localize(action)}
       </div>
       {children}
     </section>

@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
 import { ErrorNotice } from "@/components/ui";
@@ -11,7 +11,6 @@ import {
   type HeadInspectionDraft,
 } from "@/lib/inspection";
 import type { RuntimeState } from "@/lib/types";
-
 function clearInspectionParameter() {
   const url = new URL(window.location.href);
   if (!url.searchParams.has("inspect")) return;
@@ -22,7 +21,6 @@ function clearInspectionParameter() {
     url.pathname + url.search + url.hash,
   );
 }
-
 export function useHeadInspection(
   runtime: RuntimeState | null,
   apply: (draft: HeadInspectionDraft) => void,
@@ -88,12 +86,12 @@ export function useHeadInspection(
     resume,
   };
 }
-
 export function HeadInspectionNotice({
   inspection,
 }: {
   inspection: ReturnType<typeof useHeadInspection>;
 }) {
+  const { t, rich } = useI18n();
   const {
     draft,
     pending,
@@ -116,11 +114,11 @@ export function HeadInspectionNotice({
         />
         {alternate && (
           <button className="button secondary" onClick={resume}>
-            Resume pending draft
+            {t("Resume pending draft")}
           </button>
         )}
         <button className="button secondary" onClick={dismiss}>
-          Dismiss
+          {t("Dismiss")}
         </button>
       </div>
     );
@@ -129,35 +127,44 @@ export function HeadInspectionNotice({
     <div className="notice info inspection-notice" role="status">
       <div>
         <strong>
-          Draft from head sweep · layer {draft.layer} · head {draft.head}
+          {rich("Draft from head sweep \u00B7 layer {v0} \u00B7 head {v1}", {
+            v0: draft.layer,
+            v1: draft.head,
+          })}
         </strong>
         <p>
-          {draft.source.model_id} · revision {draft.source.revision}
-          {" · "}
-          {executionLabel(
-            draft.source.execution_precision,
-            draft.source.execution_config,
-          )}
-          {" · "}
-          {draft.source.device.toUpperCase()}
+          {rich("{v0} \u00B7 revision {v1}{v2}{v3}{v4}{v5}", {
+            v0: draft.source.model_id,
+            v1: draft.source.revision,
+            v2: " · ",
+            v3: executionLabel(
+              draft.source.execution_precision,
+              draft.source.execution_config,
+            ),
+            v4: " · ",
+            v5: draft.source.device.toUpperCase(),
+          })}
         </p>
         <p>
           {problem?.message ??
-            "The captured prompt and selected head were copied into the controls. Edit them or run a new capture."}
+            t(
+              "The captured prompt and selected head were copied into the controls. Edit them or run a new capture.",
+            )}
         </p>
         {runtime?.loaded && (
           <p>
-            Active runtime uses{" "}
-            {executionLabel(
-              runtime.precision,
-              runtime.metadata?.execution_config,
-            )}{" "}
-            on {runtime.device.toUpperCase()}.
+            {rich("Active runtime uses {v0} on {v1}.", {
+              v0: executionLabel(
+                runtime.precision,
+                runtime.metadata?.execution_config,
+              ),
+              v1: runtime.device.toUpperCase(),
+            })}
           </p>
         )}
         {problem?.kind === "checkpoint" && (
           <Link href="/" className="text-link">
-            Open model library
+            {t("Open model library")}
           </Link>
         )}
       </div>
@@ -165,10 +172,12 @@ export function HeadInspectionNotice({
         className="button secondary"
         onClick={dismiss}
         aria-label={
-          pending ? "Discard head inspection draft" : "Dismiss head inspection"
+          pending
+            ? t("Discard head inspection draft")
+            : t("Dismiss head inspection")
         }
       >
-        {pending ? "Discard draft" : "Dismiss"}
+        {pending ? t("Discard draft") : t("Dismiss")}
       </button>
     </div>
   );

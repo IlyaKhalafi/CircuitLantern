@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight } from "lucide-react";
@@ -9,8 +9,8 @@ import { number } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
 import type { HeadSweepResult, HeadSweepRow } from "@/lib/types";
 import { prepareHeadInspection } from "@/lib/inspection";
-
 export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
+  const { t, rich } = useI18n();
   const router = useRouter();
   const [opening, startOpening] = useTransition();
   const [inspectionError, setInspectionError] = useState<string | null>(null);
@@ -56,58 +56,85 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
     <>
       <div className="trace-meta">
         <span className={`pill ${!result.complete ? "orange" : "green"}`}>
-          {!result.complete ? "Partial head sweep" : "Head sweep complete"}
+          {!result.complete
+            ? t("Partial head sweep")
+            : t("Head sweep complete")}
         </span>
         <span className="trace-source">{result.model_id}</span>
-        {result.cancelled && <span>Cancelled between forwards</span>}
-        <span>revision {result.revision.slice(0, 8)}</span>
+        {result.cancelled && <span>{t("Cancelled between forwards")}</span>}
         <span>
-          {executionLabel(result.execution_precision, result.execution_config)}
+          {rich("revision {v0}", {
+            v0: result.revision.slice(0, 8),
+          })}
+        </span>
+        <span>
+          {t(
+            executionLabel(result.execution_precision, result.execution_config),
+          )}
         </span>
         <span>{result.device.toUpperCase()}</span>
-        <span>{number(result.duration_ms, 0)} ms</span>
+        <span>
+          {rich("{v0} ms", {
+            v0: number(result.duration_ms, 0),
+          })}
+        </span>
       </div>
       <ErrorNotice message={inspectionError} />
       {result.failed_head && (
         <div className="notice error" role="alert">
-          The sweep stopped at layer {result.failed_head.layer}, head{" "}
-          {result.failed_head.head}. {result.error} Completed heads remain
-          available for inspection and export.
+          {rich(
+            "The sweep stopped at layer {v0}, head {v1}. {v2} Completed heads remain available for inspection and export.",
+            {
+              v0: result.failed_head.layer,
+              v1: result.failed_head.head,
+              v2: result.error,
+            },
+          )}
         </div>
       )}
       <div className="metrics-grid">
         <Metric
-          label="Target token"
+          label={t("Target token")}
           value={
             <span className="target-token">{result.target_token || "∅"}</span>
           }
-          note={`Vocabulary ID ${result.target_token_id}`}
+          note={t("Vocabulary ID {v0}", {
+            v0: result.target_token_id,
+          })}
         />
         <Metric
-          label="Baseline probability"
+          label={t("Baseline probability")}
           value={`${number(result.baseline.probability * 100, 3)}%`}
-          note={`Log probability ${number(result.baseline.log_probability, 5)}`}
+          note={t("Log probability {v0}", {
+            v0: number(result.baseline.log_probability, 5),
+          })}
         />
         <Metric
-          label="Heads tested"
+          label={t("Heads tested")}
           value={result.heads.length}
-          note={`Out of ${result.total_heads} selected heads`}
+          note={t("Out of {v0} selected heads", {
+            v0: result.total_heads,
+          })}
         />
         <Metric
-          label="Intervention scope"
+          label={t("Intervention scope")}
           value="Prompt"
-          note="Every prompt position, one head per run"
+          note={t("Every prompt position, one head per run")}
         />
       </div>
       <Panel
-        title="Head effects on the target"
-        subtitle="Each cell is the target log probability change after one head is zeroed."
+        title={t("Head effects on the target")}
+        subtitle={t(
+          "Each cell is the target log probability change after one head is zeroed.",
+        )}
       >
         <div>
           <Heatmap
             data={rows}
             height={Math.min(300, Math.max(80, rows.length * 18))}
-            label="Columns are query head indices. Rows are selected transformer layers. Values are ablated minus baseline target log probability in nats."
+            label={t(
+              "Columns are query head indices. Rows are selected transformer layers. Values are ablated minus baseline target log probability in nats.",
+            )}
             xLabels={Array.from(
               { length: columns },
               (_, head) => `Head ${head}`,
@@ -116,63 +143,68 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
           />
         </div>
         <p className="inline-note">
-          Negative values mean removal reduced the target probability. Positive
-          values mean removal increased it. Gray cells were not tested or have
-          no head. These effects describe this prompt and intervention.
+          {t(
+            "Negative values mean removal reduced the target probability. Positive values mean removal increased it. Gray cells were not tested or have no head. These effects describe this prompt and intervention.",
+          )}
         </p>
       </Panel>
       <Panel
-        title="Per head ablation results"
-        subtitle="Compare target changes and shifts in the full next token distribution."
+        title={t("Per head ablation results")}
+        subtitle={t(
+          "Compare target changes and shifts in the full next token distribution.",
+        )}
         className="section-gap"
       >
         <div className="head-sweep-controls">
           <label>
-            Layer
+            {t("Layer")}
             <select
-              aria-label="Head results layer"
+              aria-label={t("Head results layer")}
               value={layer}
               onChange={(event) => setLayer(event.target.value)}
             >
-              <option value="all">All tested layers</option>
+              <option value="all">{t("All tested layers")}</option>
               {result.layer_targets.map((item) => (
                 <option key={item.layer} value={item.layer}>
-                  Layer {item.layer}
+                  {rich("Layer {v0}", {
+                    v0: item.layer,
+                  })}
                 </option>
               ))}
             </select>
           </label>
           <label>
-            Order
+            {t("Order")}
             <select
-              aria-label="Head results order"
+              aria-label={t("Head results order")}
               value={order}
               onChange={(event) => setOrder(event.target.value)}
             >
-              <option value="magnitude">Largest target effect</option>
-              <option value="reduction">Most reduced target</option>
-              <option value="kl">Largest distribution shift</option>
-              <option value="position">Layer and head</option>
+              <option value="magnitude">{t("Largest target effect")}</option>
+              <option value="reduction">{t("Most reduced target")}</option>
+              <option value="kl">{t("Largest distribution shift")}</option>
+              <option value="position">{t("Layer and head")}</option>
             </select>
           </label>
         </div>
         <p className="inline-note">
-          Select a head index to prepare its prompt and ablation in the
-          activation lab.
+          {t(
+            "Select a head index to prepare its prompt and ablation in the activation lab.",
+          )}
         </p>
         <div className="table-wrap head-sweep-table">
           <table>
             <caption className="sr-only">
-              Independent attention head ablation scores
+              {t("Independent attention head ablation scores")}
             </caption>
             <thead>
               <tr>
-                <th scope="col">LAYER</th>
-                <th scope="col">HEAD</th>
-                <th scope="col">DELTA NATS</th>
-                <th scope="col">TARGET PROBABILITY</th>
-                <th scope="col">KL NATS</th>
-                <th scope="col">TOP PREDICTION</th>
+                <th scope="col">{t("LAYER")}</th>
+                <th scope="col">{t("HEAD")}</th>
+                <th scope="col">{t("DELTA NATS")}</th>
+                <th scope="col">{t("TARGET PROBABILITY")}</th>
+                <th scope="col">{t("KL NATS")}</th>
+                <th scope="col">{t("TOP PREDICTION")}</th>
               </tr>
             </thead>
             <tbody>
@@ -184,19 +216,29 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
                       className="head-inspect-button"
                       disabled={opening}
                       onClick={() => inspect(head)}
-                      aria-label={`Inspect layer ${head.layer} head ${head.head} in activation lab`}
+                      aria-label={t(
+                        "Inspect layer {v0} head {v1} in activation lab",
+                        {
+                          v0: head.layer,
+                          v1: head.head,
+                        },
+                      )}
                     >
                       {head.head} <ArrowUpRight size={12} />
                     </button>
                   </td>
                   <td className="code">
-                    {number(head.delta_log_probability, 6)}
+                    {t(number(head.delta_log_probability, 6))}
                   </td>
-                  <td className="code">{number(head.probability * 100, 4)}%</td>
-                  <td className="code">{number(head.kl_divergence, 6)}</td>
+                  <td className="code">
+                    {t(number(head.probability * 100, 4))}%
+                  </td>
+                  <td className="code">{t(number(head.kl_divergence, 6))}</td>
                   <td
                     className="code"
-                    title={`Vocabulary ID ${head.top_token_id}`}
+                    title={t("Vocabulary ID {v0}", {
+                      v0: head.top_token_id,
+                    })}
                   >
                     {JSON.stringify(head.top_token)}
                   </td>
@@ -206,21 +248,20 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
           </table>
           {sorted.length === 0 && (
             <p className="inline-note">
-              No completed heads for this selection.
+              {t("No completed heads for this selection.")}
             </p>
           )}
         </div>
         <p className="inline-note">
-          KL measures divergence from the baseline distribution to the ablated
-          distribution over the complete vocabulary. It is nonnegative and can
-          reveal changes beyond the selected target. Zero ablation alone does
-          not establish that a head is unnecessary across other prompts.
+          {t(
+            "KL measures divergence from the baseline distribution to the ablated distribution over the complete vocabulary. It is nonnegative and can reveal changes beyond the selected target. Zero ablation alone does not establish that a head is unnecessary across other prompts.",
+          )}
         </p>
       </Panel>
       <details className="capture-details">
-        <summary>Captured prompt and method</summary>
+        <summary>{t("Captured prompt and method")}</summary>
         <p className="trace-output">{result.prompt}</p>
-        <p className="inline-note">{result.method}</p>
+        <p className="inline-note">{t(result.method)}</p>
       </details>
     </>
   );

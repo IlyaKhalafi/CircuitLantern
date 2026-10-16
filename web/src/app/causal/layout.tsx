@@ -1,9 +1,10 @@
-import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { localizedMetadata } from "@/i18n/server";
 
-export const metadata: Metadata = {
-  title: { default: "Causal tracing", template: "%s · Circuit Lantern" },
-};
+export async function generateMetadata() {
+  const { title } = await localizedMetadata("Causal tracing");
+  return { title: { default: title, template: "%s · Circuit Lantern" } };
+}
 
 export default function Layout({ children }: { children: ReactNode }) {
   return children;

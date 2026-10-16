@@ -1,14 +1,6 @@
 "use client";
-
-import {
-  Check,
-  Cpu,
-  HardDrive,
-  Info,
-  MemoryStick,
-  RefreshCw,
-  Server,
-} from "lucide-react";
+import { useI18n } from "@/i18n/provider";
+import { Check, Cpu, Info, RefreshCw } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   ErrorNotice,
@@ -21,8 +13,8 @@ import { api, bytes } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
 import { executionPath } from "@/lib/runtime";
 import type { Hardware, RuntimeState } from "@/lib/types";
-
 export default function HardwarePage() {
+  const { t, rich } = useI18n();
   const [hardware, setHardware] = useState<Hardware | null>(null);
   const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -60,55 +52,70 @@ export default function HardwarePage() {
   return (
     <>
       <PageHeader
-        eyebrow="KNOW YOUR ENVIRONMENT"
-        title="A clear view of your server."
-        description="Live resource availability and the runtime behind every compatibility check."
+        eyebrow={t("KNOW YOUR ENVIRONMENT")}
+        title={t("A clear view of your server.")}
+        description={t(
+          "Live resource availability and the runtime behind every compatibility check.",
+        )}
         actions={
           <button
             className="button secondary"
             onClick={refresh}
             disabled={busy}
           >
-            <RefreshCw size={14} className={busy ? "spin" : ""} /> Refresh
-            snapshot
+            <RefreshCw size={14} className={busy ? "spin" : ""} />
+            {t("Refresh snapshot")}
           </button>
         }
       />
       <ErrorNotice message={error} />
       {!hardware ? (
-        busy && <Loading label="Reading server hardware" />
+        busy && <Loading label={t("Reading server hardware")} />
       ) : (
         <>
           <div className="metrics-grid">
             <Metric
-              label="Physical CPU cores"
+              label={t("Physical CPU cores")}
               value={hardware.cpu}
-              note={`${hardware.cpu_threads} logical threads`}
+              note={t("{v0} logical threads", {
+                v0: hardware.cpu_threads,
+              })}
             />
             <Metric
-              label="Available system memory"
+              label={t("Available system memory")}
               value={bytes(hardware.ram_available_bytes)}
-              note={`${bytes(hardware.ram_total_bytes)} ${hardware.ram_scope === "cgroup" ? "process memory capacity" : "total RAM"}`}
+              note={t("{value} {scope}", {
+                value: bytes(hardware.ram_total_bytes),
+                scope: t(
+                  hardware.ram_scope === "cgroup"
+                    ? "process memory capacity"
+                    : "total RAM",
+                ),
+              })}
             />
             <Metric
-              label="Free checkpoint storage"
+              label={t("Free checkpoint storage")}
               value={bytes(hardware.disk_free_bytes)}
-              note={`${bytes(hardware.disk_total_bytes)} total capacity`}
+              note={t("{v0} total capacity", {
+                v0: bytes(hardware.disk_total_bytes),
+              })}
             />
             <Metric
-              label="Detected NVIDIA GPUs"
+              label={t("Detected NVIDIA GPUs")}
               value={hardware.gpus.length}
               note={
                 hardware.cuda_available
-                  ? "CUDA runtime available"
-                  : "CPU analysis runtime"
+                  ? t("CUDA runtime available")
+                  : t("CPU analysis runtime")
               }
             />
           </div>
           <div className="two-column">
             <Panel
-              title="GPU inventory"
-              subtitle="Execution uses the first GPU visible to PyTorch, with a 15 percent memory reserve."
+              title={t("GPU inventory")}
+              subtitle={t(
+                "Execution uses the first GPU visible to PyTorch, with a 15 percent memory reserve.",
+              )}
             >
               {hardware.gpus.length ? (
                 hardware.gpus.map((gpu) => (
@@ -119,8 +126,11 @@ export default function HardwarePage() {
                     <div>
                       <h3>{gpu.name}</h3>
                       <p>
-                        GPU {gpu.index} · SM {gpu.compute_capability.toFixed(1)}{" "}
-                        · Driver {gpu.driver}
+                        {rich("GPU {v0} \u00B7 SM {v1} \u00B7 Driver {v2}", {
+                          v0: gpu.index,
+                          v1: gpu.compute_capability.toFixed(1),
+                          v2: gpu.driver,
+                        })}
                       </p>
                       <div className="gpu-memory">
                         <div className="memory-bar">
@@ -133,9 +143,15 @@ export default function HardwarePage() {
                         </div>
                         <div className="memory-legend">
                           <span>
-                            {bytes(gpu.total_bytes - gpu.free_bytes)} in use
+                            {rich("{v0} in use", {
+                              v0: bytes(gpu.total_bytes - gpu.free_bytes),
+                            })}
                           </span>
-                          <span>{bytes(gpu.free_bytes)} free</span>
+                          <span>
+                            {rich("{v0} free", {
+                              v0: bytes(gpu.free_bytes),
+                            })}
+                          </span>
                         </div>
                       </div>
                     </div>
@@ -145,28 +161,36 @@ export default function HardwarePage() {
                 <div className="panel-body">
                   <div className="notice info">
                     <Info size={16} />
-                    No NVIDIA GPU detected. Supported models and quantization
-                    formats can still run using system memory.
+                    {t(
+                      "No NVIDIA GPU detected. Supported models and quantization formats can still run using system memory.",
+                    )}
                   </div>
                 </div>
               )}
               {hardware.gpus.length > 0 && !hardware.cuda_available && (
                 <p className="inline-note">
-                  The driver detects a GPU, but the Python runtime has no usable
-                  CUDA device. Check the PyTorch build and device visibility.
-                  {hardware.cuda_error && <span> {hardware.cuda_error}</span>}
+                  {rich(
+                    "The driver detects a GPU, but the Python runtime has no usable CUDA device. Check the PyTorch build and device visibility.{v0}",
+                    {
+                      v0: hardware.cuda_error && (
+                        <span> {hardware.cuda_error}</span>
+                      ),
+                    },
+                  )}
                 </p>
               )}
             </Panel>
             <Panel
-              title="Python runtime"
-              subtitle="Installed versions reported by the backend environment."
+              title={t("Python runtime")}
+              subtitle={t(
+                "Installed versions reported by the backend environment.",
+              )}
             >
               <div className="runtime-table">
                 {Object.entries(hardware.packages).map(([name, version]) => (
                   <div key={name}>
                     <span>{name}</span>
-                    <strong>{version || "Not installed"}</strong>
+                    <strong>{version || t("Not installed")}</strong>
                   </div>
                 ))}
               </div>
@@ -174,8 +198,10 @@ export default function HardwarePage() {
           </div>
           <div className="two-column">
             <Panel
-              title="Precision requirements"
-              subtitle="Hardware eligibility and analysis support are separate checks."
+              title={t("Precision requirements")}
+              subtitle={t(
+                "Hardware eligibility and analysis support are separate checks.",
+              )}
             >
               <div className="capability-list">
                 {[
@@ -234,7 +260,7 @@ export default function HardwarePage() {
                 ].map((item) => (
                   <div key={item.title}>
                     <div>
-                      <h3>{item.title}</h3>
+                      <h3>{t(item.title)}</h3>
                       <p>{item.text}</p>
                     </div>
                     <span
@@ -249,13 +275,13 @@ export default function HardwarePage() {
             </Panel>
             <div className="stack">
               <Panel
-                title="Active model"
-                subtitle="One checkpoint is kept in memory at a time."
+                title={t("Active model")}
+                subtitle={t("One checkpoint is kept in memory at a time.")}
               >
                 <div className="panel-body">
                   <div className="runtime-table">
                     <div>
-                      <span>Checkpoint</span>
+                      <span>{t("Checkpoint")}</span>
                       <strong
                         style={{
                           overflowWrap: "anywhere",
@@ -263,30 +289,36 @@ export default function HardwarePage() {
                           textAlign: "right",
                         }}
                       >
-                        {runtime?.metadata?.id || "No model loaded"}
+                        {runtime?.metadata?.id || t("No model loaded")}
                       </strong>
                     </div>
                     <div>
-                      <span>Execution device</span>
+                      <span>{t("Execution device")}</span>
                       <strong>{runtime?.device.toUpperCase() || "CPU"}</strong>
                     </div>
                     <div>
-                      <span>Context allowance</span>
+                      <span>{t("Context allowance")}</span>
                       <strong>
                         {runtime?.loaded
-                          ? `${runtime.context_length ?? runtime.metadata?.context_length} tokens`
-                          : "No model loaded"}
+                          ? t("{v0} tokens", {
+                              v0:
+                                runtime.context_length ??
+                                runtime.metadata?.context_length,
+                            })
+                          : t("No model loaded")}
                       </strong>
                     </div>
                     <div>
-                      <span>Execution format</span>
+                      <span>{t("Execution format")}</span>
                       <strong>
                         {runtime?.loaded
-                          ? executionLabel(
-                              runtime.precision,
-                              runtime.metadata?.execution_config,
+                          ? t(
+                              executionLabel(
+                                runtime.precision,
+                                runtime.metadata?.execution_config,
+                              ),
                             )
-                          : "No model loaded"}
+                          : t("No model loaded")}
                       </strong>
                     </div>
                   </div>
@@ -294,21 +326,23 @@ export default function HardwarePage() {
                 {runtime?.loaded && (
                   <div className="danger-zone">
                     <p>
-                      Release model memory. Downloaded weights remain cached.
+                      {t(
+                        "Release model memory. Downloaded weights remain cached.",
+                      )}
                     </p>
                     <button
                       className="button secondary"
                       disabled={busy}
                       onClick={unload}
                     >
-                      Unload model
+                      {t("Unload model")}
                     </button>
                   </div>
                 )}
               </Panel>
               <Panel
-                title="Resource estimates"
-                subtitle="Why the analysis budget exceeds checkpoint size."
+                title={t("Resource estimates")}
+                subtitle={t("Why the analysis budget exceeds checkpoint size.")}
               >
                 <div className="panel-body">
                   <p
@@ -318,32 +352,33 @@ export default function HardwarePage() {
                       lineHeight: 1.9,
                     }}
                   >
-                    {hardware.ram_scope === "cgroup" && (
-                      <span>
-                        RAM is constrained by the backend process or container.
-                        The host has{" "}
-                        {bytes(
-                          hardware.ram_host_total_bytes ||
-                            hardware.ram_total_bytes,
-                        )}
-                        . Available memory includes reclaimable inactive file
-                        cache.{" "}
-                      </span>
+                    {rich(
+                      "{v0}{v1}Selected matrices are converted to float32. The budget includes temporary analysis space, execution weights, residual states, bounded attention capture, a conservative KV cache allowance, and runtime overhead. Available memory changes as other workloads run.",
+                      {
+                        v0: hardware.ram_scope === "cgroup" && (
+                          <span>
+                            {rich(
+                              "RAM is constrained by the backend process or container. The host has {v0}. Available memory includes reclaimable inactive file cache.",
+                              {
+                                v0: bytes(
+                                  hardware.ram_host_total_bytes ||
+                                    hardware.ram_total_bytes,
+                                ),
+                              },
+                            )}
+                          </span>
+                        ),
+                        v1: hardware.ram_constraints?.some(
+                          (limit) => limit.used_bytes === null,
+                        ) && (
+                          <span>
+                            {t(
+                              "Current usage for a memory constraint could not be read. The available RAM budget is zero until it can be measured.",
+                            )}
+                          </span>
+                        ),
+                      },
                     )}
-                    {hardware.ram_constraints?.some(
-                      (limit) => limit.used_bytes === null,
-                    ) && (
-                      <span>
-                        Current usage for a memory constraint could not be read.
-                        The available RAM budget is zero until it can be
-                        measured.{" "}
-                      </span>
-                    )}
-                    Selected matrices are converted to float32. The budget
-                    includes temporary analysis space, execution weights,
-                    residual states, bounded attention capture, a conservative
-                    KV cache allowance, and runtime overhead. Available memory
-                    changes as other workloads run.
                   </p>
                 </div>
               </Panel>

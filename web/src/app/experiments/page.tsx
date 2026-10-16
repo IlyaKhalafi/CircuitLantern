@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import {
   ArrowLeft,
   Check,
@@ -25,16 +25,16 @@ import {
 import { api, downloadJSON } from "@/lib/api";
 import { truncateText } from "@/lib/text";
 import type { Experiment } from "@/lib/types";
-
 export default function ExperimentsPage() {
+  const { t } = useI18n();
   return (
-    <Suspense fallback={<Loading label="Opening experiment notebook" />}>
+    <Suspense fallback={<Loading label={t("Opening experiment notebook")} />}>
       <ExperimentNotebook />
     </Suspense>
   );
 }
-
 function ExperimentNotebook() {
+  const { t, rich, dateTime } = useI18n();
   const params = useSearchParams();
   const recordId = params.get("experiment");
   const query = params.get("q") ?? "";
@@ -141,12 +141,19 @@ function ExperimentNotebook() {
   return (
     <>
       <PageHeader
-        eyebrow="A RECORD OF YOUR CURIOSITY"
-        title={selected ? selected.name : "Good questions deserve a notebook."}
+        eyebrow={t("A RECORD OF YOUR CURIOSITY")}
+        title={
+          selected ? selected.name : t("Good questions deserve a notebook.")
+        }
         description={
           selected
-            ? `${selected.model_id} · saved ${new Date(selected.created_at).toLocaleString()}`
-            : "Save traces, weight analyses and sweeps, then record what you observe."
+            ? t("{v0} \u00B7 saved {v1}", {
+                v0: selected.model_id,
+                v1: dateTime(selected.created_at),
+              })
+            : t(
+                "Save traces, weight analyses and sweeps, then record what you observe.",
+              )
         }
         actions={
           selected ? (
@@ -159,11 +166,13 @@ function ExperimentNotebook() {
                 )
               }
             >
-              <Download size={14} /> Export experiment
+              <Download size={14} />
+              {t("Export experiment")}
             </button>
           ) : (
             <Link className="button primary" href="/playground">
-              <Plus size={14} /> New experiment
+              <Plus size={14} />
+              {t("New experiment")}
             </Link>
           )
         }
@@ -175,7 +184,7 @@ function ExperimentNotebook() {
           className="button secondary"
           onClick={() => setLoadAttempt((attempt) => attempt + 1)}
         >
-          Retry notebook
+          {t("Retry notebook")}
         </button>
       )}
       {recordId && (
@@ -187,21 +196,25 @@ function ExperimentNotebook() {
             compare: null,
           })}
         >
-          <ArrowLeft size={14} /> All experiments
+          <ArrowLeft size={14} />
+          {t("All experiments")}
         </Link>
       )}
       {(recordId ? opening : loading) ? (
-        <Loading label="Opening experiment notebook" />
+        <Loading label={t("Opening experiment notebook")} />
       ) : selected ? (
         <>
           <Panel
-            title="Research notes"
-            subtitle="The checkpoint revision and capture settings are preserved with every experiment."
+            title={t("Research notes")}
+            subtitle={t(
+              "The checkpoint revision and capture settings are preserved with every experiment.",
+            )}
           >
             <div className="experiment-detail">
               <label>
-                Experiment name
+                {t("Experiment name")}
                 <input
+                  dir="auto"
                   className="form-input"
                   value={name}
                   onChange={(e) => {
@@ -213,14 +226,15 @@ function ExperimentNotebook() {
                 />
               </label>
               <label style={{ marginTop: 17 }}>
-                Observations
+                {t("Observations")}
                 <textarea
+                  dir="auto"
                   value={notes}
                   onChange={(e) => {
                     setNotes(truncateText(e.target.value, 10000));
                     setSaved(false);
                   }}
-                  placeholder="What changed? What would you test next?"
+                  placeholder={t("What changed? What would you test next?")}
                   maxLength={20000}
                   disabled={busy}
                 />
@@ -233,7 +247,7 @@ function ExperimentNotebook() {
                     disabled={busy || !name.trim()}
                   >
                     <Check size={14} />
-                    {saved ? "Changes saved" : "Save notes"}
+                    {saved ? t("Changes saved") : t("Save notes")}
                   </button>
                   <button
                     className="button danger"
@@ -243,14 +257,14 @@ function ExperimentNotebook() {
                     disabled={busy}
                   >
                     <Trash2 size={14} />
-                    {confirmDelete ? "Confirm delete" : "Delete"}
+                    {confirmDelete ? t("Confirm delete") : t("Delete")}
                   </button>
                   {confirmDelete && (
                     <button
                       className="button secondary"
                       onClick={() => setConfirmDelete(false)}
                     >
-                      Cancel
+                      {t("Cancel")}
                     </button>
                   )}
                 </div>
@@ -258,8 +272,11 @@ function ExperimentNotebook() {
                   className="mono"
                   style={{ fontSize: 9, color: "var(--muted)" }}
                 >
-                  revision{" "}
-                  {selectedArtifact?.revision?.slice(0, 10) ?? "unavailable"}
+                  {rich("revision {v0}", {
+                    v0:
+                      selectedArtifact?.revision?.slice(0, 10) ??
+                      t("unavailable"),
+                  })}
                 </span>
               </div>
             </div>
@@ -274,7 +291,7 @@ function ExperimentNotebook() {
           />
         </>
       ) : loading ? (
-        <Loading label="Opening experiment notebook" />
+        <Loading label={t("Opening experiment notebook")} />
       ) : listError ? null : experiments.length ? (
         <ExperimentLibrary
           experiments={experiments}
@@ -286,13 +303,13 @@ function ExperimentNotebook() {
       ) : (
         <EmptyState
           icon={<FlaskConical size={28} />}
-          title="Start collecting evidence."
+          title={t("Start collecting evidence.")}
           href="/playground"
-          action="Run your first trace"
+          action={t("Run your first trace")}
         >
-          Save an activation trace, matrix analysis, residual patch sweep or
-          head ablation sweep to keep its measurements and your observations
-          together.
+          {t(
+            "Save an activation trace, matrix analysis, residual patch sweep or head ablation sweep to keep its measurements and your observations together.",
+          )}
         </EmptyState>
       )}
     </>

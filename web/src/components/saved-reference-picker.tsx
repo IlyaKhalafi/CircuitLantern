@@ -1,10 +1,9 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import type { ReactNode } from "react";
 import { ErrorNotice, Loading } from "@/components/ui";
 import { notebookHref } from "@/lib/experiments";
 import type { Experiment } from "@/lib/types";
-
 export function SavedReferencePicker({
   label,
   referenceId,
@@ -30,15 +29,16 @@ export function SavedReferencePicker({
   loadingLabel?: string;
   children?: ReactNode;
 }) {
+  const { t, dateTime } = useI18n();
   const linked =
     referenceId && !candidates.some((item) => item.id === referenceId);
   return (
     <>
       <div className="comparison-controls">
         <label>
-          {label}
+          {t(label)}
           <select
-            aria-label={label}
+            aria-label={t(label)}
             value={referenceId ?? ""}
             onChange={(event) =>
               window.history.pushState(
@@ -51,15 +51,15 @@ export function SavedReferencePicker({
             }
             disabled={libraryLoading && !referenceId}
           >
-            <option value="">No reference</option>
+            <option value="">{t("No reference")}</option>
             {linked && (
               <option value={referenceId}>
-                {reference?.name ?? "Linked reference"}
+                {reference?.name ?? t("Linked reference")}
               </option>
             )}
             {candidates.map((item) => (
               <option key={item.id} value={item.id}>
-                {item.name} · {new Date(item.created_at).toLocaleString()} ·{" "}
+                {item.name} · {dateTime(item.created_at)} ·{" "}
                 {item.id.slice(0, 8)}
               </option>
             ))}
@@ -72,14 +72,14 @@ export function SavedReferencePicker({
       {libraryError && (
         <div className="comparison-controls">
           <button className="button secondary" onClick={onRetryLibrary}>
-            {retryLabel}
+            {t(retryLabel)}
           </button>
         </div>
       )}
       {!libraryLoading &&
         !libraryError &&
         !candidates.length &&
-        !referenceId && <p className="inline-note">{emptyText}</p>}
+        !referenceId && <p className="inline-note">{t(emptyText)}</p>}
     </>
   );
 }

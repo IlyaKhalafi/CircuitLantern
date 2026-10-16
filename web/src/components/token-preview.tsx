@@ -1,13 +1,11 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 import type { TokenPreviewState } from "@/lib/token-preview";
-
 function visibleToken(token: string) {
   return token.replace(/ /g, "·").replace(/\n/g, "↵") || "∅";
 }
-
 export function TokenPreview({
   preview,
   labels = ["Prompt"],
@@ -15,16 +13,19 @@ export function TokenPreview({
   preview: TokenPreviewState;
   labels?: string[];
 }) {
+  const { t, rich } = useI18n();
   const [expanded, setExpanded] = useState(false);
   const data = preview.data;
   if (!data)
     return preview.pending ? (
       <p className="token-preview-status" role="status">
-        Counting prompt tokens
+        {t("Counting prompt tokens")}
       </p>
     ) : preview.error ? (
       <p className="token-preview-status">
-        {preview.error} Running a capture will check its token count.
+        {rich("{v0} Running a capture will check its token count.", {
+          v0: preview.error,
+        })}
       </p>
     ) : null;
   const pair = data.prompts.length === 2;
@@ -42,42 +43,53 @@ export function TokenPreview({
       >
         <summary>
           <ChevronRight size={12} aria-hidden="true" />
-          <span>Inspect tokenization</span>
+          <span>{t("Inspect tokenization")}</span>
           {data.prompts.map((prompt, i) => (
             <span
               className={`pill ${prompt.fits ? "subtle" : "orange"}`}
               key={i}
             >
-              {labels[i] || `Prompt ${i + 1}`} {prompt.token_count} /{" "}
-              {data.token_limit} tokens
+              {rich("{v0} {v1} / {v2} tokens", {
+                v0: labels[i] || `Prompt ${i + 1}`,
+                v1: prompt.token_count,
+                v2: data.token_limit,
+              })}
             </span>
           ))}
         </summary>
         <p className="token-preview-caption">
-          Counts include any tokenizer-added special tokens. Spaces appear as ·
-          and line breaks as ↵.
-          {truncated &&
-            " Showing the first 256 positions. Full token counts appear above."}
+          {rich(
+            "Counts include any tokenizer-added special tokens. Spaces appear as \u00B7 and line breaks as \u21B5.{v0}",
+            {
+              v0:
+                truncated &&
+                t(
+                  " Showing the first 256 positions. Full token counts appear above.",
+                ),
+            },
+          )}
         </p>
         <div className="table-wrap">
           <table
-            aria-label={pair ? "Prompt token alignment" : "Prompt tokenization"}
+            aria-label={
+              pair ? t("Prompt token alignment") : t("Prompt tokenization")
+            }
           >
             <thead>
               <tr>
-                <th>POSITION</th>
+                <th>{t("POSITION")}</th>
                 {pair ? (
                   <>
-                    <th>{labels[0] || "Clean"}</th>
-                    <th>{labels[1] || "Corrupted"}</th>
-                    <th>ALIGNMENT</th>
+                    <th>{labels[0] || t("Clean")}</th>
+                    <th>{labels[1] || t("Corrupted")}</th>
+                    <th>{t("ALIGNMENT")}</th>
                   </>
                 ) : (
                   <>
-                    <th>TOKEN</th>
-                    <th>VOCABULARY ID</th>
-                    <th>NATIVE PIECE</th>
-                    <th>TYPE</th>
+                    <th>{t("TOKEN")}</th>
+                    <th>{t("VOCABULARY ID")}</th>
+                    <th>{t("NATIVE PIECE")}</th>
+                    <th>{t("TYPE")}</th>
                   </>
                 )}
               </tr>
@@ -104,19 +116,21 @@ export function TokenPreview({
                                   {visibleToken(prompt.tokens[position])}
                                 </code>
                                 <small>
-                                  ID {prompt.token_ids[position]} ·{" "}
-                                  {prompt.pieces[position]}
-                                  {prompt.special_tokens[position]
-                                    ? " · special"
-                                    : ""}
+                                  {rich("ID {v0} \u00B7 {v1}{v2}", {
+                                    v0: prompt.token_ids[position],
+                                    v1: prompt.pieces[position],
+                                    v2: prompt.special_tokens[position]
+                                      ? t(" \u00B7 special")
+                                      : "",
+                                  })}
                                 </small>
                               </>
                             ) : (
-                              <span>Missing token</span>
+                              <span>{t("Missing token")}</span>
                             )}
                           </td>
                         ))}
-                        <td>{changed ? "Changed" : "Same"}</td>
+                        <td>{changed ? t("Changed") : t("Same")}</td>
                       </>
                     ) : (
                       <>
@@ -131,8 +145,8 @@ export function TokenPreview({
                         </td>
                         <td>
                           {data.prompts[0].special_tokens[position]
-                            ? "Special"
-                            : "Standard"}
+                            ? t("Special")
+                            : t("Standard")}
                         </td>
                       </>
                     )}
@@ -145,8 +159,9 @@ export function TokenPreview({
       </details>
       {!aligned && data.prompts.every((prompt) => prompt.token_count > 0) && (
         <p className="token-preview-warning" role="status">
-          Clean and corrupted prompts have different token counts. Adjust the
-          wording so positions align.
+          {t(
+            "Clean and corrupted prompts have different token counts. Adjust the wording so positions align.",
+          )}
         </p>
       )}
       {data.prompts.map(
@@ -154,8 +169,13 @@ export function TokenPreview({
           !prompt.fits && (
             <p className="token-preview-warning" key={i} role="status">
               {prompt.token_count === 0
-                ? `${labels[i] || "Prompt"} needs at least one token.`
-                : `${labels[i] || "Prompt"} exceeds the ${data.token_limit} token capture allowance.`}
+                ? t("{v0} needs at least one token.", {
+                    v0: labels[i] || t("Prompt"),
+                  })
+                : t("{v0} exceeds the {v1} token capture allowance.", {
+                    v0: labels[i] || t("Prompt"),
+                    v1: data.token_limit,
+                  })}
             </p>
           ),
       )}

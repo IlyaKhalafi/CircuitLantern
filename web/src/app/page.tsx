@@ -1,7 +1,7 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { Modal } from "@/components/modal";
-
+import Image from "next/image";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -14,7 +14,6 @@ import {
   ExternalLink,
   HardDrive,
   Info,
-  Layers3,
   LoaderCircle,
   Search,
   ShieldCheck,
@@ -32,8 +31,8 @@ import {
 } from "@/lib/execution";
 import type { Compatibility, Hardware, Job, ModelCard } from "@/lib/types";
 import { ErrorNotice, Loading, Metric, PageHeader } from "@/components/ui";
-
 export default function LibraryPage() {
+  const { t, rich } = useI18n();
   const router = useRouter();
   const [models, setModels] = useState<ModelCard[]>([]);
   const [hardware, setHardware] = useState<Hardware | null>(null);
@@ -42,7 +41,7 @@ export default function LibraryPage() {
   const [report, setReport] = useState<Compatibility | null>(null);
   const [busy, setBusy] = useState(false);
   const [searching, setSearching] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | readonly string[] | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [device, setDevice] = useState("cpu");
   const [context, setContext] = useState(256);
@@ -121,9 +120,10 @@ export default function LibraryPage() {
       }
       timer.current = setTimeout(() => poll(id), 1200);
     } catch (e) {
-      setError(
-        `${(e as Error).message} The server may still be preparing the model. Check Server & runtime before retrying.`,
-      );
+      setError([
+        (e as Error).message,
+        "The server may still be preparing the model. Check Server & runtime before retrying.",
+      ]);
       setBusy(false);
       setJob(null);
     }
@@ -159,89 +159,95 @@ export default function LibraryPage() {
   return (
     <>
       <PageHeader
-        eyebrow="YOUR NEXT DISCOVERY STARTS HERE"
-        title="Open a model. Look closer."
-        description="Find a model, check your hardware, and start exploring what makes it work."
+        eyebrow={t("YOUR NEXT DISCOVERY STARTS HERE")}
+        title={t("Open a model. Look closer.")}
+        description={t(
+          "Find a model, check your hardware, and start exploring what makes it work.",
+        )}
         actions={
           <a href="/guide" className="button secondary">
-            Quick start guide <ArrowUpRight size={15} />
+            {t("Quick start guide")}
+            <ArrowUpRight size={15} />
           </a>
         }
       />
       <section className="welcome-banner">
         <div>
           <span className="pill orange">
-            <Sparkles size={13} /> THE OPEN MODEL WORKBENCH
+            <Sparkles size={13} />
+            {t("THE OPEN MODEL WORKBENCH")}
           </span>
           <h2>
-            Big questions.
+            {t("Big questions.")}
             <br />
-            Meet the small details.
+            {t("Meet the small details.")}
           </h2>
           <p>
-            Trace a prediction through every layer. Explore weight geometry.
-            <br className="desktop-break" /> Turn a black box into something you
-            can reason about.
+            {t(
+              "Trace a prediction through every layer. Explore weight geometry.",
+            )}
+            <br className="desktop-break" />
+            {t("Turn a black box into something you can reason about.")}
           </p>
           <div className="banner-points">
             <span>
-              <Check size={14} /> Real model weights
+              <Check size={14} />
+              {t("Real model weights")}
             </span>
             <span>
-              <Check size={14} /> Runs on your server
+              <Check size={14} />
+              {t("Runs on your server")}
             </span>
             <span>
-              <Check size={14} /> Reproducible experiments
+              <Check size={14} />
+              {t("Reproducible experiments")}
             </span>
           </div>
         </div>
-        <div className="circuit-illustration" aria-hidden="true">
-          <div className="circuit-orbit orbit-one" />
-          <div className="circuit-orbit orbit-two" />
-          <div className="circuit-core">
-            <Layers3 size={42} />
-          </div>
-          {[0, 1, 2, 3, 4, 5].map((i) => (
-            <div key={i} className={`circuit-node node-${i}`}>
-              <span />
-              {["Wq", "Wk", "Wv", "MLP", "x", "y"][i]}
-            </div>
-          ))}
-          <span className="illustration-label label-top">
-            ATTENTION → UNDERSTANDING
-          </span>
-          <span className="illustration-label label-bottom">
-            FOLLOW THE SIGNAL
-          </span>
+        <div className="lantern-illustration" aria-hidden="true">
+          <Image
+            src="/brand/lantern.webp"
+            alt=""
+            width={280}
+            height={280}
+            preload
+          />
         </div>
       </section>
       <div className="section-heading">
         <div>
           <h2>
-            Model library <span className="count-badge">Hugging Face</span>
+            {t("Model library")}
+            <span className="count-badge">Hugging Face</span>
           </h2>
           <p>
-            Start small, inspect deeply. Or bring any compatible checkpoint.
+            {t(
+              "Start small, inspect deeply. Or bring any compatible checkpoint.",
+            )}
           </p>
         </div>
         <div className="pill subtle">
-          <ShieldCheck size={14} /> Compatibility checked before download
+          <ShieldCheck size={14} />
+          {t("Compatibility checked before download")}
         </div>
       </div>
       <form className="search-row" onSubmit={search}>
         <div className="search-input">
           <Search size={18} />
           <input
-            aria-label="Search Hugging Face models"
+            dir="auto"
+            aria-label={t("Search Hugging Face models")}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search Hugging Face models or enter a repository ID…"
+            placeholder={t(
+              "Search Hugging Face models or enter a repository ID\u2026",
+            )}
           />
           <kbd>↵</kbd>
         </div>
         <button className="button secondary" disabled={searching}>
           <SlidersHorizontal size={16} />
-          {searching ? "Searching" : "Search Hub"}
+          {searching ? t("Searching") : t("Search Hub")}
         </button>
         {query.includes("/") && (
           <button
@@ -249,13 +255,14 @@ export default function LibraryPage() {
             className="button primary"
             onClick={() => check(query)}
           >
-            Check model <ArrowRight size={16} />
+            {t("Check model")}
+            <ArrowRight size={16} />
           </button>
         )}
       </form>
       {!selected && <ErrorNotice message={error} />}
       {searching ? (
-        <Loading label="Finding models" />
+        <Loading label={t("Finding models")} />
       ) : (
         <div className="model-grid">
           {models.map((model) => (
@@ -271,15 +278,15 @@ export default function LibraryPage() {
                 <span
                   className={`pill ${model.tag === "Recommended" ? "orange" : "subtle"}`}
                 >
-                  {model.tag}
+                  {t(model.tag)}
                 </span>
               </div>
               <h3>{model.name}</h3>
               <span className="model-owner">{model.id.split("/")[0]}</span>
-              <p>{model.description}</p>
+              <p>{t(model.description)}</p>
               <div className="model-card-footer">
                 <div>
-                  <span>{model.parameters}</span>
+                  <span>{t(model.parameters)}</span>
                   <span>{model.family}</span>
                 </div>
                 <ArrowUpRight size={17} />
@@ -290,22 +297,26 @@ export default function LibraryPage() {
       )}
       {!searching && !error && models.length === 0 && (
         <div className="empty-inline">
-          No models found. Try a shorter search or enter a full repository ID.
+          {t(
+            "No models found. Try a shorter search or enter a full repository ID.",
+          )}
         </div>
       )}
       <div className="library-bottom">
         <div>
           <Cpu size={21} />
           <div>
-            <strong>Your hardware, taken into account.</strong>
+            <strong>{t("Your hardware, taken into account.")}</strong>
             <p>
-              Memory capacity is just the beginning. Architecture and runtime
-              matter too.
+              {t(
+                "Memory capacity is just the beginning. Architecture and runtime matter too.",
+              )}
             </p>
           </div>
         </div>
         <a className="text-link" href="/hardware">
-          View server details <ArrowRight size={15} />
+          {t("View server details")}
+          <ArrowRight size={15} />
         </a>
       </div>
       <div className="how-it-works">
@@ -329,7 +340,7 @@ export default function LibraryPage() {
           <div key={step.n}>
             <span>{step.n}</span>
             <div>
-              <h3>{step.title}</h3>
+              <h3>{t(step.title)}</h3>
               <p>{step.text}</p>
             </div>
           </div>
@@ -345,10 +356,10 @@ export default function LibraryPage() {
           }}
         >
           <div className="dialog-header">
-            <span className="eyebrow">DEPLOYMENT CHECK</span>
+            <span className="eyebrow">{t("DEPLOYMENT CHECK")}</span>
             <button
               className="icon-button"
-              aria-label="Close compatibility check"
+              aria-label={t("Close compatibility check")}
               disabled={!!isDownloading}
               onClick={() => {
                 setSelected(null);
@@ -358,7 +369,7 @@ export default function LibraryPage() {
               <X size={19} />
             </button>
           </div>
-          <h2 id="check-title">A good fit for your research?</h2>
+          <h2 id="check-title">{t("A good fit for your research?")}</h2>
           <a
             className="model-id"
             href={`https://huggingface.co/${selected}`}
@@ -369,9 +380,9 @@ export default function LibraryPage() {
           </a>
           <div className="form-grid">
             <label>
-              Execution device
+              {t("Execution device")}
               <select
-                aria-label="Execution device"
+                aria-label={t("Execution device")}
                 disabled={!!isDownloading}
                 value={device}
                 onChange={(e) => {
@@ -379,14 +390,14 @@ export default function LibraryPage() {
                   check(selected, e.target.value);
                 }}
               >
-                <option value="cpu">CPU · system memory</option>
-                <option value="cuda">CUDA · NVIDIA GPU</option>
+                <option value="cpu">{t("CPU \u00B7 system memory")}</option>
+                <option value="cuda">{t("CUDA \u00B7 NVIDIA GPU")}</option>
               </select>
             </label>
             <label>
-              Context allowance
+              {t("Context allowance")}
               <select
-                aria-label="Context allowance"
+                aria-label={t("Context allowance")}
                 disabled={!!isDownloading}
                 value={context}
                 onChange={(e) => {
@@ -397,16 +408,18 @@ export default function LibraryPage() {
                 {[16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192].map(
                   (n) => (
                     <option key={n} value={n}>
-                      {n.toLocaleString()} tokens
+                      {rich("{v0} tokens", {
+                        v0: n.toLocaleString(),
+                      })}
                     </option>
                   ),
                 )}
               </select>
             </label>
             <label>
-              Execution format
+              {t("Execution format")}
               <select
-                aria-label="Execution format"
+                aria-label={t("Execution format")}
                 disabled={!!isDownloading}
                 value={precision}
                 onChange={(e) => {
@@ -418,10 +431,12 @@ export default function LibraryPage() {
                   <option key={value} value={value}>
                     {value === "int4" &&
                     fourBitFormat(report?.metadata.quantization)
-                      ? executionLabel(value, {
-                          quantization: report?.metadata.quantization,
-                        })
-                      : label}
+                      ? t(
+                          executionLabel(value, {
+                            quantization: report?.metadata.quantization,
+                          }),
+                        )
+                      : t(label)}
                   </option>
                 ))}
               </select>
@@ -429,20 +444,23 @@ export default function LibraryPage() {
           </div>
           <details className="estimate-details revision-details">
             <summary>
-              Checkpoint revision <ChevronRight size={14} />
+              {t("Checkpoint revision")}
+              <ChevronRight size={14} />
             </summary>
             <p>
-              Choose a branch, tag or full commit hash. Loading uses the exact
-              commit resolved by the deployment check.
+              {t(
+                "Choose a branch, tag or full commit hash. Loading uses the exact commit resolved by the deployment check.",
+              )}
             </p>
             <div className="revision-controls">
               <label>
-                Hub revision
+                {t("Hub revision")}
                 <input
+                  dir="auto"
                   className="form-input"
                   value={revision}
                   maxLength={128}
-                  placeholder="main"
+                  placeholder={t("main")}
                   disabled={!!isDownloading}
                   autoComplete="off"
                   spellCheck={false}
@@ -472,13 +490,15 @@ export default function LibraryPage() {
                 disabled={busy || !revision.trim()}
                 onClick={() => check(selected)}
               >
-                Check revision
+                {t("Check revision")}
               </button>
             </div>
           </details>
           <ErrorNotice message={error} />
           {busy && !report && (
-            <Loading label="Reading checkpoint metadata and checking this server" />
+            <Loading
+              label={t("Reading checkpoint metadata and checking this server")}
+            />
           )}
           {report && (
             <>
@@ -493,36 +513,42 @@ export default function LibraryPage() {
                 <div>
                   <strong>
                     {report.compatible
-                      ? "Ready to explore on this server"
-                      : "This configuration needs attention"}
+                      ? t("Ready to explore on this server")
+                      : t("This configuration needs attention")}
                   </strong>
                   <p>
                     {report.compatible
-                      ? "The checkpoint passes the current hardware and runtime checks."
-                      : "Resolve the checks below before loading this checkpoint."}
+                      ? t(
+                          "The checkpoint passes the current hardware and runtime checks.",
+                        )
+                      : t(
+                          "Resolve the checks below before loading this checkpoint.",
+                        )}
                   </p>
                 </div>
               </div>
               <div className="metrics-grid compact">
                 <Metric
-                  label="Model parameters"
+                  label={t("Model parameters")}
                   value={number(report.metadata.parameters, 0)}
                 />
                 <Metric
-                  label="Analysis memory"
+                  label={t("Analysis memory")}
                   value={bytes(report.required_bytes)}
                 />
                 <Metric
                   label={
                     report.reclaimable_bytes
-                      ? "Replacement budget"
-                      : "Available budget"
+                      ? t("Replacement budget")
+                      : t("Available budget")
                   }
                   value={bytes(report.available_bytes)}
                 />
                 <Metric
                   label={
-                    report.cached_bytes ? "Remaining download" : "Download size"
+                    report.cached_bytes
+                      ? t("Remaining download")
+                      : t("Download size")
                   }
                   value={bytes(report.download_bytes)}
                 />
@@ -536,59 +562,78 @@ export default function LibraryPage() {
               </div>
               <div className="memory-legend">
                 <span>
-                  Includes execution weights, cache and inspection overhead
+                  {t(
+                    "Includes execution weights, cache and inspection overhead",
+                  )}
                 </span>
                 <span>{report.device.toUpperCase()}</span>
               </div>
               {!!report.reclaimable_bytes && (
                 <p className="inline-note">
-                  Includes {bytes(report.reclaimable_bytes)} released by
-                  replacing the active model.
+                  {rich(
+                    "Includes {v0} released by replacing the active model.",
+                    {
+                      v0: bytes(report.reclaimable_bytes),
+                    },
+                  )}
                 </p>
               )}
               {!!report.cached_bytes && (
                 <p className="inline-note">
                   {report.download_bytes === 0
-                    ? "All checkpoint files are cached locally."
-                    : `Reusing ${bytes(report.cached_bytes)} of checkpoint files from the local Hub cache.`}
+                    ? t("All checkpoint files are cached locally.")
+                    : t(
+                        "Reusing {v0} of checkpoint files from the local Hub cache.",
+                        {
+                          v0: bytes(report.cached_bytes),
+                        },
+                      )}
                 </p>
               )}
               {report.blockers.map((b, i) => (
                 <div className="check-message blocked" key={i}>
                   <Info size={15} />
-                  <span>{b}</span>
+                  <span>{t(b)}</span>
                 </div>
               ))}
               <details className="estimate-details">
                 <summary>
-                  How this estimate works <ChevronRight size={14} />
+                  {t("How this estimate works")}
+                  <ChevronRight size={14} />
                 </summary>
                 <p>
-                  Source checkpoint{" "}
-                  {bytes(report.source_bytes ?? report.download_bytes)}.{" "}
-                  Execution format {report.runtime_precision}. Resident weights{" "}
-                  {bytes(report.weight_bytes)}. Matrix workspace{" "}
-                  {bytes(report.analysis_workspace_bytes || 0)}. Logit buffers{" "}
-                  {bytes(report.logits_bytes || 0)}. MLP buffers{" "}
-                  {bytes(report.activation_bytes || 0)}.
+                  {rich(
+                    "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Matrix workspace {v3}. Logit buffers {v4}. MLP buffers {v5}.",
+                    {
+                      v0: bytes(report.source_bytes ?? report.download_bytes),
+                      v1: report.runtime_precision,
+                      v2: bytes(report.weight_bytes),
+                      v3: bytes(report.analysis_workspace_bytes || 0),
+                      v4: bytes(report.logits_bytes || 0),
+                      v5: bytes(report.activation_bytes || 0),
+                    },
+                  )}
                 </p>
                 {report.warnings.map((w, i) => (
-                  <p key={i}>{w}</p>
+                  <p key={i}>{t(w)}</p>
                 ))}
                 <p>
-                  Disk available{" "}
-                  {hardware ? bytes(hardware.disk_free_bytes) : "loading"}.
-                  Checkpoint commit{" "}
-                  <a
-                    className="text-link"
-                    href={`https://huggingface.co/${selected}/tree/${encodeURIComponent(report.metadata.revision)}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    title={report.metadata.revision}
-                  >
-                    {report.metadata.revision.slice(0, 10)}
-                  </a>
-                  .
+                  {rich("Disk available {v0}. Checkpoint commit {v1}.", {
+                    v0: hardware
+                      ? bytes(hardware.disk_free_bytes)
+                      : t("loading"),
+                    v1: (
+                      <a
+                        className="text-link"
+                        href={`https://huggingface.co/${selected}/tree/${encodeURIComponent(report.metadata.revision)}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={report.metadata.revision}
+                      >
+                        {report.metadata.revision.slice(0, 10)}
+                      </a>
+                    ),
+                  })}
                 </p>
               </details>
             </>
@@ -600,7 +645,7 @@ export default function LibraryPage() {
                   size={16}
                   className={isDownloading ? "spin" : ""}
                 />
-                <span>{job.message}</span>
+                <span>{t(job.message)}</span>
                 <strong>{job.progress}%</strong>
               </div>
               <progress value={job.progress} max={100} />
@@ -608,7 +653,8 @@ export default function LibraryPage() {
           )}
           <div className="dialog-footer">
             <span>
-              <HardDrive size={14} /> Weights stay on your server
+              <HardDrive size={14} />
+              {t("Weights stay on your server")}
             </span>
             <button
               className="button primary"
@@ -617,10 +663,10 @@ export default function LibraryPage() {
             >
               <Download size={16} />
               {isDownloading
-                ? "Preparing model"
+                ? t("Preparing model")
                 : report?.cached_bytes && report.download_bytes === 0
-                  ? "Load & explore"
-                  : "Download & explore"}
+                  ? t("Load & explore")
+                  : t("Download & explore")}
               <ArrowRight size={16} />
             </button>
           </div>

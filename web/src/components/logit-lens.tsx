@@ -1,10 +1,9 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { Panel } from "@/components/ui";
 import { TargetTrajectories } from "@/components/target-trajectories";
 import { number } from "@/lib/api";
 import type { LayerTrace, Trace } from "@/lib/types";
-
 function measurement(values: unknown, position: number, maximum = Infinity) {
   const value = Array.isArray(values) ? values[position] : null;
   return typeof value === "number" &&
@@ -14,7 +13,6 @@ function measurement(values: unknown, position: number, maximum = Infinity) {
     ? value
     : null;
 }
-
 function positionValues(layer: LayerTrace, position: number) {
   const id = measurement(layer.token_prediction_ids, position);
   return {
@@ -24,11 +22,9 @@ function positionValues(layer: LayerTrace, position: number) {
     norm: measurement(layer.token_norms, position),
   };
 }
-
 function probability(value: number | null) {
   return value === null ? "N/A" : number(value * 100, 4) + "%";
 }
-
 export function LogitLens({
   trace,
   position,
@@ -38,6 +34,7 @@ export function LogitLens({
   position: number;
   onPositionChange: (position: number) => void;
 }) {
+  const { t, rich } = useI18n();
   const selected = Math.max(0, Math.min(position, trace.tokens.length - 1));
   const perPosition =
     !!trace.token_prediction_method ||
@@ -60,14 +57,16 @@ export function LogitLens({
     });
   return (
     <Panel
-      title="Watch predictions take shape"
-      subtitle="Project intermediate residual states through the final norm and unembedding."
+      title={t("Watch predictions take shape")}
+      subtitle={t(
+        "Project intermediate residual states through the final norm and unembedding.",
+      )}
     >
       <div className="attention-controls">
         <label className="checkbox-row">
-          Token position{" "}
+          {t("Token position")}
           <select
-            aria-label="Logit lens token position"
+            aria-label={t("Logit lens token position")}
             value={selected}
             onChange={(event) => onPositionChange(+event.target.value)}
           >
@@ -80,53 +79,61 @@ export function LogitLens({
         </label>
       </div>
       <p className="inline-note" role="status">
-        Prompt position {selected} · token ID {trace.token_ids[selected]}.{" "}
-        {selected === trace.tokens.length - 1
-          ? "Predictions describe the next token after the prompt."
-          : "Predictions use the causal prefix ending at this token."}
+        {rich("Prompt position {v0} \u00B7 token ID {v1}. {v2}", {
+          v0: selected,
+          v1: trace.token_ids[selected],
+          v2:
+            selected === trace.tokens.length - 1
+              ? t("Predictions describe the next token after the prompt.")
+              : t("Predictions use the causal prefix ending at this token."),
+        })}
       </p>
       <TargetTrajectories trace={trace} position={selected} />
       {!perPosition && (
         <p className="inline-note">
-          This older capture stores confidence and entropy for the final prompt
-          token. Those columns remain labeled separately from the selected
-          position.
+          {t(
+            "This older capture stores confidence and entropy for the final prompt token. Those columns remain labeled separately from the selected position.",
+          )}
         </p>
       )}
       {incomplete && (
         <p className="inline-note">
-          Some measurements at this position are unavailable in this capture.
+          {t(
+            "Some measurements at this position are unavailable in this capture.",
+          )}
         </p>
       )}
       <div
         className="table-wrap"
         role="region"
-        aria-label="Logit lens predictions"
+        aria-label={t("Logit lens predictions")}
         tabIndex={0}
       >
         <table
           className={perPosition ? "position-lens-table" : "legacy-lens-table"}
         >
           <caption className="sr-only">
-            Logit lens measurements at prompt position {selected}
+            {rich("Logit lens measurements at prompt position {v0}", {
+              v0: selected,
+            })}
           </caption>
           <thead>
             <tr>
-              <th>CAPTURE</th>
-              <th>POSITION PREDICTION</th>
+              <th>{t("CAPTURE")}</th>
+              <th>{t("POSITION PREDICTION")}</th>
               {perPosition ? (
                 <>
-                  <th>PREDICTED ID</th>
-                  <th>PROBABILITY</th>
-                  <th>ENTROPY IN NATS</th>
-                  <th>RESIDUAL NORM</th>
+                  <th>{t("PREDICTED ID")}</th>
+                  <th>{t("PROBABILITY")}</th>
+                  <th>{t("ENTROPY IN NATS")}</th>
+                  <th>{t("RESIDUAL NORM")}</th>
                 </>
               ) : (
                 <>
-                  <th>LAST TOKEN TOP PREDICTION</th>
-                  <th>LAST TOKEN PROBABILITY</th>
-                  <th>LAST TOKEN ENTROPY</th>
-                  <th>LAST TOKEN COSINE</th>
+                  <th>{t("LAST TOKEN TOP PREDICTION")}</th>
+                  <th>{t("LAST TOKEN PROBABILITY")}</th>
+                  <th>{t("LAST TOKEN ENTROPY")}</th>
+                  <th>{t("LAST TOKEN COSINE")}</th>
                 </>
               )}
             </tr>
@@ -138,7 +145,7 @@ export function LogitLens({
               return (
                 <tr key={layer.layer}>
                   <th scope="row" className="code">
-                    {layer.label}
+                    {t(layer.label)}
                   </th>
                   <td>
                     <span
@@ -146,7 +153,9 @@ export function LogitLens({
                       title={
                         values.id === null
                           ? undefined
-                          : "Vocabulary ID " + values.id
+                          : t("Vocabulary ID {v0}", {
+                              v0: values.id,
+                            })
                       }
                     >
                       {prediction === "" ? "∅" : (prediction ?? "Unavailable")}
@@ -156,24 +165,28 @@ export function LogitLens({
                     <>
                       <td className="code">{values.id ?? "N/A"}</td>
                       <td className="code">
-                        {probability(values.probability)}
+                        {t(probability(values.probability))}
                       </td>
-                      <td className="code">{number(values.entropy, 5)}</td>
-                      <td className="code">{number(values.norm, 5)}</td>
+                      <td className="code">{t(number(values.entropy, 5))}</td>
+                      <td className="code">{t(number(values.norm, 5))}</td>
                     </>
                   ) : (
                     <>
                       <td>
                         <span className="lens-token">
-                          {layer.predictions[0]?.token ?? "Unavailable"}
+                          {layer.predictions[0]?.token ?? t("Unavailable")}
                         </span>
                       </td>
                       <td className="code">
-                        {probability(layer.predictions[0]?.probability ?? null)}
+                        {t(
+                          probability(
+                            layer.predictions[0]?.probability ?? null,
+                          ),
+                        )}
                       </td>
-                      <td className="code">{number(layer.entropy)}</td>
+                      <td className="code">{t(number(layer.entropy))}</td>
                       <td className="code">
-                        {number(layer.cosine_similarity, 4)}
+                        {t(number(layer.cosine_similarity, 4))}
                       </td>
                     </>
                   )}
@@ -186,49 +199,58 @@ export function LogitLens({
       {perPosition && (
         <>
           <p className="inline-note">
-            Prediction, vocabulary ID, probability, entropy and residual norm
-            follow the selected prompt position. Residual norms use the recorded
-            capture states.
-            {trace.final_state_normalized &&
-              " The final layer residual was captured after final normalization."}
+            {rich(
+              "Prediction, vocabulary ID, probability, entropy and residual norm follow the selected prompt position. Residual norms use the recorded capture states.{v0}",
+              {
+                v0:
+                  trace.final_state_normalized &&
+                  t(
+                    " The final layer residual was captured after final normalization.",
+                  ),
+              },
+            )}
           </p>
           <details className="comparison-values">
-            <summary>Inspect final token transitions</summary>
+            <summary>{t("Inspect final token transitions")}</summary>
             <p className="inline-note">
-              These transitions always describe the final prompt token,
-              including when another position is selected above.
+              {t(
+                "These transitions always describe the final prompt token, including when another position is selected above.",
+              )}
             </p>
             <div
               className="table-wrap"
               role="region"
-              aria-label="Final token transitions"
+              aria-label={t("Final token transitions")}
               tabIndex={0}
             >
               <table className="lens-transitions-table">
                 <caption className="sr-only">
-                  Final prompt token residual transitions between captured
-                  layers
+                  {t(
+                    "Final prompt token residual transitions between captured layers",
+                  )}
                 </caption>
                 <thead>
                   <tr>
-                    <th>CAPTURE</th>
-                    <th>COSINE TO PREVIOUS</th>
-                    <th>UPDATE NORM</th>
-                    <th>UPDATE TO INPUT NORM</th>
+                    <th>{t("CAPTURE")}</th>
+                    <th>{t("COSINE TO PREVIOUS")}</th>
+                    <th>{t("UPDATE NORM")}</th>
+                    <th>{t("UPDATE TO INPUT NORM")}</th>
                   </tr>
                 </thead>
                 <tbody>
                   {trace.layers.map((layer) => (
                     <tr key={layer.layer}>
                       <th scope="row" className="code">
-                        {layer.label}
+                        {t(layer.label)}
                       </th>
                       <td className="code">
-                        {number(layer.cosine_similarity, 5)}
+                        {t(number(layer.cosine_similarity, 5))}
                       </td>
-                      <td className="code">{number(layer.update_norm, 5)}</td>
                       <td className="code">
-                        {number(layer.relative_update, 5)}
+                        {t(number(layer.update_norm, 5))}
+                      </td>
+                      <td className="code">
+                        {t(number(layer.relative_update, 5))}
                       </td>
                     </tr>
                   ))}
@@ -238,9 +260,9 @@ export function LogitLens({
           </details>
         </>
       )}
-      <p className="inline-note">{trace.method}</p>
+      <p className="inline-note">{t(trace.method)}</p>
       {trace.token_prediction_method && (
-        <p className="inline-note">{trace.token_prediction_method}</p>
+        <p className="inline-note">{t(trace.token_prediction_method)}</p>
       )}
     </Panel>
   );

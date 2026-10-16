@@ -1,13 +1,17 @@
+"use client";
+import { useI18n } from "@/i18n/provider";
 import type { Trace } from "@/lib/types";
-
 export function GeneratedOutput({ trace }: { trace: Trace }) {
+  const { t, rich } = useI18n();
   const contextual = typeof trace.continuation_text === "string";
   const captureOnly = trace.generation_performed === false;
   return (
     <>
       <div
         className="trace-output"
-        aria-label={captureOnly ? "Captured prompt" : "Decoded generation"}
+        aria-label={
+          captureOnly ? t("Captured prompt") : t("Decoded generation")
+        }
       >
         {contextual ? (
           <>
@@ -25,35 +29,38 @@ export function GeneratedOutput({ trace }: { trace: Trace }) {
       </div>
       {captureOnly && (
         <p className="inline-note">
-          Prompt capture only. No continuation was generated. Activations,
-          attention and next token predictions describe the prompt forward pass.
+          {t(
+            "Prompt capture only. No continuation was generated. Activations, attention and next token predictions describe the prompt forward pass.",
+          )}
         </p>
       )}
       {trace.generated_token_ids && trace.generated_token_ids.length > 0 && (
         <details className="generated-token-details">
-          <summary>Generated token IDs</summary>
+          <summary>{t("Generated token IDs")}</summary>
           <p className="inline-note">
-            These tokens follow the prompt. Layer activations and attention
-            describe the prompt capture. Vocabulary pieces can differ from
-            decoded text and special tokens may be hidden in the output.
+            {t(
+              "These tokens follow the prompt. Layer activations and attention describe the prompt capture. Vocabulary pieces can differ from decoded text and special tokens may be hidden in the output.",
+            )}
           </p>
           {trace.generation_settings && (
             <p className="inline-note">
-              Greedy generation requested up to{" "}
-              {trace.generation_settings.max_new_tokens} new tokens and returned{" "}
-              {trace.generated_token_ids.length}. Exports include these
-              overrides and whether prompt attention was captured. Remaining
-              generation defaults come from the pinned checkpoint.
+              {rich(
+                "Greedy generation requested up to {v0} new tokens and returned {v1}. Exports include these overrides and whether prompt attention was captured. Remaining generation defaults come from the pinned checkpoint.",
+                {
+                  v0: trace.generation_settings.max_new_tokens,
+                  v1: trace.generated_token_ids.length,
+                },
+              )}
             </p>
           )}
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>POSITION</th>
-                  <th>TOKEN ID</th>
-                  <th>DECODED TOKEN</th>
-                  <th>VOCABULARY PIECE</th>
+                  <th>{t("POSITION")}</th>
+                  <th>{t("TOKEN ID")}</th>
+                  <th>{t("DECODED TOKEN")}</th>
+                  <th>{t("VOCABULARY PIECE")}</th>
                 </tr>
               </thead>
               <tbody>

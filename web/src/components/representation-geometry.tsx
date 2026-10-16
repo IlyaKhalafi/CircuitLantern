@@ -1,10 +1,9 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { Heatmap, SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
 import { number } from "@/lib/api";
 import type { Trace, TraceGeometry } from "@/lib/types";
-
 export function RepresentationGeometry({
   geometry,
   trace,
@@ -12,6 +11,7 @@ export function RepresentationGeometry({
   geometry: TraceGeometry;
   trace: Trace;
 }) {
+  const { t, rich } = useI18n();
   const tokens = geometry.sampled_positions.map(
     (position) => `${position} · ${trace.tokens[position] || "∅"}`,
   );
@@ -21,14 +21,20 @@ export function RepresentationGeometry({
     <>
       <div className="two-column">
         <Panel
-          title="Layer representation similarity"
-          subtitle="Linear CKA across prompt token positions. Both axes progress from embeddings through transformer blocks."
+          title={t("Layer representation similarity")}
+          subtitle={t(
+            "Linear CKA across prompt token positions. Both axes progress from embeddings through transformer blocks.",
+          )}
         >
           {insufficient ? (
             <div className="panel-body">
               <p className="inline-note">
-                Use at least {geometry.minimum_samples} prompt tokens to compare
-                layer geometry. A single token has no centered sample variance.
+                {rich(
+                  "Use at least {v0} prompt tokens to compare layer geometry. A single token has no centered sample variance.",
+                  {
+                    v0: geometry.minimum_samples,
+                  },
+                )}
               </p>
             </div>
           ) : (
@@ -38,38 +44,50 @@ export function RepresentationGeometry({
               maxAbs={1}
               xLabels={geometry.labels}
               yLabels={geometry.labels}
-              label="Hover to compare two captures. One means aligned centered geometry. Gray cells have zero centered variance and are undefined."
+              label={t(
+                "Hover to compare two captures. One means aligned centered geometry. Gray cells have zero centered variance and are undefined.",
+              )}
             />
           )}
           <p className="inline-note">
-            This uses the biased linear CKA estimator within one prompt. High
-            similarity does not establish equivalent computations or a causal
-            relationship.
+            {t(
+              "This uses the biased linear CKA estimator within one prompt. High similarity does not establish equivalent computations or a causal relationship.",
+            )}
           </p>
         </Panel>
         <Panel
-          title="Token representation similarity"
-          subtitle="Cosine similarity between token residual vectors at the final capture, before final normalization when available."
+          title={t("Token representation similarity")}
+          subtitle={t(
+            "Cosine similarity between token residual vectors at the final capture, before final normalization when available.",
+          )}
         >
           <Heatmap
             data={geometry.token_cosine}
             maxAbs={1}
             xLabels={tokens}
             yLabels={tokens}
-            label="Both axes are sampled prompt positions. Orange means aligned directions, blue means opposite directions. Gray cells contain a zero vector and are undefined."
+            label={t(
+              "Both axes are sampled prompt positions. Orange means aligned directions, blue means opposite directions. Gray cells contain a zero vector and are undefined.",
+            )}
           />
         </Panel>
       </div>
       {geometry.sampled_positions.length < geometry.token_count && (
         <p className="inline-note">
-          Geometry uses {geometry.sampled_positions.length} evenly spaced
-          positions from {geometry.token_count} prompt tokens. Residual updates
-          use every position.
+          {rich(
+            "Geometry uses {v0} evenly spaced positions from {v1} prompt tokens. Residual updates use every position.",
+            {
+              v0: geometry.sampled_positions.length,
+              v1: geometry.token_count,
+            },
+          )}
         </p>
       )}
       <Panel
-        title="Residual updates"
-        subtitle="L2 magnitude of each block's change to the final prompt token. A bypassed block should contribute zero."
+        title={t("Residual updates")}
+        subtitle={t(
+          "L2 magnitude of each block's change to the final prompt token. A bypassed block should contribute zero.",
+        )}
       >
         <SeriesChart
           data={trace.layers
@@ -79,20 +97,24 @@ export function RepresentationGeometry({
               update: layer.update_norm ?? null,
             }))}
           series={[
-            { key: "update", label: "Residual update norm", color: "#bd906b" },
+            {
+              key: "update",
+              label: "Residual update norm",
+              color: "var(--accent)",
+            },
           ]}
           area
         />
         <details className="estimate-details">
-          <summary>Inspect block update values</summary>
+          <summary>{t("Inspect block update values")}</summary>
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
-                  <th>CAPTURE</th>
-                  <th>LAST TOKEN UPDATE</th>
-                  <th>ALL TOKEN UPDATE RMS</th>
-                  <th>UPDATE / INPUT NORM</th>
+                  <th>{t("CAPTURE")}</th>
+                  <th>{t("LAST TOKEN UPDATE")}</th>
+                  <th>{t("ALL TOKEN UPDATE RMS")}</th>
+                  <th>{t("UPDATE / INPUT NORM")}</th>
                 </tr>
               </thead>
               <tbody>
@@ -100,12 +122,12 @@ export function RepresentationGeometry({
                   .filter((layer) => layer.layer >= 0)
                   .map((layer) => (
                     <tr key={layer.layer}>
-                      <td className="code">{layer.label}</td>
+                      <td className="code">{t(layer.label)}</td>
                       <td className="code">
-                        {number(layer.update_norm ?? null, 4)}
+                        {t(number(layer.update_norm ?? null, 4))}
                       </td>
                       <td className="code">
-                        {number(layer.update_rms ?? null, 4)}
+                        {t(number(layer.update_rms ?? null, 4))}
                       </td>
                       <td className="code">
                         {layer.relative_update == null
@@ -119,8 +141,9 @@ export function RepresentationGeometry({
           </div>
         </details>
         <p className="inline-note">
-          Update magnitude measures a vector difference. It does not isolate the
-          attention or MLP contribution within the block.
+          {t(
+            "Update magnitude measures a vector difference. It does not isolate the attention or MLP contribution within the block.",
+          )}
         </p>
       </Panel>
     </>

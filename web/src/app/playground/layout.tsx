@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
 import type { ReactNode } from "react";
+import { localizedMetadata } from "@/i18n/server";
 
-export const metadata: Metadata = { title: "Activation lab" };
+export async function generateMetadata() {
+  return localizedMetadata("Activation lab");
+}
 
 export default function Layout({ children }: { children: ReactNode }) {
   return children;

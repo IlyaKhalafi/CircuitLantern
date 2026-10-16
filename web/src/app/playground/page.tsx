@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import {
   Activity,
   ArrowRight,
@@ -32,8 +32,8 @@ import { interventionLabel } from "@/lib/interventions";
 import type { Trace } from "@/lib/types";
 import { truncateText } from "@/lib/text";
 import { useRuntime } from "@/lib/runtime";
-
 export default function PlaygroundPage() {
+  const { t, rich } = useI18n();
   const {
     runtime,
     loading,
@@ -171,12 +171,16 @@ export default function PlaygroundPage() {
   return (
     <>
       <PageHeader
-        eyebrow="FOLLOW THE COMPUTATION"
-        title="From a prompt to a prediction."
+        eyebrow={t("FOLLOW THE COMPUTATION")}
+        title={t("From a prompt to a prediction.")}
         description={
           runtime?.loaded
-            ? `${runtime.metadata?.id} · live activations from your local model`
-            : "Watch information move through the model, one layer at a time."
+            ? t("{v0} \u00B7 live activations from your local model", {
+                v0: runtime.metadata?.id,
+              })
+            : t(
+                "Watch information move through the model, one layer at a time.",
+              )
         }
         actions={
           <>
@@ -188,14 +192,16 @@ export default function PlaygroundPage() {
                 refreshRuntime();
               }}
             >
-              <RefreshCw size={14} /> Refresh runtime
+              <RefreshCw size={14} />
+              {t("Refresh runtime")}
             </button>
             {trace && (
               <button
                 className="button secondary"
                 onClick={() => downloadJSON(trace, "activation-trace.json")}
               >
-                <Download size={14} /> Export trace
+                <Download size={14} />
+                {t("Export trace")}
               </button>
             )}
           </>
@@ -207,43 +213,56 @@ export default function PlaygroundPage() {
         runtime?.metadata?.execution_id &&
         trace.execution_id !== runtime.metadata.execution_id && (
           <div className="notice info">
-            This capture belongs to a previous model session. Its recorded model
-            and settings are preserved.
+            {t(
+              "This capture belongs to a previous model session. Its recorded model and settings are preserved.",
+            )}
           </div>
         )}
       {loading ? (
-        <Loading label="Connecting to model runtime" />
+        <Loading label={t("Connecting to model runtime")} />
       ) : !runtime?.loaded ? (
         <EmptyState
           icon={<Activity size={28} />}
-          title="Give a prediction some context."
+          title={t("Give a prediction some context.")}
           href="/"
-          action="Load a model"
+          action={t("Load a model")}
         >
-          Choose a checkpoint, then run a prompt to capture residual streams,
-          layer predictions, and attention patterns.
+          {t(
+            "Choose a checkpoint, then run a prompt to capture residual streams, layer predictions, and attention patterns.",
+          )}
         </EmptyState>
       ) : (
         <>
           <Panel
-            title="Prompt your model"
+            title={t("Prompt your model")}
             subtitle={
               tokens === 0
-                ? `Capture the prompt without generating a continuation. Up to ${promptLimit} prompt tokens.`
-                : `Deterministic generation with bounded activation capture. Up to ${promptLimit} prompt tokens with this generation length.`
+                ? t(
+                    "Capture the prompt without generating a continuation. Up to {v0} prompt tokens.",
+                    {
+                      v0: promptLimit,
+                    },
+                  )
+                : t(
+                    "Deterministic generation with bounded activation capture. Up to {v0} prompt tokens with this generation length.",
+                    {
+                      v0: promptLimit,
+                    },
+                  )
             }
           >
             <form className="prompt-box" onSubmit={run}>
               <label htmlFor="prompt" className="sr-only">
-                Prompt
+                {t("Prompt")}
               </label>
               <textarea
+                dir="auto"
                 id="prompt"
-                aria-label="Prompt"
+                aria-label={t("Prompt")}
                 disabled={inspection.pending}
                 value={prompt}
                 onChange={(e) => setPrompt(truncateText(e.target.value, 8000))}
-                placeholder="Ask a question about how a model thinks…"
+                placeholder={t("Ask a question about how a model thinks\u2026")}
                 maxLength={16000}
                 required
               />
@@ -267,9 +286,9 @@ export default function PlaygroundPage() {
               <div className="prompt-toolbar">
                 <div className="prompt-controls">
                   <label>
-                    Generate
+                    {t("Generate")}
                     <select
-                      aria-label="Generated tokens"
+                      aria-label={t("Generated tokens")}
                       disabled={busy || inspection.pending}
                       value={tokens}
                       onChange={(e) => setTokens(+e.target.value)}
@@ -278,28 +297,34 @@ export default function PlaygroundPage() {
                         .filter((n) => n < contextLimit)
                         .map((n) => (
                           <option key={n} value={n}>
-                            {n === 0 ? "Capture only" : `${n} tokens`}
+                            {n === 0
+                              ? t("Capture only")
+                              : t("{v0} tokens", {
+                                  v0: n,
+                                })}
                           </option>
                         ))}
                     </select>
                   </label>
                   <label>
-                    Intervention
+                    {t("Intervention")}
                     <select
-                      aria-label="Layer intervention"
+                      aria-label={t("Layer intervention")}
                       disabled={inspection.pending}
                       value={ablate}
                       onChange={(e) => setAblate(e.target.value)}
                     >
-                      <option value="">None · baseline</option>
+                      <option value="">{t("None \u00B7 baseline")}</option>
                       {!!runtime.attention_head_targets?.length && (
-                        <option value="head">Zero attention head</option>
+                        <option value="head">{t("Zero attention head")}</option>
                       )}
                       {Array.from(
                         { length: runtime.metadata?.num_layers || 0 },
                         (_, i) => (
                           <option key={i} value={i}>
-                            Bypass block {i}
+                            {rich("Bypass block {v0}", {
+                              v0: i,
+                            })}
                           </option>
                         ),
                       )}
@@ -308,9 +333,9 @@ export default function PlaygroundPage() {
                   {ablate === "head" && (
                     <>
                       <label>
-                        Layer
+                        {t("Layer")}
                         <select
-                          aria-label="Head ablation layer"
+                          aria-label={t("Head ablation layer")}
                           disabled={inspection.pending}
                           value={headLayer}
                           onChange={(event) => {
@@ -320,15 +345,17 @@ export default function PlaygroundPage() {
                         >
                           {runtime.attention_head_targets?.map((target) => (
                             <option key={target.layer} value={target.layer}>
-                              Layer {target.layer}
+                              {rich("Layer {v0}", {
+                                v0: target.layer,
+                              })}
                             </option>
                           ))}
                         </select>
                       </label>
                       <label>
-                        Head
+                        {t("Head")}
                         <select
-                          aria-label="Attention head to zero"
+                          aria-label={t("Attention head to zero")}
                           disabled={inspection.pending}
                           value={head}
                           onChange={(event) => setHead(+event.target.value)}
@@ -337,7 +364,9 @@ export default function PlaygroundPage() {
                             { length: headTarget?.heads ?? 0 },
                             (_, i) => (
                               <option key={i} value={i}>
-                                Head {i}
+                                {rich("Head {v0}", {
+                                  v0: i,
+                                })}
                               </option>
                             ),
                           )}
@@ -347,12 +376,13 @@ export default function PlaygroundPage() {
                   )}
                   <label>
                     <input
+                      dir="auto"
                       type="checkbox"
                       disabled={inspection.pending}
                       checked={captureAttention}
                       onChange={(e) => setCaptureAttention(e.target.checked)}
-                    />{" "}
-                    Capture attention
+                    />
+                    {t("Capture attention")}
                   </label>
                 </div>
                 <button
@@ -370,27 +400,29 @@ export default function PlaygroundPage() {
                   }
                 >
                   <Play size={14} />
-                  {busy ? "Tracing activations" : "Run & trace"}
+                  {busy ? t("Tracing activations") : t("Run & trace")}
                   <ArrowRight size={14} />
                 </button>
               </div>
               {captureAttention && (
                 <details className="attention-capture-options">
-                  <summary>Attention capture options</summary>
+                  <summary>{t("Attention capture options")}</summary>
                   <label>
-                    Routing query
+                    {t("Routing query")}
                     <select
-                      aria-label="Attention routing query"
+                      aria-label={t("Attention routing query")}
                       value={attentionQuery}
                       disabled={busy || inspection.pending}
                       onChange={(event) =>
                         setAttentionQuery(+event.target.value)
                       }
                     >
-                      <option value={-1}>Final prompt token</option>
+                      <option value={-1}>{t("Final prompt token")}</option>
                       {attentionQuery >= 0 && !queryTokens.length && (
                         <option value={attentionQuery}>
-                          Position {attentionQuery} · checking prompt tokens
+                          {rich("Position {v0} \u00B7 checking prompt tokens", {
+                            v0: attentionQuery,
+                          })}
                         </option>
                       )}
                       {queryTokens.map((token, index) => (
@@ -401,9 +433,9 @@ export default function PlaygroundPage() {
                     </select>
                   </label>
                   <p>
-                    Capture per-head routing from one prompt token across
-                    layers. Run a new trace after choosing a position. Average
-                    patterns still cover the whole prompt.
+                    {t(
+                      "Capture per-head routing from one prompt token across layers. Run a new trace after choosing a position. Average patterns still cover the whole prompt.",
+                    )}
                   </p>
                 </details>
               )}
@@ -417,17 +449,19 @@ export default function PlaygroundPage() {
           </Panel>
           {ablate !== "" && ablate !== "head" && (
             <div className="notice info section-gap">
-              Block bypass replaces the selected transformer block output with
-              its input residual stream. Run a baseline in the same model
-              session with the same prompt to compare residual magnitudes.
+              {t(
+                "Block bypass replaces the selected transformer block output with its input residual stream. Run a baseline in the same model session with the same prompt to compare residual magnitudes.",
+              )}
             </div>
           )}
           {busy && (
             <Loading
               label={
                 tokens === 0
-                  ? "Running the forward pass and capturing prompt states"
-                  : "Running the forward pass, capturing states and generating a continuation"
+                  ? t("Running the forward pass and capturing prompt states")
+                  : t(
+                      "Running the forward pass, capturing states and generating a continuation",
+                    )
               }
             />
           )}
@@ -448,8 +482,8 @@ export default function PlaygroundPage() {
                   <Activity size={15} />
                 </span>
                 <div>
-                  <h3>Residual stream</h3>
-                  <p>Track activation magnitudes across layers.</p>
+                  <h3>{t("Residual stream")}</h3>
+                  <p>{t("Track activation magnitudes across layers.")}</p>
                 </div>
               </div>
               <div>
@@ -457,8 +491,8 @@ export default function PlaygroundPage() {
                   <Play size={15} />
                 </span>
                 <div>
-                  <h3>Logit lens</h3>
-                  <p>See the prediction at each stage of processing.</p>
+                  <h3>{t("Logit lens")}</h3>
+                  <p>{t("See the prediction at each stage of processing.")}</p>
                 </div>
               </div>
               <div>
@@ -466,8 +500,12 @@ export default function PlaygroundPage() {
                   <RotateCcw size={15} />
                 </span>
                 <div>
-                  <h3>Causal interventions</h3>
-                  <p>Bypass a block or zero a head and measure what changes.</p>
+                  <h3>{t("Causal interventions")}</h3>
+                  <p>
+                    {t(
+                      "Bypass a block or zero a head and measure what changes.",
+                    )}
+                  </p>
                 </div>
               </div>
             </div>

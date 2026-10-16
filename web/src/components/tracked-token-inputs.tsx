@@ -1,10 +1,9 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { useId } from "react";
 import { Plus, X } from "lucide-react";
 import type { TargetTokenPreview } from "@/lib/types";
 import type { TargetPreviewState } from "@/lib/target-preview";
-
 function Resolution({
   target,
   id,
@@ -12,6 +11,7 @@ function Resolution({
   target?: TargetTokenPreview;
   id: string;
 }) {
+  const { t, rich } = useI18n();
   if (!target || target.skipped) return <div id={id} />;
   return (
     <div
@@ -20,17 +20,23 @@ function Resolution({
     >
       {target.token_count === 1 ? (
         <p>
-          Vocabulary ID {target.token_ids[0]} ·{" "}
-          {JSON.stringify(target.tokens[0] ?? "")}
-          {target.special_tokens[0] && " · special token"}
+          {rich("Vocabulary ID {v0} \u00B7 {v1}{v2}", {
+            v0: target.token_ids[0],
+            v1: JSON.stringify(target.tokens[0] ?? ""),
+            v2: target.special_tokens[0] && t(" \u00B7 special token"),
+          })}
         </p>
       ) : (
-        <p>Split into {target.token_count} vocabulary tokens.</p>
+        <p>
+          {rich("Split into {v0} vocabulary tokens.", {
+            v0: target.token_count,
+          })}
+        </p>
       )}
       {target.error && <p>{target.error}</p>}
       {target.pieces.length > 0 && (
         <details className="target-token-pieces">
-          <summary>Native token pieces</summary>
+          <summary>{t("Native token pieces")}</summary>
           <div>
             {target.pieces.map((piece, index) => (
               <code key={index}>
@@ -39,7 +45,9 @@ function Resolution({
             ))}
             {target.truncated && (
               <span>
-                {target.token_count - target.pieces.length} more tokens
+                {rich("{v0} more tokens", {
+                  v0: target.token_count - target.pieces.length,
+                })}
               </span>
             )}
           </div>
@@ -48,7 +56,6 @@ function Resolution({
     </div>
   );
 }
-
 export function TrackedTokenInputs({
   tokens,
   onChange,
@@ -60,6 +67,7 @@ export function TrackedTokenInputs({
   disabled: boolean;
   preview: TargetPreviewState;
 }) {
+  const { t, rich } = useI18n();
   const prefix = useId();
   const ready =
     preview.data?.targets.filter((target) => !target.skipped && target.valid)
@@ -68,20 +76,24 @@ export function TrackedTokenInputs({
   return (
     <details className="attention-capture-options">
       <summary>
-        <span>Track target tokens</span>
-        {invalid && <span className="pill orange">Needs attention</span>}
+        <span>{t("Track target tokens")}</span>
+        {invalid && <span className="pill orange">{t("Needs attention")}</span>}
       </summary>
       <p>
-        Record up to eight chosen vocabulary tokens through the logit lens. Each
-        entry must encode to one token. Leading spaces matter.
+        {t(
+          "Record up to eight chosen vocabulary tokens through the logit lens. Each entry must encode to one token. Leading spaces matter.",
+        )}
       </p>
       {preview.pending ? (
-        <p>Checking target tokens</p>
+        <p>{t("Checking target tokens")}</p>
       ) : preview.data ? (
         <p role="status">
           {invalid
-            ? "Fix the marked targets before tracing."
-            : ready + " target token" + (ready === 1 ? "" : "s") + " ready."}
+            ? t("Fix the marked targets before tracing.")
+            : t(
+                "{count, plural, one {# target token ready.} other {# target tokens ready.}}",
+                { count: ready },
+              )}
         </p>
       ) : null}
       {tokens.map((token, index) => {
@@ -90,9 +102,14 @@ export function TrackedTokenInputs({
         const target = preview.data?.targets[index];
         return (
           <div className="tracked-token-row" key={index}>
-            <label htmlFor={id}>Target token {index + 1}</label>
+            <label htmlFor={id}>
+              {rich("Target token {v0}", {
+                v0: index + 1,
+              })}
+            </label>
             <div className="tracked-token-control">
               <input
+                dir="auto"
                 id={id}
                 className="form-input"
                 value={token}
@@ -113,7 +130,9 @@ export function TrackedTokenInputs({
               <button
                 type="button"
                 className="icon-button"
-                aria-label={"Remove target token " + (index + 1)}
+                aria-label={t("Remove target token {v0}", {
+                  v0: index + 1,
+                })}
                 disabled={disabled}
                 onClick={() => onChange(tokens.filter((_, i) => i !== index))}
               >
@@ -130,7 +149,8 @@ export function TrackedTokenInputs({
         disabled={disabled || tokens.length >= 8}
         onClick={() => onChange([...tokens, ""])}
       >
-        <Plus size={14} /> Add target token
+        <Plus size={14} />
+        {t("Add target token")}
       </button>
       {preview.error && (
         <>
@@ -141,13 +161,14 @@ export function TrackedTokenInputs({
             disabled={disabled || preview.pending}
             onClick={preview.retry}
           >
-            Retry target preview
+            {t("Retry target preview")}
           </button>
         </>
       )}
       <p>
-        Empty entries are skipped. Run a new trace after changing targets. Saved
-        scores can be inspected at any captured prompt position.
+        {t(
+          "Empty entries are skipped. Run a new trace after changing targets. Saved scores can be inspected at any captured prompt position.",
+        )}
       </p>
     </details>
   );

@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import {
   ArrowRight,
   Download,
@@ -26,8 +26,8 @@ import { useBackgroundJob } from "@/lib/jobs";
 import type { CausalResult } from "@/lib/types";
 import { truncateText } from "@/lib/text";
 import { useRuntime } from "@/lib/runtime";
-
 export default function CausalPage() {
+  const { t } = useI18n();
   const {
     runtime,
     loading,
@@ -62,7 +62,6 @@ export default function CausalPage() {
     (customPosition >= 0 &&
       customPosition <
         Math.min(captureLimit, previews?.[0]?.token_count ?? captureLimit));
-
   useEffect(() => {
     if (!result) return;
     setClean(result.clean_prompt);
@@ -78,7 +77,6 @@ export default function CausalPage() {
     if (result.position !== null && result.position >= 0)
       setCustomPosition(result.position);
   }, [result]);
-
   async function run(event: React.FormEvent) {
     event.preventDefault();
     await start("/causal", {
@@ -90,13 +88,14 @@ export default function CausalPage() {
         position === "all" ? null : position === "last" ? -1 : customPosition,
     });
   }
-
   return (
     <>
       <PageHeader
-        eyebrow="TEST THE PATH OF INFORMATION"
-        title="Restore a signal. Measure the effect."
-        description="Patch clean residual activations into a corrupted prompt, one transformer block at a time."
+        eyebrow={t("TEST THE PATH OF INFORMATION")}
+        title={t("Restore a signal. Measure the effect.")}
+        description={t(
+          "Patch clean residual activations into a corrupted prompt, one transformer block at a time.",
+        )}
         actions={
           <>
             <button
@@ -107,14 +106,16 @@ export default function CausalPage() {
                 refreshRuntime();
               }}
             >
-              <RefreshCw size={14} /> Refresh runtime
+              <RefreshCw size={14} />
+              {t("Refresh runtime")}
             </button>
             {result && (
               <button
                 className="button secondary"
                 onClick={() => downloadJSON(result, "causal-patching.json")}
               >
-                <Download size={14} /> Export sweep
+                <Download size={14} />
+                {t("Export sweep")}
               </button>
             )}
           </>
@@ -128,34 +129,42 @@ export default function CausalPage() {
         runtime?.metadata?.execution_id &&
         result.execution_id !== runtime.metadata.execution_id && (
           <div className="notice info">
-            These results belong to a previous model session. Their recorded
-            model and settings are preserved.
+            {t(
+              "These results belong to a previous model session. Their recorded model and settings are preserved.",
+            )}
           </div>
         )}
       {loading ? (
-        <Loading label="Connecting to model runtime" />
+        <Loading label={t("Connecting to model runtime")} />
       ) : !runtime?.loaded ? (
         <EmptyState
           icon={<FlaskConical size={28} />}
-          title="Turn an observation into a test."
+          title={t("Turn an observation into a test.")}
           href="/"
-          action="Load a model"
+          action={t("Load a model")}
         >
-          Choose a checkpoint to compare clean and corrupted prompts and
-          identify where restored activations change a prediction.
+          {t(
+            "Choose a checkpoint to compare clean and corrupted prompts and identify where restored activations change a prediction.",
+          )}
         </EmptyState>
       ) : (
         <>
           <Panel
-            title="Design a controlled comparison"
-            subtitle={`Prompts must have equal token counts so positions align. Up to ${captureLimit} tokens per prompt within the loaded context allowance.`}
+            title={t("Design a controlled comparison")}
+            subtitle={t(
+              "Prompts must have equal token counts so positions align. Up to {v0} tokens per prompt within the loaded context allowance.",
+              {
+                v0: captureLimit,
+              },
+            )}
           >
             <form className="panel-body" onSubmit={run}>
               <div className="comparison-grid">
                 <label>
-                  Clean prompt
+                  {t("Clean prompt")}
                   <textarea
-                    aria-label="Clean prompt"
+                    dir="auto"
+                    aria-label={t("Clean prompt")}
                     value={clean}
                     onChange={(e) => setClean(e.target.value)}
                     rows={3}
@@ -165,9 +174,10 @@ export default function CausalPage() {
                   />
                 </label>
                 <label>
-                  Corrupted prompt
+                  {t("Corrupted prompt")}
                   <textarea
-                    aria-label="Corrupted prompt"
+                    dir="auto"
+                    aria-label={t("Corrupted prompt")}
                     value={corrupted}
                     onChange={(e) => setCorrupted(e.target.value)}
                     rows={3}
@@ -183,43 +193,47 @@ export default function CausalPage() {
               />
               {position === "custom" && !positionFits && (
                 <p className="token-preview-warning" role="status">
-                  Choose a patch position within the tokenized prompts.
+                  {t("Choose a patch position within the tokenized prompts.")}
                 </p>
               )}
               <div className="form-grid">
                 <label>
-                  Target next token
+                  {t("Target next token")}
                   <input
+                    dir="auto"
                     className="form-input mono"
-                    aria-label="Target next token"
+                    aria-label={t("Target next token")}
                     value={target}
                     onChange={(e) => setTarget(e.target.value)}
-                    placeholder="Auto · clean top prediction"
+                    placeholder={t("Auto \u00B7 clean top prediction")}
                     maxLength={100}
                     disabled={busy}
                   />
                 </label>
                 <label>
-                  Positions to restore
+                  {t("Positions to restore")}
                   <select
-                    aria-label="Positions to restore"
+                    aria-label={t("Positions to restore")}
                     value={position}
                     onChange={(e) => setPosition(e.target.value)}
                     disabled={busy}
                   >
-                    <option value="last">Last prompt token</option>
+                    <option value="last">{t("Last prompt token")}</option>
                     <option value="all">
-                      All prompt tokens · sanity check
+                      {t("All prompt tokens \u00B7 sanity check")}
                     </option>
-                    <option value="custom">A specific token position</option>
+                    <option value="custom">
+                      {t("A specific token position")}
+                    </option>
                   </select>
                 </label>
                 {position === "custom" && (
                   <label>
-                    Token position · zero based
+                    {t("Token position \u00B7 zero based")}
                     <input
+                      dir="auto"
                       className="form-input mono"
-                      aria-label="Patch token position"
+                      aria-label={t("Patch token position")}
                       type="number"
                       min={0}
                       max={Math.max(
@@ -235,8 +249,9 @@ export default function CausalPage() {
               </div>
               <div className="prompt-toolbar">
                 <p className="control-note">
-                  Target text must encode to one token. A leading space may
-                  matter.
+                  {t(
+                    "Target text must encode to one token. A leading space may matter.",
+                  )}
                 </p>
                 <div className="action-row">
                   {busy && canCancel && (
@@ -247,7 +262,7 @@ export default function CausalPage() {
                       disabled={cancelling}
                     >
                       <Square size={12} />{" "}
-                      {cancelling ? "Cancelling" : "Cancel sweep"}
+                      {cancelling ? t("Cancelling") : t("Cancel sweep")}
                     </button>
                   )}
                   <button
@@ -262,7 +277,7 @@ export default function CausalPage() {
                     }
                   >
                     <Play size={13} />
-                    {busy ? "Running sweep" : "Run patch sweep"}
+                    {busy ? t("Running sweep") : t("Run patch sweep")}
                     <ArrowRight size={14} />
                   </button>
                 </div>
@@ -271,11 +286,11 @@ export default function CausalPage() {
             {job && (
               <div className="job-progress" role="status" aria-live="polite">
                 <div>
-                  <span>{job.message}</span>
+                  <span>{t(job.message)}</span>
                   <strong>{job.progress}%</strong>
                 </div>
                 <progress
-                  aria-label="Residual patch sweep progress"
+                  aria-label={t("Residual patch sweep progress")}
                   value={job.progress}
                   max={100}
                 />
@@ -284,14 +299,11 @@ export default function CausalPage() {
           </Panel>
           {!result && !busy && (
             <div className="guide-callout">
-              <h2>What the sweep measures</h2>
+              <h2>{t("What the sweep measures")}</h2>
               <p>
-                First the model runs each prompt unchanged. Then each block is
-                tested in a separate corrupted run with clean residual outputs
-                restored at the selected positions. Recovery measures the change
-                in target log probability relative to the clean and corrupted
-                baseline difference. Negative values and values above one are
-                meaningful.
+                {t(
+                  "First the model runs each prompt unchanged. Then each block is tested in a separate corrupted run with clean residual outputs restored at the selected positions. Recovery measures the change in target log probability relative to the clean and corrupted baseline difference. Negative values and values above one are meaningful.",
+                )}
               </p>
             </div>
           )}

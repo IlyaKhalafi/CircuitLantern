@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { useEffect, useRef, useState } from "react";
 import { number } from "@/lib/api";
 import {
@@ -16,7 +16,6 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
-
 function hasIsolatedValue(
   data: Record<string, number | string | null>[],
   key: string,
@@ -29,7 +28,6 @@ function hasIsolatedValue(
     (_, index) => known(index) && !known(index - 1) && !known(index + 1),
   );
 }
-
 export function SeriesChart({
   data,
   series,
@@ -39,7 +37,11 @@ export function SeriesChart({
   yAxis,
 }: {
   data: Record<string, number | string | null>[];
-  series: { key: string; label: string; color: string }[];
+  series: {
+    key: string;
+    label: string;
+    color: string;
+  }[];
   area?: boolean;
   height?: number;
   xKey?: string;
@@ -51,6 +53,7 @@ export function SeriesChart({
     ticks?: number[];
   };
 }) {
+  const { t, localize } = useI18n();
   const Chart = area ? AreaChart : LineChart;
   return (
     <div className="chart" style={{ height }}>
@@ -84,7 +87,7 @@ export function SeriesChart({
             <Legend
               iconType="line"
               formatter={(value) => (
-                <span style={{ color: "var(--muted)" }}>{value}</span>
+                <span style={{ color: "var(--muted)" }}>{localize(value)}</span>
               )}
             />
           )}
@@ -105,7 +108,7 @@ export function SeriesChart({
                 key={item.key}
                 type="monotone"
                 dataKey={item.key}
-                name={item.label}
+                name={t(item.label)}
                 stroke={item.color}
                 fill={item.color}
                 fillOpacity={0.09}
@@ -118,7 +121,7 @@ export function SeriesChart({
                 key={item.key}
                 type="monotone"
                 dataKey={item.key}
-                name={item.label}
+                name={t(item.label)}
                 stroke={item.color}
                 dot={hasIsolatedValue(data, item.key) ? { r: 3 } : false}
                 strokeWidth={1.7}
@@ -130,12 +133,15 @@ export function SeriesChart({
     </div>
   );
 }
-
 export function Histogram({
   data,
 }: {
-  data: { value: number; count: number }[];
+  data: {
+    value: number;
+    count: number;
+  }[];
 }) {
+  const { t } = useI18n();
   return (
     <div className="chart">
       <ResponsiveContainer width="100%" height="100%">
@@ -154,13 +160,15 @@ export function Histogram({
           <YAxis tickLine={false} axisLine={false} />
           <Tooltip
             itemStyle={{ color: "var(--ink)" }}
-            labelFormatter={(v) => `Weight ${Number(v).toPrecision(4)}`}
+            labelFormatter={(v) =>
+              t("Weight {value}", { value: Number(v).toPrecision(4) })
+            }
           />
           <Bar
             isAnimationActive={false}
             dataKey="count"
-            name="Elements"
-            fill="#a8b9cb"
+            name={t("Elements")}
+            fill="var(--blue)"
             radius={[2, 2, 0, 0]}
           />
         </BarChart>
@@ -168,7 +176,6 @@ export function Histogram({
     </div>
   );
 }
-
 export function Heatmap({
   data,
   sequential = false,
@@ -188,6 +195,7 @@ export function Heatmap({
   logarithmic?: boolean;
   height?: number;
 }) {
+  const { t } = useI18n();
   const canvas = useRef<HTMLCanvasElement>(null);
   const maximum =
     maxAbs ??
@@ -210,7 +218,7 @@ export function Heatmap({
     data.forEach((row, y) =>
       row.forEach((value, x) => {
         if (value === null) {
-          context.fillStyle = "#e7ebf0";
+          context.fillStyle = "#283954";
           context.fillRect(
             x * cellWidth,
             y * cellHeight,
@@ -229,8 +237,8 @@ export function Heatmap({
                   : magnitude / maximum,
               )
             : 0;
-        const low = sequential ? [247, 247, 243] : [246, 245, 243];
-        const high = value >= 0 ? [206, 139, 85] : [87, 121, 161];
+        const low = [16, 27, 48];
+        const high = value >= 0 ? [255, 195, 84] : [131, 171, 244];
         context.fillStyle = `rgb(${low.map((v, i) => Math.round(v + (high[i] - v) * strength)).join(",")})`;
         context.fillRect(
           x * cellWidth,
@@ -249,7 +257,7 @@ export function Heatmap({
         className="heatmap"
         style={height === undefined ? undefined : { height }}
         role="img"
-        aria-label={label}
+        aria-label={t(label)}
         onMouseMove={(event) => {
           const bounds = event.currentTarget.getBoundingClientRect();
           const x = Math.min(
@@ -279,19 +287,19 @@ export function Heatmap({
         <div
           style={
             sequential
-              ? { background: "linear-gradient(90deg,#f7f7f3,#ce8b55)" }
+              ? { background: "linear-gradient(90deg,#101b30,#ffc354)" }
               : undefined
           }
         >
           {logarithmic && sequential && (
             <span className="heatmap-midpoint">
-              {number(Math.expm1(Math.log1p(maximum) / 2), 3)}
+              {t(number(Math.expm1(Math.log1p(maximum) / 2), 3))}
             </span>
           )}
         </div>
         <span>{maximum.toPrecision(2)}</span>
       </div>
-      <p>{hover || label}</p>
+      <p>{hover ? t(hover) : t(label)}</p>
     </div>
   );
 }

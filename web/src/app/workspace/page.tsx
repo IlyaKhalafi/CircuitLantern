@@ -1,12 +1,10 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import {
   ArrowRight,
   ChevronRight,
-  Download,
   Layers3,
   Network,
-  Search,
   RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
@@ -23,10 +21,10 @@ import {
   Panel,
 } from "@/components/ui";
 import { executionPath } from "@/lib/runtime";
-import { api, downloadJSON, number } from "@/lib/api";
+import { api, number } from "@/lib/api";
 import type { MatrixMetrics, ModelGraph, RuntimeState } from "@/lib/types";
-
 export default function WorkspacePage() {
+  const { t, rich } = useI18n();
   const [graph, setGraph] = useState<ModelGraph | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +55,10 @@ export default function WorkspacePage() {
             executionPath("/graph", state.metadata?.execution_id),
           )
         : null;
-      if (id === refreshId.current) setGraph(next);
+      if (id === refreshId.current) {
+        setGraph(next);
+        setLayer(next && next.metadata.num_layers > 8 ? 0 : null);
+      }
     } catch (reason) {
       if (id === refreshId.current) setError((reason as Error).message);
     } finally {
@@ -71,7 +72,6 @@ export default function WorkspacePage() {
     if (metrics)
       detail.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [metrics]);
-
   const inspect = useCallback(
     async (name: string) => {
       const id = ++requestId.current;
@@ -106,12 +106,16 @@ export default function WorkspacePage() {
   return (
     <>
       <PageHeader
-        eyebrow="ANATOMY OF A TRANSFORMER"
-        title="See the structure. Inspect the weights."
+        eyebrow={t("ANATOMY OF A TRANSFORMER")}
+        title={t("See the structure. Inspect the weights.")}
         description={
           graph
-            ? `${graph.metadata.id} · ${graph.metadata.architecture} · revision ${graph.metadata.revision.slice(0, 8)}`
-            : "A map of the computations behind every prediction."
+            ? t("{v0} \u00B7 {v1} \u00B7 revision {v2}", {
+                v0: graph.metadata.id,
+                v1: graph.metadata.architecture,
+                v2: graph.metadata.revision.slice(0, 8),
+              })
+            : t("A map of the computations behind every prediction.")
         }
         actions={
           <>
@@ -120,11 +124,13 @@ export default function WorkspacePage() {
               disabled={loading}
               onClick={refresh}
             >
-              <RefreshCw size={14} /> Refresh explorer
+              <RefreshCw size={14} />
+              {t("Refresh explorer")}
             </button>
             {graph && (
               <Link href="/playground" className="button primary">
-                Trace a prompt <ArrowRight size={15} />
+                {t("Trace a prompt")}
+                <ArrowRight size={15} />
               </Link>
             )}
           </>
@@ -132,60 +138,65 @@ export default function WorkspacePage() {
       />
       <ErrorNotice message={error} />
       {loading ? (
-        <Loading label="Opening model explorer" />
+        <Loading label={t("Opening model explorer")} />
       ) : !graph && error ? (
         <Panel
-          title="Explorer temporarily unavailable"
-          subtitle="Retry after the runtime becomes available."
+          title={t("Explorer temporarily unavailable")}
+          subtitle={t("Retry after the runtime becomes available.")}
         >
           <div className="panel-body">
             <button className="button secondary" onClick={refresh}>
-              Retry explorer
+              {t("Retry explorer")}
             </button>
           </div>
         </Panel>
       ) : !graph ? (
         <EmptyState
           icon={<Network size={28} />}
-          title="Your next model, under the microscope."
+          title={t("Your next model, under the microscope.")}
           href="/"
-          action="Choose a model"
+          action={t("Choose a model")}
         >
-          Load a checkpoint from the library to explore its architecture,
-          inspect weight matrices and discover their geometry.
+          {t(
+            "Load a checkpoint from the library to explore its architecture, inspect weight matrices and discover their geometry.",
+          )}
         </EmptyState>
       ) : (
         <>
           <div className="metrics-grid">
             <Metric
-              label="Parameters"
+              label={t("Parameters")}
               value={number(graph.total_parameters, 0)}
-              note="Measured from loaded weights"
+              note={t("Measured from loaded weights")}
             />
             <Metric
-              label="Transformer blocks"
+              label={t("Transformer blocks")}
               value={graph.metadata.num_layers}
-              note={`${graph.metadata.num_heads} attention heads per block`}
+              note={t("{v0} attention heads per block", {
+                v0: graph.metadata.num_heads,
+              })}
             />
             <Metric
-              label="Hidden dimension"
+              label={t("Hidden dimension")}
               value={graph.metadata.hidden_size}
-              note={`${graph.metadata.num_kv_heads} key/value heads`}
+              note={t("{v0} key/value heads", {
+                v0: graph.metadata.num_kv_heads,
+              })}
             />
             <Metric
-              label="Weight matrices"
+              label={t("Weight matrices")}
               value={graph.matrices.length}
-              note="Two dimensional parameters"
+              note={t("Two dimensional parameters")}
             />
           </div>
-          <div className="tabs" role="tablist" aria-label="Explorer view">
+          <div className="tabs" role="tablist" aria-label={t("Explorer view")}>
             <button
               role="tab"
               aria-selected={view === "graph"}
               className={view === "graph" ? "active" : ""}
               onClick={() => setView("graph")}
             >
-              Architecture graph
+              {t("Architecture graph")}
             </button>
             <button
               role="tab"
@@ -193,14 +204,16 @@ export default function WorkspacePage() {
               className={view === "table" ? "active" : ""}
               onClick={() => setView("table")}
             >
-              Weight inventory
+              {t("Weight inventory")}
             </button>
           </div>
           {view === "graph" ? (
             <div className="graph-layout">
               <Panel
-                title="Model architecture"
-                subtitle="Scroll to zoom, drag to pan, select a block to inspect its matrices."
+                title={t("Model architecture")}
+                subtitle={t(
+                  "Scroll to zoom, drag to pan, select a block to inspect its matrices.",
+                )}
                 action={
                   <span className="pill subtle">
                     <Layers3 size={12} /> {graph.metadata.architecture}
@@ -217,25 +230,30 @@ export default function WorkspacePage() {
               <Panel
                 title={
                   layer === null
-                    ? "All weight matrices"
-                    : `Block ${layer} matrices`
+                    ? t("All weight matrices")
+                    : t("Block {v0} matrices", {
+                        v0: layer,
+                      })
                 }
-                subtitle={`${weights.length} matrices in view`}
+                subtitle={t("{v0} matrices in view", {
+                  v0: weights.length,
+                })}
                 action={
                   layer !== null && (
                     <button
                       className="text-link icon-button"
                       onClick={() => setLayer(null)}
                     >
-                      Show all
+                      {t("Show all")}
                     </button>
                   )
                 }
               >
                 <div className="filter-input">
                   <input
-                    aria-label="Filter matrices"
-                    placeholder="Filter by matrix name…"
+                    dir="auto"
+                    aria-label={t("Filter matrices")}
+                    placeholder={t("Filter by matrix name\u2026")}
                     value={filter}
                     onChange={(e) => setFilter(e.target.value)}
                   />
@@ -250,28 +268,33 @@ export default function WorkspacePage() {
                       <div>
                         <strong>{w.name}</strong>
                         <small>
-                          {w.shape.join(" × ")} · {number(w.elements, 0)}{" "}
-                          elements
+                          {rich("{v0} \u00B7 {v1} elements", {
+                            v0: w.shape.join(" × "),
+                            v1: number(w.elements, 0),
+                          })}
                         </small>
                       </div>
                       <ChevronRight size={15} />
                     </button>
                   ))}
                   {!weights.length && (
-                    <div className="empty-inline">No matching matrices.</div>
+                    <div className="empty-inline">
+                      {t("No matching matrices.")}
+                    </div>
                   )}
                 </div>
               </Panel>
             </div>
           ) : (
             <Panel
-              title="Weight inventory"
-              subtitle="Select any matrix to compute its properties."
+              title={t("Weight inventory")}
+              subtitle={t("Select any matrix to compute its properties.")}
             >
               <div className="filter-input">
                 <input
-                  aria-label="Filter matrices"
-                  placeholder="Filter by matrix name…"
+                  dir="auto"
+                  aria-label={t("Filter matrices")}
+                  placeholder={t("Filter by matrix name\u2026")}
                   value={filter}
                   onChange={(e) => setFilter(e.target.value)}
                 />
@@ -280,10 +303,10 @@ export default function WorkspacePage() {
                 <table>
                   <thead>
                     <tr>
-                      <th>MATRIX</th>
-                      <th>SHAPE</th>
-                      <th>ELEMENTS</th>
-                      <th>DTYPE</th>
+                      <th>{t("MATRIX")}</th>
+                      <th>{t("SHAPE")}</th>
+                      <th>{t("ELEMENTS")}</th>
+                      <th>{t("DTYPE")}</th>
                       <th />
                     </tr>
                   </thead>
@@ -298,7 +321,7 @@ export default function WorkspacePage() {
                       >
                         <td className="code">{w.name}</td>
                         <td className="code">{w.shape.join(" × ")}</td>
-                        <td>{number(w.elements, 0)}</td>
+                        <td>{t(number(w.elements, 0))}</td>
                         <td>{w.dtype}</td>
                         <td>
                           <ChevronRight size={14} />
@@ -312,7 +335,11 @@ export default function WorkspacePage() {
           )}
           <div ref={detail} className="section-gap matrix-detail">
             {analyzing && (
-              <Loading label={`Computing properties of ${selected}`} />
+              <Loading
+                label={t("Computing properties of {v0}", {
+                  v0: selected,
+                })}
+              />
             )}
             {metrics && (
               <MatrixResults

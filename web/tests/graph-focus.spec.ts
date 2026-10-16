@@ -159,3 +159,24 @@ test("blocks with different matrix counts use measured heights without overlap",
     path: "../artifacts/screenshots/graph-variable-height-mobile.png",
   });
 });
+
+test("larger architectures open at a readable block scale", async ({
+  page,
+}) => {
+  await page.route("**/api/graph**", async (route) => {
+    const response = await route.fetch();
+    const graph = await response.json();
+    graph.metadata.num_layers = Math.max(12, graph.metadata.num_layers);
+    await route.fulfill({ response, json: graph });
+  });
+  await page.goto("/workspace");
+  await expect(page.getByLabel("Focus on transformer block")).toHaveValue("0");
+  const block = page.locator('.graph-container .react-flow__node[data-id="0"]');
+  await expect
+    .poll(async () => (await block.boundingBox())?.width ?? 0)
+    .toBeGreaterThan(200);
+  await page.getByLabel("Focus on transformer block").selectOption("all");
+  await expect(
+    page.getByText("All weight matrices", { exact: true }),
+  ).toBeVisible();
+});

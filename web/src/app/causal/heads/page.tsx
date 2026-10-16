@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { useEffect, useState } from "react";
 import { Download, FlaskConical, Play, RefreshCw, Square } from "lucide-react";
 import { CausalNavigation } from "@/components/causal-navigation";
@@ -19,8 +19,8 @@ import { truncateText } from "@/lib/text";
 import { useRuntime } from "@/lib/runtime";
 import { useTokenPreview } from "@/lib/token-preview";
 import type { HeadSweepResult } from "@/lib/types";
-
 export default function HeadSweepPage() {
+  const { t, rich } = useI18n();
   const { runtime, loading, error: runtimeError, refresh } = useRuntime();
   const [prompt, setPrompt] = useState("The capital of France is");
   const [target, setTarget] = useState("");
@@ -42,7 +42,6 @@ export default function HeadSweepPage() {
     runtime?.metadata?.execution_id,
   );
   const fits = preview.data?.prompts[0]?.fits ?? true;
-
   useEffect(() => {
     if (!targets.length) return;
     if (
@@ -51,7 +50,6 @@ export default function HeadSweepPage() {
     )
       setLayer(String(targets[0].layer));
   }, [layer, runtime]);
-
   useEffect(() => {
     if (!result) return;
     setPrompt(result.prompt);
@@ -62,7 +60,6 @@ export default function HeadSweepPage() {
         : "all",
     );
   }, [result]);
-
   async function run(event: React.FormEvent) {
     event.preventDefault();
     await start("/head-sweep", {
@@ -72,13 +69,14 @@ export default function HeadSweepPage() {
       layers: layer === "all" ? null : [selected?.layer],
     });
   }
-
   return (
     <>
       <PageHeader
-        eyebrow="TEST INDIVIDUAL ATTENTION HEADS"
-        title="Remove a head. Measure what changes."
-        description="Zero each attention head independently and compare its effect on the next token prediction."
+        eyebrow={t("TEST INDIVIDUAL ATTENTION HEADS")}
+        title={t("Remove a head. Measure what changes.")}
+        description={t(
+          "Zero each attention head independently and compare its effect on the next token prediction.",
+        )}
         actions={
           <>
             <button
@@ -89,14 +87,16 @@ export default function HeadSweepPage() {
                 refresh();
               }}
             >
-              <RefreshCw size={14} /> Refresh runtime
+              <RefreshCw size={14} />
+              {t("Refresh runtime")}
             </button>
             {result && (
               <button
                 className="button secondary"
                 onClick={() => downloadJSON(result, "head-ablation-sweep.json")}
               >
-                <Download size={14} /> Export head sweep
+                <Download size={14} />
+                {t("Export head sweep")}
               </button>
             )}
           </>
@@ -110,37 +110,43 @@ export default function HeadSweepPage() {
         runtime?.metadata?.execution_id &&
         result.execution_id !== runtime.metadata.execution_id && (
           <div className="notice info">
-            These results belong to a previous model session. Their recorded
-            model and settings are preserved.
+            {t(
+              "These results belong to a previous model session. Their recorded model and settings are preserved.",
+            )}
           </div>
         )}
       {loading ? (
-        <Loading label="Connecting to model runtime" />
+        <Loading label={t("Connecting to model runtime")} />
       ) : !runtime?.loaded ? (
         <EmptyState
           icon={<FlaskConical size={28} />}
-          title="Test a model's attention heads."
+          title={t("Test a model's attention heads.")}
           href="/"
-          action="Load a model"
+          action={t("Load a model")}
         >
-          Choose a checkpoint to measure how individual head outputs influence a
-          prediction.
+          {t(
+            "Choose a checkpoint to measure how individual head outputs influence a prediction.",
+          )}
         </EmptyState>
       ) : !targets.length ? (
         <div className="notice info">
-          Head sweeps are unavailable for this architecture. Verified GPT-2,
-          Llama, Qwen2 and GPT-NeoX attention layouts are supported.
+          {t(
+            "Head sweeps are unavailable for this architecture. Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.",
+          )}
         </div>
       ) : (
         <Panel
-          title="Design a head ablation sweep"
-          subtitle="The baseline and every ablated run use the same prompt. No tokens are generated."
+          title={t("Design a head ablation sweep")}
+          subtitle={t(
+            "The baseline and every ablated run use the same prompt. No tokens are generated.",
+          )}
         >
           <form className="panel-body" onSubmit={run}>
             <label>
-              Prompt
+              {t("Prompt")}
               <textarea
-                aria-label="Head sweep prompt"
+                dir="auto"
+                aria-label={t("Head sweep prompt")}
                 value={prompt}
                 onChange={(event) => setPrompt(event.target.value)}
                 maxLength={8000}
@@ -152,9 +158,9 @@ export default function HeadSweepPage() {
             <TokenPreview preview={preview} />
             <div className="head-sweep-controls">
               <label>
-                Layers to test
+                {t("Layers to test")}
                 <select
-                  aria-label="Layers to test"
+                  aria-label={t("Layers to test")}
                   value={
                     layer === "all" ? "all" : String(selected?.layer ?? "")
                   }
@@ -163,38 +169,52 @@ export default function HeadSweepPage() {
                 >
                   {targets.map((item) => (
                     <option value={item.layer} key={item.layer}>
-                      Layer {item.layer} · {item.heads} heads
+                      {rich("Layer {v0} \u00B7 {v1} heads", {
+                        v0: item.layer,
+                        v1: item.heads,
+                      })}
                     </option>
                   ))}
                   <option value="all" disabled={allHeads > maximum}>
-                    All layers · {allHeads} heads
-                    {allHeads > maximum ? " · exceeds sweep limit" : ""}
+                    {rich("All layers \u00B7 {v0} heads{v1}", {
+                      v0: allHeads,
+                      v1:
+                        allHeads > maximum
+                          ? t(" \u00B7 exceeds sweep limit")
+                          : "",
+                    })}
                   </option>
                 </select>
               </label>
               <label className="head-target-field">
-                Target token
+                {t("Target token")}
                 <input
+                  dir="auto"
                   type="text"
                   className="form-input"
-                  aria-label="Head sweep target token"
+                  aria-label={t("Head sweep target token")}
                   value={target}
                   onChange={(event) => setTarget(event.target.value)}
-                  placeholder="Automatic baseline top prediction"
+                  placeholder={t("Automatic baseline top prediction")}
                   maxLength={100}
                   disabled={busy}
                 />
               </label>
             </div>
             <p className="control-note">
-              Leave the target empty to use the baseline top prediction, or
-              enter exactly one token with its leading space when needed.
+              {t(
+                "Leave the target empty to use the baseline top prediction, or enter exactly one token with its leading space when needed.",
+              )}
             </p>
             <div className="head-sweep-actions">
               <p className="control-note">
-                {count} heads selected. The sweep runs one baseline and one
-                forward pass per head, with a limit of {maximum} heads per job.
-                Cancellation takes effect after the current forward pass.
+                {rich(
+                  "{v0} heads selected. The sweep runs one baseline and one forward pass per head, with a limit of {v1} heads per job. Cancellation takes effect after the current forward pass.",
+                  {
+                    v0: count,
+                    v1: maximum,
+                  },
+                )}
               </p>
               <div className="action-row">
                 {busy && canCancel && (
@@ -205,7 +225,7 @@ export default function HeadSweepPage() {
                     disabled={cancelling}
                   >
                     <Square size={13} />{" "}
-                    {cancelling ? "Cancelling" : "Cancel sweep"}
+                    {cancelling ? t("Cancelling") : t("Cancel sweep")}
                   </button>
                 )}
                 <button
@@ -216,7 +236,7 @@ export default function HeadSweepPage() {
                   }
                 >
                   <Play size={14} />{" "}
-                  {busy ? "Running head sweep" : "Run head sweep"}
+                  {busy ? t("Running head sweep") : t("Run head sweep")}
                 </button>
               </div>
             </div>
@@ -224,11 +244,11 @@ export default function HeadSweepPage() {
           {job && (
             <div className="job-progress" role="status" aria-live="polite">
               <div>
-                <span>{job.message}</span>
+                <span>{t(job.message)}</span>
                 <strong>{job.progress}%</strong>
               </div>
               <progress
-                aria-label="Head sweep progress"
+                aria-label={t("Head sweep progress")}
                 value={job.progress}
                 max={100}
               />
@@ -251,13 +271,11 @@ export default function HeadSweepPage() {
       ) : (
         !busy && (
           <div className="guide-callout">
-            <h2>What the sweep measures</h2>
+            <h2>{t("What the sweep measures")}</h2>
             <p>
-              Each intervention zeros one query head output before the attention
-              output projection at every prompt position. Negative target log
-              probability changes mean removal reduced the target probability.
-              The distribution divergence also captures changes to other tokens.
-              Start with one layer before expanding the sweep.
+              {t(
+                "Each intervention zeros one query head output before the attention output projection at every prompt position. Negative target log probability changes mean removal reduced the target probability. The distribution divergence also captures changes to other tokens. Start with one layer before expanding the sweep.",
+              )}
             </p>
           </div>
         )

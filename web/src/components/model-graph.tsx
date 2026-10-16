@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import {
   Background,
   Controls,
@@ -17,7 +17,6 @@ import {
 import { useEffect, useMemo, useRef } from "react";
 import type { ModelGraph, Weight } from "@/lib/types";
 import "@xyflow/react/dist/style.css";
-
 type LayerNode = Node<
   {
     label: string;
@@ -29,7 +28,6 @@ type LayerNode = Node<
   },
   "layer"
 >;
-
 const projectionLabels: Record<string, string> = {
   q_proj: "W_Q",
   k_proj: "W_K",
@@ -46,25 +44,24 @@ const projectionLabels: Record<string, string> = {
   lm_head: "W_U",
   embed_out: "W_U",
 };
-
 function matrixLabel(name: string) {
   const component = name.split(".").at(-2) || "W";
   if (component === "c_proj")
     return name.includes(".attn.") ? "W_O" : "MLP out";
   return projectionLabels[component] || component.replace("_proj", "");
 }
-
 function Layer({ data }: NodeProps<LayerNode>) {
+  const { t } = useI18n();
   return (
     <div className={`graph-node ${data.selected ? "selected" : ""}`}>
       <Handle
         type="target"
         position={Position.Top}
-        style={{ background: "#b8c3d1", border: 0 }}
+        style={{ background: "var(--blue)", border: 0 }}
       />
       <div className="graph-node-header">
-        {data.label}
-        <span>{data.subtitle}</span>
+        {t(data.label)}
+        <span>{t(data.subtitle)}</span>
       </div>
       <div className="graph-matrices">
         {data.matrices.map((weight) => (
@@ -72,8 +69,12 @@ function Layer({ data }: NodeProps<LayerNode>) {
             key={weight.name}
             type="button"
             className={`graph-matrix nodrag nowheel ${weight.name.includes(".mlp.") ? "mlp" : ""}`}
-            title={`${weight.name} · ${weight.shape.join(" × ")}${data.sharedOutput ? " · shared with token embedding" : ""}`}
-            aria-label={`Inspect ${weight.name}, shape ${weight.shape.join(" by ")}${data.sharedOutput ? ", shared output projection" : ""}`}
+            title={`${weight.name} · ${weight.shape.join(" × ")}${data.sharedOutput ? " " + t("· shared with token embedding") : ""}`}
+            aria-label={t("Inspect {v0}, shape {v1}{v2}", {
+              v0: weight.name,
+              v1: weight.shape.join(" by "),
+              v2: data.sharedOutput ? t(", shared output projection") : "",
+            })}
             onClick={(event) => {
               event.stopPropagation();
               data.onInspect(weight.name);
@@ -88,24 +89,22 @@ function Layer({ data }: NodeProps<LayerNode>) {
       </div>
       {!data.matrices.length && (
         <span className="graph-output-note">
-          Shared or specialized output projection
+          {t("Shared or specialized output projection")}
         </span>
       )}
       <Handle
         type="source"
         position={Position.Bottom}
-        style={{ background: "#b8c3d1", border: 0 }}
+        style={{ background: "var(--blue)", border: 0 }}
       />
     </div>
   );
 }
 const nodeTypes = { layer: Layer };
-
 export function getLayer(name: string): number | null {
   const match = name.match(/(?:layers|h)\.(\d+)\./);
   return match ? +match[1] : null;
 }
-
 function FitGraphViewport({
   selectedLayer,
   modelKey,
@@ -120,8 +119,12 @@ function FitGraphViewport({
   const width = useStore((state) => state.width);
   const height = useStore((state) => state.height);
   const fitted = useRef(false);
+  const lastFit = useRef("");
   useEffect(() => {
     if (!initialized || !layoutReady || !width || !height) return;
+    const frame = JSON.stringify([selectedLayer, modelKey, width, height]);
+    if (lastFit.current === frame) return;
+    lastFit.current = frame;
     const duration =
       !fitted.current ||
       window.matchMedia("(prefers-reduced-motion: reduce)").matches
@@ -147,7 +150,6 @@ function FitGraphViewport({
   ]);
   return null;
 }
-
 export function ModelGraphView({
   graph,
   selectedLayer,
@@ -159,6 +161,7 @@ export function ModelGraphView({
   onSelect: (layer: number | null) => void;
   onInspect: (name: string) => void;
 }) {
+  const { t, rich } = useI18n();
   const { nodes: plannedNodes, edges } = useMemo(() => {
     const embedding = graph.matrices.filter((w) =>
       /(?:wte|embed_tokens|embed_in)\.weight$/.test(w.name),
@@ -174,7 +177,9 @@ export function ModelGraphView({
         position: { x: 0, y: 0 },
         data: {
           label: "Token embedding",
-          subtitle: `${graph.metadata.vocab_size.toLocaleString()} TOKENS`,
+          subtitle: t("{count} TOKENS", {
+            count: graph.metadata.vocab_size.toLocaleString("en"),
+          }),
           matrices: embedding,
           selected: false,
           onInspect,
@@ -189,7 +194,7 @@ export function ModelGraphView({
         position: { x: 0, y: (i + 1) * 150 },
         data: {
           label: `Transformer block ${String(i).padStart(2, "0")}`,
-          subtitle: `${matrices.length} MATRICES`,
+          subtitle: t("{count} MATRICES", { count: matrices.length }),
           matrices,
           selected: selectedLayer === i,
           onInspect,
@@ -215,10 +220,10 @@ export function ModelGraphView({
         id: `e${index}`,
         source: nodes[index].id,
         target: node.id,
-        style: { stroke: "#becbda", strokeWidth: 1.5 },
+        style: { stroke: "var(--blue-border)", strokeWidth: 1.5 },
       })),
     };
-  }, [graph, selectedLayer, onInspect]);
+  }, [graph, selectedLayer, onInspect, t]);
   const [nodes, setNodes, onNodesChange] = useNodesState(plannedNodes);
   useEffect(() => {
     setNodes((current) => {
@@ -248,14 +253,13 @@ export function ModelGraphView({
   useEffect(() => {
     if (stackedNodes && !layoutReady) setNodes(stackedNodes);
   }, [stackedNodes, layoutReady, setNodes]);
-
   return (
     <>
       <div className="graph-toolbar">
         <label>
-          Focus on
+          {t("Focus on")}
           <select
-            aria-label="Focus on transformer block"
+            aria-label={t("Focus on transformer block")}
             value={selectedLayer === null ? "all" : selectedLayer}
             onChange={(event) =>
               onSelect(
@@ -263,15 +267,17 @@ export function ModelGraphView({
               )
             }
           >
-            <option value="all">Full model overview</option>
+            <option value="all">{t("Full model overview")}</option>
             {Array.from({ length: graph.metadata.num_layers }, (_, i) => (
               <option key={i} value={i}>
-                Transformer block {i}
+                {rich("Transformer block {v0}", {
+                  v0: i,
+                })}
               </option>
             ))}
           </select>
         </label>
-        <span>Select a matrix to inspect its weights</span>
+        <span>{t("Select a matrix to inspect its weights")}</span>
       </div>
       <div className="graph-container">
         <ReactFlow<LayerNode>
@@ -288,7 +294,7 @@ export function ModelGraphView({
           nodesDraggable={false}
           nodesConnectable={false}
           elementsSelectable={false}
-          aria-label="Interactive model architecture"
+          aria-label={t("Interactive model architecture")}
         >
           <FitGraphViewport
             layoutReady={layoutReady}
@@ -298,11 +304,13 @@ export function ModelGraphView({
               `${graph.metadata.id}@${graph.metadata.revision}`
             }
           />
-          <Background color="#d7dfe9" gap={20} size={1} />
+          <Background color="var(--line)" gap={20} size={1} />
           <Controls showInteractive={false} />
           <MiniMap
-            nodeColor={(node) => (node.data.selected ? "#dba575" : "#d6dfe9")}
-            maskColor="#f5f7f9b0"
+            nodeColor={(node) =>
+              node.data.selected ? "var(--accent)" : "var(--blue)"
+            }
+            maskColor="#070d1abf"
             style={{ width: 90, height: 110 }}
           />
         </ReactFlow>

@@ -1,26 +1,41 @@
 import type { Metadata } from "next";
 import { Shell } from "@/components/shell";
+import { I18nProvider } from "@/i18n/provider";
+import { requestLanguage } from "@/i18n/server";
+import { text } from "@/i18n/format";
+import { direction } from "@/i18n/locale";
+import "@fontsource-variable/vazirmatn";
+import "@fontsource-variable/noto-sans-jp";
 import "@fontsource-variable/dm-sans";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./globals.css";
 
-export const metadata: Metadata = {
-  title: {
-    default: "Model library · Circuit Lantern",
-    template: "%s · Circuit Lantern",
-  },
-  description:
-    "A local mechanistic interpretability workbench for exploring transformer weights, residual streams, attention and predictions.",
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { locale, messages } = await requestLanguage();
+  return {
+    title: {
+      default: text(locale, messages, "Model library") + " · Circuit Lantern",
+      template: "%s · Circuit Lantern",
+    },
+    description: text(
+      locale,
+      messages,
+      "A local mechanistic interpretability workbench for exploring transformer weights, residual streams, attention and predictions.",
+    ),
+  };
+}
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
+  const { locale, messages } = await requestLanguage();
   return (
-    <html lang="en">
+    <html lang={locale} dir={direction(locale)}>
       <body>
-        <Shell>{children}</Shell>
+        <I18nProvider initialLocale={locale} initialMessages={messages}>
+          <Shell>{children}</Shell>
+        </I18nProvider>
       </body>
     </html>
   );

@@ -1,10 +1,12 @@
 # Circuit Lantern
 
+<img src="web/public/brand/lantern.webp" alt="Circuit Lantern" width="100" height="100" />
+
 **A local lab for mechanistic interpretability.**
 
 Go from a Hugging Face checkpoint to the weights, activations and interventions behind a prediction. Circuit Lantern combines a Next.js workbench with a Python backend that runs models on your own server.
 
-Check the hardware, load a model, follow a prompt through its layers and keep the evidence in a research notebook.
+Check the hardware, load a model, follow a prompt through its layers and keep the evidence in a research notebook. The interface supports English, Persian, Arabic, Japanese and French, with right to left layouts for Persian and Arabic.
 
 ![Zoomable transformer graph with a selected block and its weight matrices](docs/images/model-explorer.png)
 

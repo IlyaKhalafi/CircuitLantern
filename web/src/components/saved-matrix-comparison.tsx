@@ -1,5 +1,5 @@
 "use client";
-
+import { useI18n } from "@/i18n/provider";
 import { Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { ErrorNotice, Loading, Panel } from "@/components/ui";
@@ -17,12 +17,10 @@ import {
   matrixSpectrumComparison,
 } from "@/lib/matrix-comparison";
 import type { Experiment, MatrixMetrics } from "@/lib/types";
-
 const series = [
-  { key: "selected", label: "Selected matrix", color: "#d57b43" },
-  { key: "reference", label: "Reference matrix", color: "#97adc6" },
+  { key: "selected", label: "Selected matrix", color: "var(--accent)" },
+  { key: "reference", label: "Reference matrix", color: "var(--blue)" },
 ];
-
 function Source({
   label,
   record,
@@ -32,43 +30,54 @@ function Source({
   record: Experiment;
   metrics: MatrixMetrics;
 }) {
+  const { t, rich } = useI18n();
   const knownFormat =
     metrics.execution_precision ||
     typeof metrics.execution_config?.precision === "string";
   return (
     <div className="matrix-comparison-source">
       <strong>
-        {label} · {record.name}
+        {t(label)} · {record.name}
       </strong>
       <p>
-        {metrics.model_id} · revision {metrics.revision}
+        {rich("{v0} \u00B7 revision {v1}", {
+          v0: metrics.model_id,
+          v1: metrics.revision,
+        })}
       </p>
       <p>
-        {knownFormat
-          ? executionLabel(
-              metrics.execution_precision,
-              metrics.execution_config,
-            )
-          : "Execution format unavailable"}
-        {" · "}
-        {metrics.device?.toUpperCase() ?? "Device unavailable"}
-        {" · "}
-        {metrics.source_format ?? metrics.dtype} source
+        {rich("{v0}{v1}{v2}{v3}{v4} source", {
+          v0: knownFormat
+            ? executionLabel(
+                metrics.execution_precision,
+                metrics.execution_config,
+              )
+            : t("Execution format unavailable"),
+          v1: " · ",
+          v2: metrics.device?.toUpperCase() ?? t("Device unavailable"),
+          v3: " · ",
+          v4: metrics.source_format ?? metrics.dtype,
+        })}
       </p>
       <p>
-        {metrics.spectrum_method} · {metrics.singular_values.length} retained
-        components
+        {rich("{v0} \u00B7 {v1} retained components", {
+          v0: metrics.spectrum_method,
+          v1: metrics.singular_values.length,
+        })}
       </p>
       {metrics.spectrum_exact && (
-        <p>Numerical rank threshold {number(metrics.rank_tolerance, 5)}</p>
+        <p>
+          {rich("Numerical rank threshold {v0}", {
+            v0: number(metrics.rank_tolerance, 5),
+          })}
+        </p>
       )}
       {metrics.quantized && (
-        <p>Statistics describe dequantized weight values.</p>
+        <p>{t("Statistics describe dequantized weight values.")}</p>
       )}
     </div>
   );
 }
-
 export function SavedMatrixComparison({
   experiment,
   metrics,
@@ -84,6 +93,7 @@ export function SavedMatrixComparison({
   libraryError: string | null;
   onRetryLibrary: () => void;
 }) {
+  const { t, rich } = useI18n();
   const params = useSearchParams();
   const referenceId = params.get("compare");
   const { selected: reference, loading, error } = useExperiment(referenceId);
@@ -111,12 +121,14 @@ export function SavedMatrixComparison({
   return (
     <>
       <Panel
-        title="Compare matrix measurements"
-        subtitle="Compare the same weight across saved revisions or execution formats."
+        title={t("Compare matrix measurements")}
+        subtitle={t(
+          "Compare the same weight across saved revisions or execution formats.",
+        )}
         className="trace-comparison"
       >
         <SavedReferencePicker
-          label="Reference matrix"
+          label={t("Reference matrix")}
           referenceId={referenceId}
           reference={reference}
           candidates={candidates}
@@ -147,17 +159,22 @@ export function SavedMatrixComparison({
                 )
               }
             >
-              <Download size={14} /> Export comparison
+              <Download size={14} />
+              {t("Export comparison")}
             </button>
           )}
         </SavedReferencePicker>
-        {loading && <Loading label="Opening reference matrix" />}
+        {loading && <Loading label={t("Opening reference matrix")} />}
         <ErrorNotice message={error || problem} />
         {referenceUsable && reference && referenceMetrics && (
           <div className="matrix-comparison-sources">
-            <Source label="Selected" record={experiment} metrics={metrics} />
             <Source
-              label="Reference"
+              label={t("Selected")}
+              record={experiment}
+              metrics={metrics}
+            />
+            <Source
+              label={t("Reference")}
               record={reference}
               metrics={referenceMetrics}
             />
@@ -166,14 +183,21 @@ export function SavedMatrixComparison({
         {comparable && (
           <>
             <p className="inline-note" role="status">
-              Model repository, weight name and logical dimensions match.
-              Revisions and execution settings may differ.
+              {t(
+                "Model repository, weight name and logical dimensions match. Revisions and execution settings may differ.",
+              )}
             </p>
             <p className="inline-note">
-              Differences can reflect revisions, quantization, execution
-              settings and analysis methods. They do not isolate a single cause.
-              {estimated &&
-                " At least one spectrum is estimated. Its spectral norm, stable rank and spectrum differences are estimates."}
+              {rich(
+                "Differences can reflect revisions, quantization, execution settings and analysis methods. They do not isolate a single cause.{v0}",
+                {
+                  v0:
+                    estimated &&
+                    t(
+                      " At least one spectrum is estimated. Its spectral norm, stable rank and spectrum differences are estimates.",
+                    ),
+                },
+              )}
             </p>
           </>
         )}
@@ -182,14 +206,18 @@ export function SavedMatrixComparison({
         <>
           <div className="two-column">
             <Panel
-              title="Singular value comparison"
-              subtitle="Component ranks are aligned. Singular vectors are not compared."
+              title={t("Singular value comparison")}
+              subtitle={t(
+                "Component ranks are aligned. Singular vectors are not compared.",
+              )}
             >
               <SeriesChart data={spectrum} series={series} />
             </Panel>
             <Panel
-              title="Spectral energy comparison"
-              subtitle="Percent of each matrix's own squared Frobenius norm."
+              title={t("Spectral energy comparison")}
+              subtitle={t(
+                "Percent of each matrix's own squared Frobenius norm.",
+              )}
             >
               <SeriesChart
                 data={spectrum.map((row) => ({
@@ -208,33 +236,37 @@ export function SavedMatrixComparison({
             </Panel>
           </div>
           <Panel
-            title="Matrix measurement changes"
-            subtitle="Selected minus reference. Missing measurements remain unavailable."
+            title={t("Matrix measurement changes")}
+            subtitle={t(
+              "Selected minus reference. Missing measurements remain unavailable.",
+            )}
           >
             <details className="comparison-values">
-              <summary>Inspect property changes</summary>
+              <summary>{t("Inspect property changes")}</summary>
               <p className="inline-note">
-                Norm changes compare magnitudes and do not give the norm of the
-                difference between matrices. Exact zero changes use percentage
-                points. A tilde marks estimates.
+                {t(
+                  "Norm changes compare magnitudes and do not give the norm of the difference between matrices. Exact zero changes use percentage points. A tilde marks estimates.",
+                )}
               </p>
               <div className="table-wrap">
                 <table className="matrix-comparison-table">
                   <caption className="sr-only">
-                    Saved matrix properties and changes from the reference
+                    {t(
+                      "Saved matrix properties and changes from the reference",
+                    )}
                   </caption>
                   <thead>
                     <tr>
-                      <th>PROPERTY</th>
-                      <th>SELECTED</th>
-                      <th>REFERENCE</th>
-                      <th>CHANGE</th>
+                      <th>{t("PROPERTY")}</th>
+                      <th>{t("SELECTED")}</th>
+                      <th>{t("REFERENCE")}</th>
+                      <th>{t("CHANGE")}</th>
                     </tr>
                   </thead>
                   <tbody>
                     {differences.map((row) => (
                       <tr key={row.key}>
-                        <th scope="row">{row.label}</th>
+                        <th scope="row">{t(row.label)}</th>
                         <td>
                           {row.selected_estimated ? "~" : ""}
                           {matrixValue(row.selected, row.unit)}
@@ -255,11 +287,9 @@ export function SavedMatrixComparison({
                 </table>
               </div>
               <p className="inline-note">
-                Numerical rank, nuclear norm, effective rank and condition
-                numbers require complete spectra. Numerical ranks use each
-                capture's recorded threshold. Displayed spectra may retain
-                different numbers of components. Missing tails are not treated
-                as zero.
+                {t(
+                  "Numerical rank, nuclear norm, effective rank and condition numbers require complete spectra. Numerical ranks use each capture's recorded threshold. Displayed spectra may retain different numbers of components. Missing tails are not treated as zero.",
+                )}
               </p>
             </details>
           </Panel>
