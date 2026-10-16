@@ -9,9 +9,12 @@ import {
   ReactFlow,
   type NodeProps,
   type Node,
-  type ReactFlowInstance,
+  useNodesInitialized,
+  useNodesState,
+  useReactFlow,
+  useStore,
 } from "@xyflow/react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import type { ModelGraph, Weight } from "@/lib/types";
 import "@xyflow/react/dist/style.css";
 
@@ -103,6 +106,48 @@ export function getLayer(name: string): number | null {
   return match ? +match[1] : null;
 }
 
+function FitGraphViewport({
+  selectedLayer,
+  modelKey,
+  layoutReady,
+}: {
+  selectedLayer: number | null;
+  modelKey: string;
+  layoutReady: boolean;
+}) {
+  const { fitView } = useReactFlow();
+  const initialized = useNodesInitialized();
+  const width = useStore((state) => state.width);
+  const height = useStore((state) => state.height);
+  const fitted = useRef(false);
+  useEffect(() => {
+    if (!initialized || !layoutReady || !width || !height) return;
+    const duration =
+      !fitted.current ||
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches
+        ? 0
+        : 250;
+    fitted.current = true;
+    fitView({
+      ...(selectedLayer !== null
+        ? { nodes: [{ id: String(selectedLayer) }] }
+        : {}),
+      padding: selectedLayer === null ? 0.12 : 0.65,
+      maxZoom: selectedLayer === null ? 0.9 : 1.4,
+      duration,
+    });
+  }, [
+    fitView,
+    initialized,
+    layoutReady,
+    width,
+    height,
+    selectedLayer,
+    modelKey,
+  ]);
+  return null;
+}
+
 export function ModelGraphView({
   graph,
   selectedLayer,
@@ -114,10 +159,7 @@ export function ModelGraphView({
   onSelect: (layer: number | null) => void;
   onInspect: (name: string) => void;
 }) {
-  const [instance, setInstance] = useState<ReactFlowInstance<LayerNode> | null>(
-    null,
-  );
-  const { nodes, edges } = useMemo(() => {
+  const { nodes: plannedNodes, edges } = useMemo(() => {
     const embedding = graph.matrices.filter((w) =>
       /(?:wte|embed_tokens|embed_in)\.weight$/.test(w.name),
     );
@@ -177,22 +219,35 @@ export function ModelGraphView({
       })),
     };
   }, [graph, selectedLayer, onInspect]);
-
+  const [nodes, setNodes, onNodesChange] = useNodesState(plannedNodes);
   useEffect(() => {
-    if (!instance) return;
-    const duration = window.matchMedia("(prefers-reduced-motion: reduce)")
-      .matches
-      ? 0
-      : 250;
-    instance.fitView({
-      ...(selectedLayer !== null
-        ? { nodes: [{ id: String(selectedLayer) }] }
-        : {}),
-      padding: selectedLayer === null ? 0.12 : 0.65,
-      maxZoom: selectedLayer === null ? 0.9 : 1.4,
-      duration,
+    setNodes((current) => {
+      if (current === plannedNodes) return current;
+      const previous = new Map(current.map((node) => [node.id, node]));
+      return plannedNodes.map((node) => ({
+        ...node,
+        measured: previous.get(node.id)?.measured,
+        position: previous.get(node.id)?.position ?? node.position,
+      }));
     });
-  }, [instance, selectedLayer]);
+  }, [plannedNodes, setNodes]);
+  const stackedNodes = useMemo(() => {
+    if (nodes.some((node) => !node.measured?.height)) return null;
+    let y = 0;
+    return nodes.map((node) => {
+      const position = { x: 0, y };
+      y += node.measured!.height! + 28;
+      return node.position.x === 0 && node.position.y === position.y
+        ? node
+        : { ...node, position };
+    });
+  }, [nodes]);
+  const layoutReady =
+    stackedNodes !== null &&
+    stackedNodes.every((node, index) => node === nodes[index]);
+  useEffect(() => {
+    if (stackedNodes && !layoutReady) setNodes(stackedNodes);
+  }, [stackedNodes, layoutReady, setNodes]);
 
   return (
     <>
@@ -221,20 +276,28 @@ export function ModelGraphView({
       <div className="graph-container">
         <ReactFlow<LayerNode>
           nodes={nodes}
+          onNodesChange={onNodesChange}
+          deleteKeyCode={null}
           edges={edges}
           nodeTypes={nodeTypes}
-          onInit={setInstance}
           onNodeClick={(_, node) =>
             onSelect(/^\d+$/.test(node.id) ? +node.id : null)
           }
-          fitView
-          fitViewOptions={{ maxZoom: 0.9, minZoom: 0.08 }}
           minZoom={0.05}
           maxZoom={2}
           nodesDraggable={false}
           nodesConnectable={false}
+          elementsSelectable={false}
           aria-label="Interactive model architecture"
         >
+          <FitGraphViewport
+            layoutReady={layoutReady}
+            selectedLayer={selectedLayer}
+            modelKey={
+              graph.metadata.execution_id ??
+              `${graph.metadata.id}@${graph.metadata.revision}`
+            }
+          />
           <Background color="#d7dfe9" gap={20} size={1} />
           <Controls showInteractive={false} />
           <MiniMap

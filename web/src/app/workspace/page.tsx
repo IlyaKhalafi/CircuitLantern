@@ -71,28 +71,31 @@ export default function WorkspacePage() {
       detail.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   }, [metrics]);
 
-  async function inspect(name: string) {
-    const id = ++requestId.current;
-    setSelected(name);
-    setMetrics(null);
-    setAnalyzing(true);
-    setError(null);
-    try {
-      const result = await api<MatrixMetrics>(
-        executionPath(
-          `/matrix?name=${encodeURIComponent(name)}`,
-          graph?.metadata.execution_id,
-        ),
-      );
-      if (id === requestId.current) {
-        setMetrics(result);
+  const inspect = useCallback(
+    async (name: string) => {
+      const id = ++requestId.current;
+      setSelected(name);
+      setMetrics(null);
+      setAnalyzing(true);
+      setError(null);
+      try {
+        const result = await api<MatrixMetrics>(
+          executionPath(
+            `/matrix?name=${encodeURIComponent(name)}`,
+            graph?.metadata.execution_id,
+          ),
+        );
+        if (id === requestId.current) {
+          setMetrics(result);
+        }
+      } catch (e) {
+        if (id === requestId.current) setError((e as Error).message);
+      } finally {
+        if (id === requestId.current) setAnalyzing(false);
       }
-    } catch (e) {
-      if (id === requestId.current) setError((e as Error).message);
-    } finally {
-      if (id === requestId.current) setAnalyzing(false);
-    }
-  }
+    },
+    [graph?.metadata.execution_id],
+  );
   const weights =
     graph?.matrices.filter(
       (w) =>
