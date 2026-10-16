@@ -1,8 +1,8 @@
 """Requests for dictionary learning and causal feature experiments."""
 
-from typing import Annotated, Literal
+from typing import Annotated, Literal, Self
 
-from pydantic import Field
+from pydantic import Field, model_validator
 
 from circuit_lantern.schemas import BoundExecutionRequest, ExecutionId
 
@@ -36,7 +36,24 @@ class FeatureInspectionRequest(BoundExecutionRequest):
     comparison_features: tuple[FeatureIndex, FeatureIndex] | None = None
     feature: int | None = Field(default=None, ge=0)
     multiplier: float = Field(default=0, ge=-10, le=10, allow_inf_nan=False)
+    intervention_mode: Literal["scale", "set"] = "scale"
+    coefficient: float | None = Field(
+        default=None, strict=True, ge=-10000, le=10000, allow_inf_nan=False
+    )
     position: int | None = Field(default=None, ge=0)
+
+    @model_validator(mode="after")
+    def validate_coefficient_mode(self) -> Self:
+        if self.intervention_mode == "set":
+            if self.feature is None or self.coefficient is None:
+                raise ValueError(
+                    "Setting a coefficient requires a feature and a coefficient value."
+                )
+            if self.multiplier != 0:
+                raise ValueError("Choose a fixed coefficient or a feature multiplier.")
+        elif self.coefficient is not None:
+            raise ValueError("Choose set mode to use a fixed feature coefficient.")
+        return self
 
 
 class FeatureLabelRequest(BoundExecutionRequest):

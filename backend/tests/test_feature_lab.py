@@ -632,3 +632,61 @@ async def test_pair_statistics_use_baseline_with_an_interior_special_token_and_i
         assert result["pearson_correlation"] is None
     assert captured[1][1] == {}
     assert all(not block._forward_hooks for block in lab.runtime._blocks())
+
+
+@pytest.mark.anyio
+async def test_fixed_coefficient_api_records_exact_intervention_and_keeps_teacher_weights(
+    client, lab
+):
+    job = await finished(
+        client, (await client.post("/api/features/train", json=request().model_dump())).json()["id"]
+    )
+    identifier = job["result"]["dictionaries"][0]["id"]
+    path = "/api/features/dictionaries/" + identifier
+    before = {name: tensor.clone() for name, tensor in lab.runtime.model.state_dict().items()}
+    original_forward = lab.runtime.model.forward
+    for coefficient in (2.5, -1.5, 0):
+        with patch.object(lab.runtime.model, "forward", wraps=original_forward) as forward:
+            response = await client.post(
+                path + "/inspect",
+                json={
+                    "prompt": "the capital <eos> France is",
+                    "feature": 0,
+                    "intervention_mode": "set",
+                    "coefficient": coefficient,
+                    "position": 3,
+                },
+            )
+        assert response.status_code == 200, response.text
+        assert forward.call_count == 2
+        record = response.json()
+        evidence = record["intervention"]
+        assert evidence["mode"] == "set"
+        assert evidence["coefficient"] == coefficient
+        assert evidence["coefficient_units"] == "normalized_sae"
+        assert "multiplier" not in evidence
+        assert evidence["position"] == 3
+        assert evidence["preserves_original_reconstruction_error"]
+        assert record["eligible_positions"] == [1, 3, 4]
+        assert evidence["rounding"]["residual_dtype"] == "float32"
+        assert record["dictionary_source"]["id"] == identifier
+        assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    with patch.object(lab.runtime.model, "forward") as forward:
+        invalid = await client.post(
+            path + "/inspect",
+            json={"prompt": "the capital", "coefficient": 2, "intervention_mode": "set"},
+        )
+        assert invalid.status_code == 422
+        evaluation = await client.post(
+            path + "/evaluate",
+            json={
+                "prompt": "the capital",
+                "feature": 0,
+                "coefficient": 2,
+                "intervention_mode": "set",
+            },
+        )
+        assert evaluation.status_code == 400
+    forward.assert_not_called()
+    for name, tensor in lab.runtime.model.state_dict().items():
+        torch.testing.assert_close(tensor, before[name], atol=0, rtol=0)

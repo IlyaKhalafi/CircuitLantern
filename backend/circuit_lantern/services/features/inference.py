@@ -106,13 +106,18 @@ def feature_intervention(
     multiplier: float,
     position: int | None,
     eligible: torch.Tensor | None = None,
+    *,
+    coefficient: float | None = None,
 ):
     direction = dictionary.feature_direction(feature)
 
     def operation(hidden):
         original = hidden[0].float()
         activations = dictionary.encode(original)[:, feature]
-        delta = (multiplier - 1) * activations[:, None] * direction
+        change = (
+            (multiplier - 1) * activations if coefficient is None else coefficient - activations
+        )
+        delta = change[:, None] * direction
         if eligible is not None:
             delta = delta * eligible.to(original.device)[:, None]
         if position is not None:
@@ -124,11 +129,13 @@ def feature_intervention(
         changed = hidden.clone()
         changed[0] = (original + delta).to(hidden.dtype)
         realized = changed[0].float() - original
-        norm = float(delta.norm())
+        norm = float(delta.norm(dtype=torch.float64))
         operation.measurement = {
             "intended_delta_norm": norm,
-            "realized_delta_norm": float(realized.norm()),
-            "relative_rounding_error": float((realized - delta).norm()) / norm if norm else None,
+            "realized_delta_norm": float(realized.norm(dtype=torch.float64)),
+            "relative_rounding_error": float((realized - delta).norm(dtype=torch.float64)) / norm
+            if norm
+            else None,
             "residual_dtype": str(hidden.dtype).removeprefix("torch."),
         }
         return changed
@@ -229,13 +236,23 @@ def inspect_prompt(lab, identifier: str, request) -> dict:
         }
     if request.feature is not None:
         operation = feature_intervention(
-            dictionary, request.feature, request.multiplier, request.position, eligible
+            dictionary,
+            request.feature,
+            request.multiplier,
+            request.position,
+            eligible,
+            coefficient=request.coefficient,
         )
         patched_logits, _ = forward(runtime, inputs, [], (manifest["layer"], operation))
         patched = log_probabilities(patched_logits[-1])
         response["intervention"] = {
             "feature": request.feature,
-            "multiplier": request.multiplier,
+            "mode": request.intervention_mode,
+            **(
+                {"multiplier": request.multiplier}
+                if request.intervention_mode == "scale"
+                else {"coefficient": request.coefficient, "coefficient_units": "normalized_sae"}
+            ),
             "position": request.position,
             "preserves_original_reconstruction_error": True,
             "rounding": operation.measurement,
@@ -254,6 +271,8 @@ def inspect_prompt(lab, identifier: str, request) -> dict:
 
 @model_operation
 def evaluate_prompt(lab, identifier: str, request) -> dict:
+    if request.intervention_mode == "set":
+        raise ValueError("Use feature inspection to set a fixed coefficient.")
     runtime = lab.runtime
     runtime._verify_execution(request.expected_execution_id)
     runtime._require_model()
