@@ -2,7 +2,6 @@
 
 import {
   ArrowLeft,
-  ArrowRight,
   Check,
   Download,
   FlaskConical,
@@ -10,9 +9,12 @@ import {
   Trash2,
 } from "lucide-react";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { ExperimentLibrary } from "@/components/experiment-library";
+import { useExperiment } from "@/lib/use-experiment";
 import { ExperimentResult } from "@/components/experiment-result";
-import { experimentArtifact, experimentLabel } from "@/lib/experiments";
+import { experimentArtifact, notebookHref } from "@/lib/experiments";
 import {
   EmptyState,
   ErrorNotice,
@@ -25,9 +27,39 @@ import { truncateText } from "@/lib/text";
 import type { Experiment } from "@/lib/types";
 
 export default function ExperimentsPage() {
+  return (
+    <Suspense fallback={<Loading label="Opening experiment notebook" />}>
+      <ExperimentNotebook />
+    </Suspense>
+  );
+}
+
+function ExperimentNotebook() {
+  const params = useSearchParams();
+  const recordId = params.get("experiment");
+  const query = params.get("q") ?? "";
+  const requestedKind = params.get("kind");
+  const kind = ["trace", "causal", "head_sweep"].includes(requestedKind ?? "")
+    ? requestedKind!
+    : "all";
+  const {
+    selected,
+    error: selectionError,
+    loading: opening,
+    replace,
+  } = useExperiment(recordId);
+  const pending = useRef(false);
+  function navigate(changes: Record<string, string | null>, replace = false) {
+    const href = notebookHref(window.location.search, changes);
+    window.history[replace ? "replaceState" : "pushState"](null, "", href);
+  }
+  function isCurrent(id: string) {
+    return new URLSearchParams(window.location.search).get("experiment") === id;
+  }
   const [experiments, setExperiments] = useState<Experiment[]>([]);
-  const [selected, setSelected] = useState<Experiment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [listError, setListError] = useState<string | null>(null);
+  const [loadAttempt, setLoadAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notes, setNotes] = useState("");
@@ -36,29 +68,33 @@ export default function ExperimentsPage() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const selectedArtifact = selected ? experimentArtifact(selected) : undefined;
   useEffect(() => {
-    api<Experiment[]>("/experiments")
-      .then(setExperiments)
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, []);
-  async function open(id: string) {
-    setBusy(true);
+    const controller = new AbortController();
+    setLoading(true);
+    setListError(null);
+    api<Experiment[]>("/experiments", { signal: controller.signal })
+      .then((items) => {
+        if (!controller.signal.aborted) setExperiments(items);
+      })
+      .catch((reason: Error) => {
+        if (!controller.signal.aborted) setListError(reason.message);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setLoading(false);
+      });
+    return () => controller.abort();
+  }, [loadAttempt]);
+  useEffect(() => {
     setError(null);
     setSaved(false);
     setConfirmDelete(false);
-    try {
-      const result = await api<Experiment>(`/experiments/${id}`);
-      setSelected(result);
-      setNotes(result.notes);
-      setName(result.name);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setBusy(false);
-    }
-  }
+  }, [recordId]);
+  useEffect(() => {
+    setNotes(selected?.notes ?? "");
+    setName(selected?.name ?? "");
+  }, [selected]);
   async function save() {
-    if (!selected || !name.trim()) return;
+    if (!selected || !name.trim() || pending.current) return;
+    pending.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -66,19 +102,22 @@ export default function ExperimentsPage() {
         method: "PATCH",
         body: JSON.stringify({ name: name.trim(), notes }),
       });
-      setSelected(result);
+      if (isCurrent(result.id)) replace(result);
       setExperiments((items) =>
         items.map((item) => (item.id === result.id ? result : item)),
       );
-      setSaved(true);
+      setLoadAttempt((attempt) => attempt + 1);
+      if (isCurrent(result.id)) setSaved(true);
     } catch (e) {
-      setError((e as Error).message);
+      if (isCurrent(selected.id)) setError((e as Error).message);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
   async function remove() {
-    if (!selected) return;
+    if (!selected || pending.current) return;
+    pending.current = true;
     setBusy(true);
     setError(null);
     try {
@@ -86,11 +125,13 @@ export default function ExperimentsPage() {
       setExperiments((items) =>
         items.filter((item) => item.id !== selected.id),
       );
-      setSelected(null);
+      setLoadAttempt((attempt) => attempt + 1);
+      if (isCurrent(selected.id)) navigate({ experiment: null }, true);
       setConfirmDelete(false);
     } catch (e) {
-      setError((e as Error).message);
+      if (isCurrent(selected.id)) setError((e as Error).message);
     } finally {
+      pending.current = false;
       setBusy(false);
     }
   }
@@ -124,18 +165,29 @@ export default function ExperimentsPage() {
           )
         }
       />
-      <ErrorNotice message={error} />
-      {loading || (busy && !selected) ? (
+      <ErrorNotice message={error || selectionError} />
+      {!selected && !opening && <ErrorNotice message={listError} />}
+      {!selected && !opening && listError && (
+        <button
+          className="button secondary"
+          onClick={() => setLoadAttempt((attempt) => attempt + 1)}
+        >
+          Retry notebook
+        </button>
+      )}
+      {recordId && (
+        <Link
+          className="button secondary"
+          style={{ marginBottom: 20 }}
+          href={notebookHref(params.toString(), { experiment: null })}
+        >
+          <ArrowLeft size={14} /> All experiments
+        </Link>
+      )}
+      {(recordId ? opening : loading) ? (
         <Loading label="Opening experiment notebook" />
       ) : selected ? (
         <>
-          <button
-            className="button secondary"
-            style={{ marginBottom: 20 }}
-            onClick={() => setSelected(null)}
-          >
-            <ArrowLeft size={14} /> All experiments
-          </button>
           <Panel
             title="Research notes"
             subtitle="The checkpoint revision and capture settings are preserved with every experiment."
@@ -147,10 +199,11 @@ export default function ExperimentsPage() {
                   className="form-input"
                   value={name}
                   onChange={(e) => {
-                    setName(e.target.value);
+                    setName(truncateText(e.target.value, 100));
                     setSaved(false);
                   }}
-                  maxLength={100}
+                  maxLength={200}
+                  disabled={busy}
                 />
               </label>
               <label style={{ marginTop: 17 }}>
@@ -158,11 +211,12 @@ export default function ExperimentsPage() {
                 <textarea
                   value={notes}
                   onChange={(e) => {
-                    setNotes(e.target.value);
+                    setNotes(truncateText(e.target.value, 10000));
                     setSaved(false);
                   }}
                   placeholder="What changed? What would you test next?"
-                  maxLength={10000}
+                  maxLength={20000}
+                  disabled={busy}
                 />
               </label>
               <div className="prompt-toolbar">
@@ -206,32 +260,16 @@ export default function ExperimentsPage() {
           </Panel>
           <ExperimentResult key={selected.id} experiment={selected} />
         </>
-      ) : experiments.length ? (
-        <div className="experiment-grid">
-          {experiments.map((exp) => (
-            <button
-              key={exp.id}
-              className="panel experiment-card"
-              style={{ textAlign: "left" }}
-              onClick={() => open(exp.id)}
-            >
-              <span className="pill subtle">
-                <FlaskConical size={11} /> {experimentLabel(exp.kind)}
-              </span>
-              <h3>{exp.name}</h3>
-              <span className="mono">{exp.model_id}</span>
-              <p style={{ marginTop: 13 }}>
-                {exp.notes
-                  ? truncateText(exp.notes, 110)
-                  : "Open this experiment to explore its captured result and add research notes."}
-              </p>
-              <div className="experiment-meta">
-                <span>{new Date(exp.created_at).toLocaleDateString()}</span>
-                <ArrowRight size={14} />
-              </div>
-            </button>
-          ))}
-        </div>
+      ) : loading ? (
+        <Loading label="Opening experiment notebook" />
+      ) : listError ? null : experiments.length ? (
+        <ExperimentLibrary
+          experiments={experiments}
+          query={query}
+          kind={kind}
+          params={params.toString()}
+          update={(changes) => navigate(changes, true)}
+        />
       ) : (
         <EmptyState
           icon={<FlaskConical size={28} />}

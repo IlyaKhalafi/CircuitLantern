@@ -41,7 +41,7 @@ for (const [path, runLabel, complete, kind, heading] of [
     await page
       .getByRole("link", { name: "Open notebook", exact: true })
       .click();
-    await page.getByRole("button", { name: new RegExp(name) }).click();
+    await page.getByRole("link", { name: new RegExp(name) }).click();
     await expect(
       page.getByRole("heading", { name: heading, exact: true }),
     ).toBeVisible();
@@ -71,7 +71,6 @@ for (const [path, runLabel, complete, kind, heading] of [
       }),
     );
     await page.reload();
-    await page.getByRole("button", { name: new RegExp(name) }).click();
     await expect(page.getByLabel("Observations")).toHaveValue(
       "Check this intervention on a second prompt.",
     );

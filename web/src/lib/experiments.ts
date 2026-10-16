@@ -11,3 +11,16 @@ export function experimentArtifact(experiment: Experiment) {
     ? experiment.result
     : experiment.trace;
 }
+
+export function notebookHref(
+  current: string,
+  changes: Record<string, string | null>,
+) {
+  const params = new URLSearchParams(current);
+  for (const [key, value] of Object.entries(changes)) {
+    if (value === null) params.delete(key);
+    else params.set(key, value);
+  }
+  const query = params.toString();
+  return "/experiments" + (query ? "?" + query : "");
+}

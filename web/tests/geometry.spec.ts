@@ -51,7 +51,7 @@ test("representation geometry is inspectable, exportable and saved with experime
   ).toBeVisible();
   await page.goto("/experiments");
   await page
-    .getByRole("button", { name: /Representation geometry verification/ })
+    .getByRole("link", { name: /Representation geometry verification/ })
     .click();
   await page.getByRole("tab", { name: "Representation geometry" }).click();
   await expect(
@@ -121,7 +121,7 @@ test("older notebook traces remain readable without representation geometry", as
   });
   expect(saved.ok()).toBe(true);
   await page.goto("/experiments");
-  await page.getByRole("button", { name: /Legacy trace verification/ }).click();
+  await page.getByRole("link", { name: /Legacy trace verification/ }).click();
   await expect(
     page.getByText("Capture complete", { exact: true }),
   ).toBeVisible();

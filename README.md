@@ -105,7 +105,7 @@ The head ablation workspace under Causal tracing tests query heads independently
 
 Select a head index in live or saved sweep results to prepare its prompt and head in the activation lab. The draft uses prompt-only capture and checks the recorded model, revision and available head adapter. Pending drafts resume when the activation lab is reopened after loading the checkpoint. Run the prepared capture with the active execution settings. The original sweep measurements are preserved.
 
-Completed sweeps and available partial results can be saved directly into the experiment notebook. Records preserve the captured checkpoint, execution settings, source job, prompts, measurements and failure or cancellation state. They can be reopened and exported without loading a model. Saving the same job again returns its existing record and preserves edited notes. A retry still finds that record after the in memory job expires. Existing trace notebooks migrate automatically without rewriting their payloads.
+Completed sweeps and available partial results can be saved directly into the experiment notebook. Records preserve the captured checkpoint, execution settings, source job, prompts, measurements and failure or cancellation state. They can be reopened and exported without loading a model. Saving the same job again returns its existing record and preserves edited notes. A retry still finds that record after the in memory job expires. Existing trace notebooks migrate automatically without rewriting their payloads. Search saved names, model IDs and observations, then filter by experiment type. Each record has a bookmarkable URL. Opening a record preserves the current search, and browser back and forward return to the same evidence.
 
 ## Causal tracing
 

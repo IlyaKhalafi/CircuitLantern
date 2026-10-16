@@ -153,7 +153,7 @@ test("saved head inspection accepts a new execution and preserves the full promp
     await loadRuntime(request, before, precision);
     await page.goto("/experiments");
     await page
-      .getByRole("button", { name: /Inspection from a saved execution/ })
+      .getByRole("link", { name: /Inspection from a saved execution/ })
       .click();
     await page
       .getByRole("button", {
@@ -215,7 +215,7 @@ for (const unavailable of ["unloaded", "revision"] as const) {
       }),
     );
     await page.goto("/experiments");
-    await page.getByRole("button", { name: new RegExp(name) }).click();
+    await page.getByRole("link", { name: new RegExp(name) }).click();
     await page
       .getByRole("button", {
         name: "Inspect layer 0 head 1 in activation lab",
@@ -271,7 +271,7 @@ test("an unsupported adapter leaves the inspection draft available to discard", 
     });
   });
   await page.goto("/experiments");
-  await page.getByRole("button", { name: /Inspection adapter guard/ }).click();
+  await page.getByRole("link", { name: /Inspection adapter guard/ }).click();
   await page
     .getByRole("button", {
       name: "Inspect layer 0 head 0 in activation lab",

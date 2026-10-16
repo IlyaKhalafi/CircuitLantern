@@ -140,7 +140,7 @@ test.describe.serial("research workflow", () => {
     await page.goto("/experiments");
     await expect(
       page
-        .getByRole("button", { name: /Browser verification experiment/ })
+        .getByRole("link", { name: /Browser verification experiment/ })
         .first(),
     ).toBeVisible();
     await capturePage(page, {
@@ -148,7 +148,7 @@ test.describe.serial("research workflow", () => {
       fullPage: true,
     });
     await page
-      .getByRole("button", { name: /Browser verification experiment/ })
+      .getByRole("link", { name: /Browser verification experiment/ })
       .first()
       .click();
     await page

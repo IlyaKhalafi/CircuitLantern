@@ -87,7 +87,7 @@ test("head zero ablation compares a baseline, explains routing and persists prov
   ).toBeVisible();
   await page.goto("/experiments");
   await page
-    .getByRole("button", { name: /Head ablation browser experiment/ })
+    .getByRole("link", { name: /Head ablation browser experiment/ })
     .first()
     .click();
   await expect(

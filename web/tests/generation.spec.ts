@@ -190,7 +190,7 @@ test("capture only preserves prompt analysis and durable exports without a conti
     ).violations,
   ).toEqual([]);
   await page.goto("/experiments");
-  await page.getByRole("button", { name: /Prompt-only capture/ }).click();
+  await page.getByRole("link", { name: /Prompt-only capture/ }).click();
   await expect(page.getByLabel("Captured prompt")).toHaveText(
     "the capital of France",
   );
