@@ -18,7 +18,13 @@ import Link from "next/link";
 import Image from "next/image";
 import { LanguageSelect } from "@/components/language-select";
 import { usePathname } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { api } from "@/lib/api";
 import type { RuntimeState } from "@/lib/types";
 const navigation = [
@@ -35,27 +41,44 @@ export function Shell({ children }: { children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   const [mobile, setMobile] = useState(false);
   const toggleRef = useRef<HTMLButtonElement>(null);
+  const resizeFocusRef = useRef<HTMLElement | null>(null);
+  const closeNavigation = useCallback(() => {
+    setOpen(false);
+    if (mobile) toggleRef.current?.focus();
+  }, [mobile]);
   useEffect(() => {
-    const desktop = window.matchMedia("(min-width: 721px)");
-    const closeOnDesktop = () => {
-      setMobile(!desktop.matches);
-      if (desktop.matches) setOpen(false);
+    const query = window.matchMedia("(max-width: 720px)");
+    const syncNavigation = () => {
+      const active = document.activeElement;
+      resizeFocusRef.current = null;
+      if (query.matches && active?.closest("#workbench-navigation")) {
+        resizeFocusRef.current = toggleRef.current;
+      } else if (!query.matches && active === toggleRef.current) {
+        resizeFocusRef.current = document.querySelector<HTMLElement>(
+          "#workbench-navigation .brand",
+        );
+      }
+      setMobile(query.matches);
+      if (!query.matches) setOpen(false);
     };
-    closeOnDesktop();
-    desktop.addEventListener("change", closeOnDesktop);
-    return () => desktop.removeEventListener("change", closeOnDesktop);
+    syncNavigation();
+    query.addEventListener("change", syncNavigation);
+    return () => query.removeEventListener("change", syncNavigation);
   }, []);
+  useLayoutEffect(() => {
+    resizeFocusRef.current?.focus();
+    resizeFocusRef.current = null;
+  }, [mobile]);
   useEffect(() => {
     if (!open) return;
     const escape = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
-        setOpen(false);
-        toggleRef.current?.focus();
+        closeNavigation();
       }
     };
     document.addEventListener("keydown", escape);
     return () => document.removeEventListener("keydown", escape);
-  }, [open]);
+  }, [open, closeNavigation]);
   useEffect(() => {
     if (!mobile || !open) return;
     const previous = document.body.style.overflow;
@@ -114,15 +137,13 @@ export function Shell({ children }: { children: React.ReactNode }) {
       >
         {open ? <X /> : <Menu />}
       </button>
-      {open && (
-        <div className="sidebar-backdrop" onClick={() => setOpen(false)} />
-      )}
+      {open && <div className="sidebar-backdrop" onClick={closeNavigation} />}
       <aside
         inert={mobile && !open ? true : undefined}
         id="workbench-navigation"
         className={`sidebar ${open ? "open" : ""}`}
       >
-        <Link href="/" className="brand" onClick={() => setOpen(false)}>
+        <Link href="/" className="brand" onClick={closeNavigation}>
           <span className="brand-mark">
             <Image
               src="/brand/lantern.webp"
@@ -158,7 +179,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
                     ? "true"
                     : undefined
               }
-              onClick={() => setOpen(false)}
+              onClick={closeNavigation}
               className={`nav-item ${activeRoute(item.href) ? "active" : ""}`}
             >
               <item.icon size={18} />
@@ -177,7 +198,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
               "From individual weights to the circuits that shape a prediction.",
             )}
           </p>
-          <Link href="/guide" onClick={() => setOpen(false)}>
+          <Link href="/guide" onClick={closeNavigation}>
             {t("Explore the field guide")}
             <ArrowUpRight size={14} />
           </Link>
@@ -192,7 +213,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {t("GitHub repository")}
             <ArrowUpRight size={14} />
           </a>
-          <Link href="/guide" onClick={() => setOpen(false)}>
+          <Link href="/guide" onClick={closeNavigation}>
             <BookOpen size={16} />
             {t("Documentation")}
             <ChevronRight size={14} />

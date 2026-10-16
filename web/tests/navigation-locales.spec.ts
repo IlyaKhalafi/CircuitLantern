@@ -48,9 +48,30 @@ for (const locale of ["en", "fa", "ar", "ja", "fr"]) {
       await expect(toggle).toHaveAttribute("aria-expanded", "false");
       await expect(toggle).toBeFocused();
       await toggle.click();
-      await page.locator(".sidebar-bottom a[href='/guide']").click();
+      await expect(drawer).not.toHaveAttribute("inert", "");
+      await page.locator(".brand").focus();
+      await page.locator(".sidebar-backdrop").click({
+        position: { x: locale === "fa" || locale === "ar" ? 20 : 370, y: 400 },
+      });
+      await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect(toggle).toBeFocused();
+      await toggle.click();
+      await expect(drawer).not.toHaveAttribute("inert", "");
+      await page.locator(".sidebar-bottom a[href='/guide']").focus();
+      await page.keyboard.press("Enter");
       await expect(page).toHaveURL(/\/guide$/);
       await expect(toggle).toHaveAttribute("aria-expanded", "false");
+      await expect
+        .poll(() =>
+          page.evaluate(() => {
+            const active = document.activeElement;
+            return (
+              active === document.querySelector(".mobile-toggle") ||
+              Boolean(active?.closest("#main-content"))
+            );
+          }),
+        )
+        .toBe(true);
       await toggle.click();
       await page.setViewportSize({ width: 1024, height: 768 });
       await expect(page.locator(".sidebar-backdrop")).toHaveCount(0);
@@ -59,6 +80,43 @@ for (const locale of ["en", "fa", "ar", "ja", "fr"]) {
           () => document.documentElement.scrollWidth <= innerWidth,
         ),
       ).toBe(true);
+      await page.locator(".brand").focus();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(drawer).toHaveAttribute("inert", "");
+      await expect(toggle).toBeFocused();
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await expect(page.locator(".brand")).toBeFocused();
+      await page.locator("#main-content").focus();
+      await page.setViewportSize({ width: 390, height: 844 });
+      await expect(drawer).toHaveAttribute("inert", "");
+      await expect(page.locator("#main-content")).toBeFocused();
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await expect(drawer).not.toHaveAttribute("inert", "");
+      await expect(page.locator("#main-content")).toBeFocused();
     },
   );
 }
+
+test("navigation remains reachable at the layout breakpoint", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 720, height: 900 });
+  await page.goto("/guide");
+  const drawer = page.locator(".sidebar");
+  const toggle = page.locator(".mobile-toggle");
+  await expect(drawer).toHaveAttribute("inert", "");
+  await expect(toggle).toBeVisible();
+  await toggle.click();
+  await expect(drawer).not.toHaveAttribute("inert", "");
+  await page.keyboard.press("Escape");
+  await expect(toggle).toBeFocused();
+  await page.setViewportSize({ width: 721, height: 900 });
+  await expect(toggle).toBeHidden();
+  await expect(drawer).not.toHaveAttribute("inert", "");
+  await expect(page.locator(".brand")).toBeFocused();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+});
