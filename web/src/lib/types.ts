@@ -94,6 +94,7 @@ export interface Compatibility {
   metadata: ModelMetadata;
 }
 export interface Job {
+  cancel_requested?: boolean;
   id: string;
   model_id: string;
   status: string;

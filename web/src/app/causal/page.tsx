@@ -39,7 +39,7 @@ export default function CausalPage() {
   const [target, setTarget] = useState("");
   const [position, setPosition] = useState("last");
   const [customPosition, setCustomPosition] = useState(0);
-  const { job, error, clearError, start, cancel, busy } =
+  const { job, error, clearError, start, cancel, busy, canCancel, cancelling } =
     useBackgroundJob<CausalResult>("lantern-causal-job");
   const result = job?.result;
   const tokenPreview = useTokenPreview(
@@ -236,13 +236,15 @@ export default function CausalPage() {
                   matter.
                 </p>
                 <div className="action-row">
-                  {busy && (
+                  {busy && canCancel && (
                     <button
                       type="button"
                       className="button secondary"
                       onClick={cancel}
+                      disabled={cancelling}
                     >
-                      <Square size={12} /> Cancel sweep
+                      <Square size={12} />{" "}
+                      {cancelling ? "Cancelling" : "Cancel sweep"}
                     </button>
                   )}
                   <button
@@ -269,7 +271,11 @@ export default function CausalPage() {
                   <span>{job.message}</span>
                   <strong>{job.progress}%</strong>
                 </div>
-                <progress value={job.progress} max={100} />
+                <progress
+                  aria-label="Residual patch sweep progress"
+                  value={job.progress}
+                  max={100}
+                />
               </div>
             )}
           </Panel>
