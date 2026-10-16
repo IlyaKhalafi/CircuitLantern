@@ -16,6 +16,7 @@ def summarize_trace(
     raw_final: list[torch.Tensor],
     bypassed_hidden: list[torch.Tensor],
     ablate_layer: int | None,
+    attention_query_position: int = -1,
 ) -> dict:
     """Materialize prompt diagnostics so their tensors can be released before generation."""
     if not torch.isfinite(outputs.logits).all():
@@ -72,7 +73,9 @@ def summarize_trace(
         for index, tensor in enumerate(outputs.attentions):
             if tensor is None:
                 continue
-            attention.append({"layer": index, **attention_summary(tensor)})
+            attention.append(
+                {"layer": index, **attention_summary(tensor, attention_query_position)}
+            )
     final_probabilities = torch.softmax(outputs.logits[0, -1].float(), -1)
     top_values, top_indices = final_probabilities.topk(min(10, final_probabilities.numel()))
     return {

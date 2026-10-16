@@ -42,6 +42,7 @@ export default function PlaygroundPage() {
   const [prompt, setPrompt] = useState("The capital of France is");
   const [tokens, setTokens] = useState(16);
   const [captureAttention, setCaptureAttention] = useState(true);
+  const [attentionQuery, setAttentionQuery] = useState(-1);
   const [ablate, setAblate] = useState("");
   const [headLayer, setHeadLayer] = useState(0);
   const [head, setHead] = useState(0);
@@ -59,6 +60,16 @@ export default function PlaygroundPage() {
     runtime?.metadata?.execution_id,
   );
   const promptFits = tokenPreview.data?.prompts[0]?.fits ?? true;
+  const queryTokens = tokenPreview.data?.prompts[0]?.tokens ?? [];
+  const attentionQueryFits =
+    !captureAttention ||
+    attentionQuery === -1 ||
+    (!tokenPreview.pending &&
+      !!tokenPreview.data &&
+      attentionQuery < queryTokens.length);
+  useEffect(() => {
+    setAttentionQuery(-1);
+  }, [prompt, runtime?.metadata?.execution_id]);
   useEffect(() => {
     if (!runtime) return;
     const targets = runtime.attention_head_targets || [];
@@ -98,6 +109,7 @@ export default function PlaygroundPage() {
         expected_execution_id: runtime?.metadata?.execution_id ?? undefined,
         max_new_tokens: tokens,
         capture_attention: captureAttention,
+        attention_query_position: attentionQuery,
         ablate_layer: ablate === "" || ablate === "head" ? null : +ablate,
         ablate_head: ablate === "head" ? { layer: headLayer, head } : null,
       });
@@ -142,6 +154,7 @@ export default function PlaygroundPage() {
     setPrompt(draft.prompt);
     setTokens(0);
     setCaptureAttention(true);
+    setAttentionQuery(-1);
     setAblate("head");
     setHeadLayer(draft.layer);
     setHead(draft.head);
@@ -357,6 +370,7 @@ export default function PlaygroundPage() {
                     busy ||
                     !prompt.trim() ||
                     !promptFits ||
+                    !attentionQueryFits ||
                     inspection.pending ||
                     promptLimit < 1 ||
                     (ablate === "head" && !headTarget)
@@ -367,6 +381,39 @@ export default function PlaygroundPage() {
                   <ArrowRight size={14} />
                 </button>
               </div>
+              {captureAttention && (
+                <details className="attention-capture-options">
+                  <summary>Attention capture options</summary>
+                  <label>
+                    Routing query
+                    <select
+                      aria-label="Attention routing query"
+                      value={attentionQuery}
+                      disabled={busy || inspection.pending}
+                      onChange={(event) =>
+                        setAttentionQuery(+event.target.value)
+                      }
+                    >
+                      <option value={-1}>Final prompt token</option>
+                      {attentionQuery >= 0 && !queryTokens.length && (
+                        <option value={attentionQuery}>
+                          Position {attentionQuery} · checking prompt tokens
+                        </option>
+                      )}
+                      {queryTokens.map((token, index) => (
+                        <option key={index} value={index}>
+                          {index} · {token || "∅"}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                  <p>
+                    Capture per-head routing from one prompt token across
+                    layers. Run a new trace after choosing a position. Average
+                    patterns still cover the whole prompt.
+                  </p>
+                </details>
+              )}
             </form>
           </Panel>
           {ablate !== "" && ablate !== "head" && (

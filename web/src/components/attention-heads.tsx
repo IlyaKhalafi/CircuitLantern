@@ -17,7 +17,11 @@ export function AttentionHeads({
   const query = attention.query_position ?? tokens.length - 1;
   return (
     <Panel
-      title="Final token attention by head"
+      title={
+        query === tokens.length - 1
+          ? "Final token attention by head"
+          : "Prompt token attention by head"
+      }
       subtitle={`Layer ${attention.layer} · Query position ${query} · ${tokens[query] || "∅"}`}
     >
       <Heatmap
@@ -25,7 +29,7 @@ export function AttentionHeads({
         xLabels={tokens.map((token, index) => `${index} · ${token || "∅"}`)}
         yLabels={labels}
         sequential
-        label="Rows are individual attention heads. Columns are prompt key positions. Each row shows routing from the final prompt token. Color is normalized across heads within this layer."
+        label={`Rows are individual attention heads. Columns are prompt key positions. Each row shows routing from prompt query position ${query}. Color is normalized across heads within this layer.`}
       />
       <details className="estimate-details">
         <summary>Inspect head routing values</summary>
@@ -36,7 +40,7 @@ export function AttentionHeads({
                 <th>HEAD</th>
                 <th>STRONGEST KEY POSITION</th>
                 <th>ATTENTION WEIGHT</th>
-                <th>FINAL QUERY ENTROPY</th>
+                <th>QUERY ENTROPY</th>
               </tr>
             </thead>
             <tbody>
@@ -68,7 +72,7 @@ export function AttentionHeads({
       </details>
       <p className="inline-note">
         These weights describe attention routing. Use causal tracing to test an
-        effect on predictions. Final query entropy differs from entropy averaged
+        effect on predictions. Query entropy differs from entropy averaged
         across all prompt positions.
       </p>
     </Panel>

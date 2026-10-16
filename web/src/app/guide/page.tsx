@@ -99,7 +99,9 @@ export default function GuidePage() {
             optionally generates a short greedy continuation. Choose Capture
             only to inspect the prompt without extra generation. Prompt tokens,
             residual norms, intermediate predictions and attention patterns come
-            from the loaded checkpoint.
+            from the loaded checkpoint. In Attention capture options, choose a
+            prompt token to inspect per-head routing from that position. The
+            default is the final prompt token.
           </p>
           <p>
             The logit lens applies final normalization and the model unembedding

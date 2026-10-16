@@ -23,7 +23,7 @@ flowchart LR
 
 `runtime.py` owns one model and tokenizer. Its operation lock serializes loading, unloading, matrix analysis and activation capture. Download workers update bounded in memory job records. Weight statistics use a small cache that is cleared whenever the model changes.
 
-`tracing.py` converts captured residual states, logit lens projections and attention tensors into portable measurements. The runtime releases capture buffers before continuation generation while keeping any intervention hooks active through generation.
+`tracing.py` converts captured residual states, logit lens projections and attention tensors into portable measurements. The runtime releases capture buffers before continuation generation while keeping any intervention hooks active through generation. Attention summaries retain one chosen prompt query row per head and the head averaged pattern, rather than serializing every head's complete attention matrix. Query positions are checked against the tokenized prompt before inference.
 
 `head_sweep.py` runs bounded independent attention head interventions using the verified output layouts in `interventions.py`. `scoring.py` shares finite logit checks, single token target resolution and float64 log probability scoring across research sweeps.
 

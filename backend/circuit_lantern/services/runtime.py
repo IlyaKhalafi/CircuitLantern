@@ -424,6 +424,7 @@ class ModelRuntime:
         ablate_layer: int | None,
         ablate_head: dict | None = None,
         expected_execution_id: str | None = None,
+        attention_query_position: int = -1,
     ) -> dict:
         with self.operation():
             self._require_model()
@@ -435,6 +436,15 @@ class ModelRuntime:
             token_count = encoded.input_ids.shape[1]
             if not token_count:
                 raise ValueError("The prompt must contain at least one token.")
+            if capture_attention and not -1 <= attention_query_position < token_count:
+                raise ValueError(
+                    "Choose an attention query position inside the prompt or use -1 for its final token."
+                )
+            resolved_attention_query = (
+                (token_count - 1 if attention_query_position == -1 else attention_query_position)
+                if capture_attention
+                else None
+            )
             prompt_limit = capture_token_limit(
                 self.metadata, self.settings.max_prompt_tokens, max_new_tokens
             )
@@ -500,6 +510,9 @@ class ModelRuntime:
                     raw_final=raw_final,
                     bypassed_hidden=bypassed_hidden,
                     ablate_layer=ablate_layer,
+                    attention_query_position=resolved_attention_query
+                    if resolved_attention_query is not None
+                    else -1,
                 )
                 raw_final.clear()
                 bypassed_hidden.clear()
@@ -528,6 +541,9 @@ class ModelRuntime:
                     "generation_performed": settings is not None,
                     "requested_max_new_tokens": max_new_tokens,
                     "capture_attention": capture_attention,
+                    "attention_query_position": resolved_attention_query
+                    if summary["attention"]
+                    else None,
                     "duration_ms": round((time.perf_counter() - started) * 1000),
                     "device": self.device,
                     "ablate_layer": ablate_layer,
