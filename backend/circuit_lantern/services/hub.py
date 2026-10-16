@@ -233,6 +233,8 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         "quantizable_parameters": layout.get("quantizable_parameters"),
         "fp8_layout": fp8_layout,
         "largest_matrix_elements": layout.get("largest_matrix_elements"),
+        "model_buffer_bytes": layout.get("model_buffer_bytes"),
+        "largest_model_buffer_bytes": layout.get("largest_model_buffer_bytes"),
         "tied_embeddings": layout.get("tied_embeddings"),
         "architecture_supported": architecture_supported,
         "architecture_error": architecture_error,

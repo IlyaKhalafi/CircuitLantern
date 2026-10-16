@@ -31,6 +31,8 @@ export interface ModelMetadata extends ExecutionProvenance {
   tied_embeddings?: boolean;
   quantizable_parameters?: number;
   largest_matrix_elements?: number;
+  model_buffer_bytes?: number;
+  largest_model_buffer_bytes?: number;
   download_bytes?: number;
 }
 export interface GPU {
@@ -82,6 +84,9 @@ export interface Compatibility {
   weight_bytes: number;
   analysis_weight_bytes: number;
   analysis_workspace_bytes?: number;
+  model_buffer_bytes?: number;
+  model_buffer_workspace_bytes?: number;
+  workspace_bytes?: number;
   activation_bytes?: number;
   logits_bytes?: number;
   kv_cache_bytes: number;

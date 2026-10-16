@@ -389,3 +389,53 @@ def test_invalid_native_codebook_returns_a_fit_report_instead_of_a_server_error(
     )
     assert not result["compatible"]
     assert any("matrix adapter" in blocker for blocker in result["blockers"])
+
+
+@pytest.mark.parametrize("context", [16, 128])
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_fixed_causal_masks_and_their_creation_workspace_cannot_fit_a_tiny_checkpoint(
+    context, device
+):
+    import torch
+    from transformers import GPT2Config, GPT2LMHeadModel
+
+    from circuit_lantern.services.architecture import describe_model_layout
+
+    with torch.device("meta"):
+        model = GPT2LMHeadModel(
+            GPT2Config(vocab_size=16, n_positions=32768, n_embd=16, n_layer=2, n_head=2)
+        )
+    model.tie_weights()
+    logical = describe_model_layout(model)
+    checkpoint = dict(
+        logical,
+        dtype="float32",
+        hidden_size=16,
+        num_layers=2,
+        num_heads=2,
+        num_kv_heads=2,
+        vocab_size=16,
+        has_safetensors=True,
+        weight_bytes=logical["parameters"] * 4,
+        config=model.config.to_dict(),
+    )
+    machine = hardware()
+    machine["ram_available_bytes"] = (1 if device == "cpu" else 3) * 1024**3
+    report = assess_compatibility(
+        checkpoint,
+        machine,
+        CompatibilityRequest(model_id="fixed-mask-test", device=device, context_length=context),
+    )
+    assert not report["compatible"]
+    assert report["model_buffer_bytes"] == 2 * 1024**3 + 8
+    assert report["model_buffer_workspace_bytes"] == 1024**3
+    assert report["workspace_bytes"] == 1024**3
+    assert report["analysis_workspace_bytes"] < report["workspace_bytes"]
+    if device == "cuda":
+        assert any("host RAM" in blocker for blocker in report["blockers"])
+        assert not any("available memory after" in blocker for blocker in report["blockers"])
+    else:
+        assert any("available memory after" in blocker for blocker in report["blockers"])
+    assert all(
+        tensor.device.type == "meta" for tensor in list(model.parameters()) + list(model.buffers())
+    )

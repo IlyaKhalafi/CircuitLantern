@@ -603,14 +603,19 @@ export default function LibraryPage() {
                 </summary>
                 <p>
                   {rich(
-                    "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Matrix workspace {v3}. Logit buffers {v4}. MLP buffers {v5}.",
+                    "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}.",
                     {
                       v0: bytes(report.source_bytes ?? report.download_bytes),
                       v1: report.runtime_precision,
                       v2: bytes(report.weight_bytes),
-                      v3: bytes(report.analysis_workspace_bytes || 0),
+                      v3: bytes(
+                        report.workspace_bytes ??
+                          report.analysis_workspace_bytes ??
+                          0,
+                      ),
                       v4: bytes(report.logits_bytes || 0),
                       v5: bytes(report.activation_bytes || 0),
+                      v6: bytes(report.model_buffer_bytes ?? 0),
                     },
                   )}
                 </p>

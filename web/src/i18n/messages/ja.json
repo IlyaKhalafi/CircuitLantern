@@ -1140,5 +1140,6 @@
   "The model configuration contains invalid JSON.": "モデル設定に無効なJSONが含まれています。",
   "The checkpoint index contains invalid JSON.": "チェックポイントインデックスに無効なJSONが含まれています。",
   "The model configuration has an invalid {field} value. Expected a nonnegative integer.": "モデル設定の{field}の値が無効です。非負の整数である必要があります。",
-  "The checkpoint quantization configuration must be a nonempty JSON object.": "チェックポイントの量子化設定は、空でない JSON オブジェクトでなければなりません。"
+  "The checkpoint quantization configuration must be a nonempty JSON object.": "チェックポイントの量子化設定は、空でない JSON オブジェクトでなければなりません。",
+  "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}.": "ソースチェックポイント {v0}。実行形式 {v1}。常駐する重み {v2}。一時ワークスペース {v3}。ロジットバッファ {v4}。MLP バッファ {v5}。モデルバッファ {v6}。"
 }

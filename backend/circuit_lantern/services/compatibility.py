@@ -133,7 +133,7 @@ def assess_compatibility(
     intermediate = config.get("intermediate_size") or config.get("n_inner") or hidden * 4
     activation_bytes = 3 * request.batch_size * capture_tokens * intermediate * 4
     logits_bytes = 5 * request.batch_size * capture_tokens * (metadata.get("vocab_size") or 0) * 4
-    workspace_bytes = (
+    matrix_workspace_bytes = (
         (
             metadata.get("largest_matrix_elements")
             or hidden * max(hidden * 4, metadata.get("vocab_size") or 0)
@@ -141,6 +141,9 @@ def assess_compatibility(
         * 4
         * (1 if precision == "float32" else 2)
     )
+    model_buffer_bytes = metadata.get("model_buffer_bytes") or 0
+    buffer_workspace_bytes = metadata.get("largest_model_buffer_bytes") or 0
+    workspace_bytes = max(matrix_workspace_bytes, buffer_workspace_bytes)
     overhead_bytes = (
         max(256 * 1024**2, weight_bytes * 0.15)
         + residual_bytes
@@ -148,7 +151,7 @@ def assess_compatibility(
         + activation_bytes
         + logits_bytes
     )
-    required_bytes = weight_bytes + kv_bytes + overhead_bytes + workspace_bytes
+    required_bytes = weight_bytes + model_buffer_bytes + kv_bytes + overhead_bytes + workspace_bytes
     native_bytes = PRECISION_BYTES.get(metadata.get("dtype"), 4)
     disk_bytes = (
         metadata.get("download_bytes") or metadata.get("weight_bytes") or parameters * native_bytes
@@ -170,7 +173,11 @@ def assess_compatibility(
             if execution_gpu
             else 0
         )
-        staging_bytes = parameters * (4 if precision in PACKED_PRECISIONS else element_bytes)
+        staging_bytes = (
+            parameters * (4 if precision in PACKED_PRECISIONS else element_bytes)
+            + model_buffer_bytes
+            + buffer_workspace_bytes
+        )
         if staging_bytes * 1.15 > hardware["ram_available_bytes"] * 0.85:
             blockers.append(
                 "Insufficient host RAM for the conservative checkpoint loading and analysis staging budget."
@@ -229,7 +236,10 @@ def assess_compatibility(
         "device": request.device,
         "weight_bytes": int(weight_bytes),
         "analysis_weight_bytes": int(weight_bytes),
-        "analysis_workspace_bytes": int(workspace_bytes),
+        "analysis_workspace_bytes": int(matrix_workspace_bytes),
+        "model_buffer_bytes": int(model_buffer_bytes),
+        "model_buffer_workspace_bytes": int(buffer_workspace_bytes),
+        "workspace_bytes": int(workspace_bytes),
         "activation_bytes": int(activation_bytes),
         "logits_bytes": int(logits_bytes),
         "kv_cache_bytes": int(kv_bytes),

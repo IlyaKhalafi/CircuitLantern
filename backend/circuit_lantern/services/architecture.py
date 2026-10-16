@@ -7,6 +7,22 @@ from transformers.pytorch_utils import Conv1D
 from circuit_lantern.services.fp8_layout import describe_fp8_layout
 
 
+def model_buffer_layout(model) -> dict:
+    # Dispatch can break source aliases, so reserve every registered buffer binding.
+    sizes = [
+        buffer.numel()
+        * max(
+            buffer.element_size(),
+            8 if buffer.is_complex() else 4 if buffer.is_floating_point() else 0,
+        )
+        for _, buffer in model.named_buffers(remove_duplicate=False)
+    ]
+    return {
+        "model_buffer_bytes": sum(sizes),
+        "largest_model_buffer_bytes": max(sizes, default=0),
+    }
+
+
 def describe_model_layout(model, skipped_modules: list[str] | None = None) -> dict:
     parameters = list(model.parameters())
     output = model.get_output_embeddings()
@@ -23,6 +39,7 @@ def describe_model_layout(model, skipped_modules: list[str] | None = None) -> di
         ):
             quantizable[id(module.weight)] = module.weight.numel()
     return {
+        **model_buffer_layout(model),
         "context_length": getattr(model.config, "max_position_embeddings", None)
         or getattr(model.config, "n_positions", None),
         "parameters": sum(p.numel() for p in parameters),
