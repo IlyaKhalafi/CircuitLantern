@@ -18,13 +18,8 @@ import Link from "next/link";
 import Image from "next/image";
 import { LanguageSelect } from "@/components/language-select";
 import { usePathname } from "next/navigation";
-import {
-  useCallback,
-  useEffect,
-  useLayoutEffect,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useState } from "react";
+import { useResponsiveNavigation } from "@/hooks/use-responsive-navigation";
 import { api } from "@/lib/api";
 import type { RuntimeState } from "@/lib/types";
 const navigation = [
@@ -38,55 +33,15 @@ const navigation = [
 export function Shell({ children }: { children: React.ReactNode }) {
   const { t } = useI18n();
   const path = usePathname();
-  const [open, setOpen] = useState(false);
-  const [mobile, setMobile] = useState(false);
-  const toggleRef = useRef<HTMLButtonElement>(null);
-  const resizeFocusRef = useRef<HTMLElement | null>(null);
-  const closeNavigation = useCallback(() => {
-    setOpen(false);
-    if (mobile) toggleRef.current?.focus();
-  }, [mobile]);
-  useEffect(() => {
-    const query = window.matchMedia("(max-width: 720px)");
-    const syncNavigation = () => {
-      const active = document.activeElement;
-      resizeFocusRef.current = null;
-      if (query.matches && active?.closest("#workbench-navigation")) {
-        resizeFocusRef.current = toggleRef.current;
-      } else if (!query.matches && active === toggleRef.current) {
-        resizeFocusRef.current = document.querySelector<HTMLElement>(
-          "#workbench-navigation .brand",
-        );
-      }
-      setMobile(query.matches);
-      if (!query.matches) setOpen(false);
-    };
-    syncNavigation();
-    query.addEventListener("change", syncNavigation);
-    return () => query.removeEventListener("change", syncNavigation);
-  }, []);
-  useLayoutEffect(() => {
-    resizeFocusRef.current?.focus();
-    resizeFocusRef.current = null;
-  }, [mobile]);
-  useEffect(() => {
-    if (!open) return;
-    const escape = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        closeNavigation();
-      }
-    };
-    document.addEventListener("keydown", escape);
-    return () => document.removeEventListener("keydown", escape);
-  }, [open, closeNavigation]);
-  useEffect(() => {
-    if (!mobile || !open) return;
-    const previous = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    return () => {
-      document.body.style.overflow = previous;
-    };
-  }, [mobile, open]);
+  const {
+    open,
+    mobile,
+    toggleRef,
+    closeNavigation,
+    toggleNavigation,
+    onFocusCapture,
+    onPointerDownCapture,
+  } = useResponsiveNavigation();
   const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [online, setOnline] = useState<boolean | null>(null);
   useEffect(() => {
@@ -121,7 +76,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
       ) + " · Circuit Lantern";
   }, [currentLabel, path, t]);
   return (
-    <div className="app-shell">
+    <div
+      className="app-shell"
+      onFocusCapture={onFocusCapture}
+      onPointerDownCapture={onPointerDownCapture}
+    >
       <a href="#main-content" className="skip-link">
         {t("Skip to content")}
       </a>
@@ -132,7 +91,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         }
         aria-expanded={open}
         aria-controls="workbench-navigation"
-        onClick={() => setOpen(!open)}
+        onClick={toggleNavigation}
         aria-label={open ? t("Close navigation") : t("Open navigation")}
       >
         {open ? <X /> : <Menu />}

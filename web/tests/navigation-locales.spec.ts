@@ -120,3 +120,53 @@ test("navigation remains reachable at the layout breakpoint", async ({
     ),
   ).toBe(true);
 });
+
+test("resize restores navigation after browser focus fixup", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/guide");
+  const toggle = page.locator(".mobile-toggle");
+  await expect(page.locator(".sidebar")).toHaveAttribute("inert", "");
+  await toggle.focus();
+  await expect(toggle).toBeFocused();
+  // Apply the browser's hidden-control focus fixup before the media change.
+  await toggle.evaluate((button) => {
+    button.style.display = "none";
+    button.getBoundingClientRect();
+  });
+  await expect
+    .poll(() => page.evaluate(() => document.activeElement === document.body))
+    .toBe(true);
+  await page.setViewportSize({ width: 1024, height: 768 });
+  await expect(page.locator(".brand")).toBeFocused();
+});
+
+for (const leave of ["focus", "pointer"]) {
+  test(
+    "resize does not restore stale navigation focus after " + leave,
+    async ({ page }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      await page.goto("/guide");
+      await expect(page.locator(".sidebar")).toHaveAttribute("inert", "");
+      await page.locator(".mobile-toggle").focus();
+      if (leave === "focus") {
+        await page.locator("#main-content").focus();
+        await page.locator("#main-content").evaluate((main) => main.blur());
+      } else {
+        await page.locator(".runtime-status .status-dot").click();
+      }
+      await expect
+        .poll(() =>
+          page.evaluate(() => document.activeElement === document.body),
+        )
+        .toBe(true);
+      await page.setViewportSize({ width: 1024, height: 768 });
+      await expect
+        .poll(() =>
+          page.evaluate(() => document.activeElement === document.body),
+        )
+        .toBe(true);
+    },
+  );
+}
