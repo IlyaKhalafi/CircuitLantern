@@ -138,6 +138,7 @@ export function Heatmap({
   xLabels,
   yLabels,
   maxAbs,
+  logarithmic = false,
 }: {
   data: (number | null)[][];
   sequential?: boolean;
@@ -145,6 +146,7 @@ export function Heatmap({
   xLabels?: string[];
   yLabels?: string[];
   maxAbs?: number;
+  logarithmic?: boolean;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const maximum =
@@ -177,8 +179,16 @@ export function Heatmap({
           );
           return;
         }
+        const magnitude = Math.abs(value);
         const strength =
-          maximum > 0 ? Math.min(1, Math.abs(value) / maximum) : 0;
+          maximum > 0
+            ? Math.min(
+                1,
+                logarithmic
+                  ? Math.log1p(magnitude) / Math.log1p(maximum)
+                  : magnitude / maximum,
+              )
+            : 0;
         const low = sequential ? [247, 247, 243] : [246, 245, 243];
         const high = value >= 0 ? [206, 139, 85] : [87, 121, 161];
         context.fillStyle = `rgb(${low.map((v, i) => Math.round(v + (high[i] - v) * strength)).join(",")})`;
@@ -190,7 +200,7 @@ export function Heatmap({
         );
       }),
     );
-  }, [data, maximum, sequential]);
+  }, [data, maximum, sequential, logarithmic]);
   const [hover, setHover] = useState("");
   return (
     <div className="heatmap-wrapper">
@@ -219,7 +229,9 @@ export function Heatmap({
         }}
         onMouseLeave={() => setHover("")}
       />
-      <div className="heatmap-key">
+      <div
+        className={`heatmap-key ${logarithmic && sequential ? "logarithmic" : ""}`}
+      >
         <span>
           {sequential || maximum === 0 ? "0" : `−${maximum.toPrecision(2)}`}
         </span>
@@ -229,7 +241,13 @@ export function Heatmap({
               ? { background: "linear-gradient(90deg,#f7f7f3,#ce8b55)" }
               : undefined
           }
-        />
+        >
+          {logarithmic && sequential && (
+            <span className="heatmap-midpoint">
+              {number(Math.expm1(Math.log1p(maximum) / 2), 3)}
+            </span>
+          )}
+        </div>
         <span>{maximum.toPrecision(2)}</span>
       </div>
       <p>{hover || label}</p>

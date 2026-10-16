@@ -19,6 +19,7 @@ export function TraceResults({
 }) {
   const [tab, setTab] = useState("residual");
   const [attentionLayer, setAttentionLayer] = useState(0);
+  const [logResidualColors, setLogResidualColors] = useState(false);
   const [tokenIndex, setTokenIndex] = useState(trace.tokens.length - 1);
   const attention =
     trace.attention[Math.min(attentionLayer, trace.attention.length - 1)];
@@ -134,12 +135,26 @@ export function TraceResults({
           <Panel
             title="Token × layer activation norms"
             subtitle="Every cell is the residual vector L2 norm at a token position. Hover to inspect."
+            action={
+              <label className="checkbox-row residual-color-toggle">
+                <input
+                  type="checkbox"
+                  aria-label="Logarithmic residual colors"
+                  checked={logResidualColors}
+                  onChange={(event) =>
+                    setLogResidualColors(event.target.checked)
+                  }
+                />
+                Log colors
+              </label>
+            }
           >
             <Heatmap
               data={trace.layers.map((l) => l.token_norms)}
-              label="Columns are prompt tokens. Rows progress from embeddings through transformer blocks. Color is normalized over this capture."
+              label={`Columns are prompt tokens. Rows progress from embeddings through transformer blocks. ${logResidualColors ? "Logarithmic colors use log(1 + norm). Hover values are unscaled." : "Linear colors are normalized over this capture."}`}
               xLabels={trace.tokens}
               yLabels={trace.layers.map((l) => l.label)}
+              logarithmic={logResidualColors}
               sequential
             />
           </Panel>

@@ -1394,6 +1394,7 @@ tbody tr.selectable:hover {
   margin-top: 13px;
 }
 .heatmap-key > div {
+  position: relative;
   height: 5px;
   flex: 1;
   border-radius: 3px;
@@ -2468,4 +2469,23 @@ tbody tr.selectable:hover {
     flex-direction: column;
     align-items: stretch;
   }
+}
+
+.heatmap-key.logarithmic {
+  margin-bottom: 22px;
+}
+.heatmap-midpoint {
+  position: absolute;
+  top: 9px;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.residual-color-toggle {
+  flex-direction: row;
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+.residual-color-toggle input {
+  accent-color: var(--orange);
 }
