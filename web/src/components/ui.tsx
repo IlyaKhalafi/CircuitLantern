@@ -92,7 +92,14 @@ export function Metric({
   return (
     <div className="metric">
       <span>{t(label)}</span>
-      <strong>{value}</strong>
+      <strong>
+        {typeof value === "number" ||
+        (typeof value === "string" && /^[+−-]?\d/.test(value)) ? (
+          <bdi dir="ltr">{value}</bdi>
+        ) : (
+          value
+        )}
+      </strong>
       {note && <small>{t(note)}</small>}
     </div>
   );

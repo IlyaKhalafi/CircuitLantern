@@ -297,6 +297,29 @@ test("train, inspect, annotate and measure sparse feature circuits without code"
     await page.locator(".feature-tabs button").nth(0).click();
     await audit("features-training-" + locale + "-mobile");
     await page.locator(".feature-tabs button").nth(1).click();
+    if (locale === "fa" || locale === "ar") {
+      const bounds = await page
+        .locator(".feature-inspection-result .metric strong")
+        .first()
+        .evaluate((element) => {
+          const node = document
+            .createTreeWalker(element, NodeFilter.SHOW_TEXT)
+            .nextNode();
+          const text = node?.textContent || "";
+          const minus = text.indexOf("-");
+          const digit = text.search(/\d/);
+          if (!node || minus < 0 || digit < 0)
+            throw new Error("Expected the signed fixture measurement");
+          const range = document.createRange();
+          range.setStart(node, minus);
+          range.setEnd(node, minus + 1);
+          const minusX = range.getBoundingClientRect().left;
+          range.setStart(node, digit);
+          range.setEnd(node, digit + 1);
+          return { minusX, digitX: range.getBoundingClientRect().left };
+        });
+      expect(bounds.minusX).toBeLessThan(bounds.digitX);
+    }
     await audit("features-reconstruction-" + locale + "-mobile");
   }
   await page.reload();
