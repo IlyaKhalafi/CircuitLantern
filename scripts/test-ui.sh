@@ -21,7 +21,12 @@ trap 'exit 143' TERM
 wait_for_service() {
   local target_url="$1"
   local log_file="$2"
+  local service_pid="$3"
   for attempt in $(seq 1 120); do
+    if ! kill -0 "$service_pid" 2>/dev/null; then
+      cat "$log_file"
+      return 1
+    fi
     if curl --fail --silent --max-time 1 "$target_url" > /dev/null; then return 0; fi
     sleep 1
   done
@@ -83,7 +88,7 @@ PY
   exec .venv/bin/python tests/serve_ui.py --port "$backend_port"
 ) > "$run_dir/backend.log" 2>&1 &
 backend_pid=$!
-wait_for_service "http://127.0.0.1:$backend_port/api/health" "$run_dir/backend.log"
+wait_for_service "http://127.0.0.1:$backend_port/api/health" "$run_dir/backend.log" "$backend_pid"
 
 (
   cd "$web_snapshot"
@@ -91,7 +96,7 @@ wait_for_service "http://127.0.0.1:$backend_port/api/health" "$run_dir/backend.l
   LANTERN_BACKEND_URL="http://127.0.0.1:$backend_port" exec node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$web_port"
 ) > "$run_dir/web.log" 2>&1 &
 web_pid=$!
-wait_for_service "http://127.0.0.1:$web_port" "$run_dir/web.log"
+wait_for_service "http://127.0.0.1:$web_port" "$run_dir/web.log" "$web_pid"
 
 (
   cd web
