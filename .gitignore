@@ -19,3 +19,4 @@ test-results/
 
 .lantern-deployment.json
 .lantern-deployment.partial
+/web/AGENTS.md
