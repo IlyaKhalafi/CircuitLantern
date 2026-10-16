@@ -1600,5 +1600,8 @@
   "Intervention precision": "دقت مداخله",
   "Intended residual change norm": "نرم تغییر مورد نظر در جریان باقیمانده",
   "Realized residual change norm": "نرم تغییر محقق‌شده در جریان باقیمانده",
-  "Relative rounding error": "خطای نسبی گرد کردن"
+  "Relative rounding error": "خطای نسبی گرد کردن",
+  "Train": "آموزش",
+  "Explore": "کاوش",
+  "Circuits": "مدارها"
 }

@@ -1600,5 +1600,8 @@
   "Intervention precision": "介入の精度",
   "Intended residual change norm": "意図した残差変化のノルム",
   "Realized residual change norm": "実際の残差変化のノルム",
-  "Relative rounding error": "相対丸め誤差"
+  "Relative rounding error": "相対丸め誤差",
+  "Train": "学習",
+  "Explore": "探索",
+  "Circuits": "回路"
 }

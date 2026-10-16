@@ -197,7 +197,14 @@ export function Shell({ children }: { children: React.ReactNode }) {
       <div className="main-shell" inert={mobile && open ? true : undefined}>
         <div className="topbar">
           <div className="breadcrumb">
-            <span>{t("Workbench")}</span>
+            <Image
+              className="mobile-brand-mark"
+              src="/brand/lantern-icon.webp"
+              alt=""
+              width={24}
+              height={24}
+            />
+            <span className="breadcrumb-root">{t("Workbench")}</span>
             <ChevronRight size={13} />
             <strong>
               {t(

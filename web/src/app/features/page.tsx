@@ -156,20 +156,24 @@ export default function FeaturesPage() {
         }}
       >
         {[
-          ["train", "Train dictionaries"],
-          ["explore", "Explore features"],
-          ["circuits", "Feature circuits"],
-        ].map(([value, label]) => (
+          ["train", "Train dictionaries", "Train"],
+          ["explore", "Explore features", "Explore"],
+          ["circuits", "Feature circuits", "Circuits"],
+        ].map(([value, label, compact]) => (
           <button
             role="tab"
             key={value}
             aria-selected={tab === value}
+            aria-label={t(label)}
             tabIndex={tab === value ? 0 : -1}
             aria-controls={"feature-tab-" + value}
             id={"feature-tab-button-" + value}
             onClick={() => setTab(value)}
           >
-            {t(label)}
+            <span className="feature-tab-full">{t(label)}</span>
+            <span className="feature-tab-short" aria-hidden="true">
+              {t(compact)}
+            </span>
           </button>
         ))}
       </div>

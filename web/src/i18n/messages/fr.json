@@ -1600,5 +1600,8 @@
   "Intervention precision": "Précision de l’intervention",
   "Intended residual change norm": "Norme de variation résiduelle prévue",
   "Realized residual change norm": "Norme de variation résiduelle réalisée",
-  "Relative rounding error": "Erreur d’arrondi relative"
+  "Relative rounding error": "Erreur d’arrondi relative",
+  "Train": "Entraîner",
+  "Explore": "Explorer",
+  "Circuits": "Circuits"
 }

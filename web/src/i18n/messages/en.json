@@ -1600,5 +1600,8 @@
   "Intervention precision": "Intervention precision",
   "Intended residual change norm": "Intended residual change norm",
   "Realized residual change norm": "Realized residual change norm",
-  "Relative rounding error": "Relative rounding error"
+  "Relative rounding error": "Relative rounding error",
+  "Train": "Train",
+  "Explore": "Explore",
+  "Circuits": "Circuits"
 }

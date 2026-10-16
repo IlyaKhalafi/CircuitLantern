@@ -980,6 +980,10 @@ progress {
   border-radius: 16px;
   margin-bottom: 24px;
 }
+.empty-state .button {
+  max-width: 100%;
+  white-space: normal;
+}
 .empty-state h2 {
   font-size: 22px;
 }
@@ -1651,7 +1655,8 @@ tbody tr.selectable:hover {
   color: var(--muted);
   margin-top: 10px;
 }
-.mobile-toggle {
+.mobile-toggle,
+.mobile-brand-mark {
   display: none;
 }
 .success-message {
@@ -1844,12 +1849,14 @@ tbody tr.selectable:hover {
   .mobile-toggle {
     display: flex;
     position: fixed;
-    top: 17px;
-    inset-inline-start: 14px;
+    top: 12px;
+    inset-inline-start: 12px;
     z-index: 40;
+    width: 44px;
+    height: 44px;
     background: var(--panel);
     border: 1px solid var(--line);
-    padding: 5px;
+    padding: 10px;
   }
   .mobile-toggle svg {
     width: 18px;
@@ -1857,7 +1864,7 @@ tbody tr.selectable:hover {
   }
   .topbar {
     padding-block: 0;
-    padding-inline: 59px 18px;
+    padding-inline: 68px 18px;
     height: 65px;
   }
   .breadcrumb {
@@ -3004,6 +3011,7 @@ html[dir="rtl"] .sidebar-bottom a > svg:last-child {
 
 .not-found-page {
   display: grid;
+  grid-template-columns: minmax(0, 1fr);
   align-items: center;
   min-height: calc(100svh - 215px);
 }
@@ -3074,23 +3082,59 @@ html[dir="rtl"] .lucide-arrow-right {
 }
 
 @media (max-width: 720px) {
+  html {
+    scroll-padding-block-start: 100px;
+  }
   .topbar {
-    position: relative;
-    height: 82px;
+    position: sticky;
+    top: 0;
+    z-index: 20;
+    box-shadow: 0 4px 16px color-mix(in srgb, var(--ink) 5%, transparent);
+    height: 88px;
     align-items: flex-start;
     padding-top: 17px;
   }
+  .topbar-tools {
+    width: 100%;
+    justify-content: flex-end;
+  }
   .runtime-status {
-    position: absolute;
-    bottom: 9px;
-    inset-inline-end: 18px;
+    position: static;
+    order: -1;
+    min-width: 0;
+    flex: 1;
     font-size: 10px;
   }
-  .breadcrumb {
+  .runtime-status [role="status"] {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
     min-width: 0;
-    padding-top: 7px;
+  }
+  .runtime-status .status-dot {
+    flex-shrink: 0;
+  }
+  .breadcrumb {
+    position: absolute;
+    inset-inline: 68px 18px;
+    bottom: 9px;
+    min-width: 0;
+    padding-top: 0;
+  }
+  .breadcrumb-root,
+  .breadcrumb > svg {
+    display: none;
+  }
+  .mobile-brand-mark {
+    display: block;
+    flex-shrink: 0;
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
   }
   .breadcrumb strong {
+    font-size: 12px;
+    font-weight: 600;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;

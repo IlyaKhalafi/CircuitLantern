@@ -19,6 +19,9 @@
   font-weight: 600;
   cursor: pointer;
 }
+.feature-tab-short {
+  display: none;
+}
 .feature-tabs button[aria-selected="true"] {
   background: var(--blue-tint);
   color: var(--blue);
@@ -401,8 +404,15 @@
   }
   .feature-tabs button {
     flex: 1;
+    min-width: 0;
     padding: 10px 8px;
     font-size: 12px;
+  }
+  .feature-tab-full {
+    display: none;
+  }
+  .feature-tab-short {
+    display: inline;
   }
   .feature-form {
     padding: 18px;

@@ -1600,5 +1600,8 @@
   "Intervention precision": "دقة التدخل",
   "Intended residual change norm": "معيار التغير المستهدف في التيار المتبقي",
   "Realized residual change norm": "معيار التغير المحقق في التيار المتبقي",
-  "Relative rounding error": "خطأ التقريب النسبي"
+  "Relative rounding error": "خطأ التقريب النسبي",
+  "Train": "تدريب",
+  "Explore": "استكشاف",
+  "Circuits": "دوائر"
 }
