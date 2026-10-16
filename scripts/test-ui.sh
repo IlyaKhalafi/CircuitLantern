@@ -7,6 +7,7 @@ web_port="${LANTERN_TEST_WEB_PORT:-3110}"
 run_dir="$(mktemp -d -t lantern-ui.XXXXXX)"
 backend_pid=""
 web_pid=""
+web_snapshot="$run_dir/web"
 
 cleanup() {
   if [[ -n "$web_pid" ]]; then kill "$web_pid" 2>/dev/null || true; wait "$web_pid" 2>/dev/null || true; fi
@@ -28,7 +29,7 @@ wait_for_service() {
   return 1
 }
 
-if [[ ! -x backend/.venv/bin/python ]]; then
+if [[ ! -x backend/.venv/bin/python || ! -d web/node_modules/next ]]; then
   echo "Install the project with make install before running browser tests."
   exit 1
 fi
@@ -44,6 +45,23 @@ for port in map(int, sys.argv[1:]):
             raise SystemExit(f"Test port {port} is in use. Choose different LANTERN_TEST_BACKEND_PORT and LANTERN_TEST_WEB_PORT values.")
 ' "$backend_port" "$web_port"
 
+# Build an independent snapshot so tests cannot replace a running Next.js build
+# or rewrite generated types in the working tree. Installed dependencies are copied
+# locally, including relative package links, without another network installation.
+backend/.venv/bin/python - "$web_snapshot" <<'PY'
+import shutil
+import sys
+
+shutil.copytree(
+    "web",
+    sys.argv[1],
+    symlinks=True,
+    ignore=shutil.ignore_patterns(
+        ".next", "test-results", "*.tsbuildinfo", ".env", ".env.*", ".git", "AGENTS.md"
+    ),
+)
+PY
+
 (
   cd backend
   exec .venv/bin/python tests/serve_ui.py --port "$backend_port"
@@ -52,7 +70,7 @@ backend_pid=$!
 wait_for_service "http://127.0.0.1:$backend_port/api/health" "$run_dir/backend.log"
 
 (
-  cd web
+  cd "$web_snapshot"
   npm run build
   LANTERN_BACKEND_URL="http://127.0.0.1:$backend_port" exec node node_modules/next/dist/bin/next start --hostname 127.0.0.1 --port "$web_port"
 ) > "$run_dir/web.log" 2>&1 &
