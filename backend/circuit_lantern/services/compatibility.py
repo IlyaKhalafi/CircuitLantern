@@ -4,6 +4,7 @@ from circuit_lantern.services.execution import (
     PACKED_PRECISIONS,
     checkpoint_precision,
     execution_precision,
+    native_eight_bit_error,
     native_four_bit_error,
 )
 
@@ -44,10 +45,9 @@ def assess_compatibility(
         blockers.append(
             "This checkpoint is already quantized. Select Auto or its existing execution format. Use the original checkpoint to choose another precision."
         )
-    if native == "int8" and (metadata.get("quantization") or {}).get("llm_int8_has_fp16_weights"):
-        blockers.append(
-            "8-bit checkpoints with floating point master weights are not supported for packed weight inspection. Use an inference checkpoint with llm_int8_has_fp16_weights disabled."
-        )
+    master_weight_error = native_eight_bit_error(metadata)
+    if master_weight_error:
+        blockers.append(master_weight_error)
     if precision in PACKED_PRECISIONS:
         supported = hardware.get("quantization", {}).get(request.device, {}).get(precision, {})
         if not supported.get("supported"):

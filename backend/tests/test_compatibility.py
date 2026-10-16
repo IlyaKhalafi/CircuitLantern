@@ -191,14 +191,13 @@ def test_missing_quantization_kernel_or_layout_blocks_execution():
 
 
 def test_training_style_int8_master_weights_are_not_mistaken_for_packed_storage():
+    from transformers import BitsAndBytesConfig
+
+    config = BitsAndBytesConfig(load_in_8bit=True, llm_int8_has_fp16_weight=True)
     result = assess_compatibility(
         metadata(
             quantizable_parameters=100_000_000,
-            quantization={
-                "quant_method": "bitsandbytes",
-                "load_in_8bit": True,
-                "llm_int8_has_fp16_weights": True,
-            },
+            quantization=config.to_dict(),
         ),
         quantized_hardware(),
         CompatibilityRequest(model_id="model", context_length=128),

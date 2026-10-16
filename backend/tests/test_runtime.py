@@ -116,3 +116,23 @@ def test_native_compute_mismatch_is_rejected_before_download_or_model_release(ru
     assert "Ampere" in job["message"]
     assert runtime.model is active_model
     download.assert_not_called()
+
+
+def test_training_int8_checkpoint_preserves_active_model_without_downloading(runtime):
+    from transformers import BitsAndBytesConfig
+
+    active_model = runtime.model
+    active_tokenizer = runtime.tokenizer
+    active_metadata = runtime.metadata
+    config = BitsAndBytesConfig(load_in_8bit=True, llm_int8_has_fp16_weight=True)
+    metadata = dict(active_metadata, quantization=config.to_dict())
+    job = {"status": "queued"}
+    with patch("circuit_lantern.services.runtime.snapshot_download") as download:
+        runtime._load(job, metadata, "cpu")
+    download.assert_not_called()
+    assert job["status"] == "failed"
+    assert "master weights" in job["message"]
+    assert runtime.model is active_model
+    assert runtime.tokenizer is active_tokenizer
+    assert runtime.metadata is active_metadata
+    assert runtime.state()["loaded"]

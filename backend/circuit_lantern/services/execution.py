@@ -52,6 +52,17 @@ def checkpoint_precision(metadata: dict) -> str | None:
     return "unsupported"
 
 
+def native_eight_bit_error(metadata: dict) -> str | None:
+    if checkpoint_precision(metadata) == "int8" and (metadata.get("quantization") or {}).get(
+        "llm_int8_has_fp16_weight"
+    ):
+        return (
+            "8-bit checkpoints with floating point master weights are not supported for packed "
+            "weight inspection. Use an inference checkpoint with llm_int8_has_fp16_weight disabled."
+        )
+    return None
+
+
 def four_bit_compute_dtype(metadata: dict) -> str | None:
     value = (metadata.get("quantization") or {}).get("bnb_4bit_compute_dtype")
     if value is None:
@@ -153,6 +164,9 @@ def loading_options(metadata: dict, requested: str, device: str) -> tuple[dict, 
         raise ValueError(
             "This checkpoint is already quantized. Select Auto or its existing execution format."
         )
+    error = native_eight_bit_error(metadata)
+    if error:
+        raise ValueError(error)
     if native == "int4":
         capability = None
         if (

@@ -65,3 +65,19 @@ def test_invalid_native_compute_dtype_is_rejected_before_kernel_setup():
             "auto",
             "cpu",
         )
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+@pytest.mark.parametrize("precision", ["auto", "int8"])
+def test_training_int8_config_is_rejected_before_kernel_setup(device, precision):
+    from transformers import BitsAndBytesConfig
+
+    from circuit_lantern.services.execution import loading_options
+
+    config = BitsAndBytesConfig(load_in_8bit=True, llm_int8_has_fp16_weight=True)
+    with (
+        patch("circuit_lantern.services.execution.quantization_capabilities") as capabilities,
+        pytest.raises(ValueError, match="master weights"),
+    ):
+        loading_options({"quantization": config.to_dict()}, precision, device)
+    capabilities.assert_not_called()
