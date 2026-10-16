@@ -1,16 +1,16 @@
 import importlib.metadata
-import shutil
 import subprocess
 from pathlib import Path
 
 import psutil
+from huggingface_hub.constants import HF_HUB_CACHE
 
 from circuit_lantern.services.execution import quantization_capabilities
+from circuit_lantern.services.resources import disk_budget, memory_budget
 
 
 def hardware_snapshot(data_dir: Path) -> dict:
     memory = psutil.virtual_memory()
-    disk = shutil.disk_usage(data_dir)
     gpus = []
     try:
         result = subprocess.run(
@@ -72,10 +72,8 @@ def hardware_snapshot(data_dir: Path) -> dict:
         "quantization": quantization_capabilities(),
         "cpu": psutil.cpu_count(logical=False) or 1,
         "cpu_threads": psutil.cpu_count() or 1,
-        "ram_total_bytes": memory.total,
-        "ram_available_bytes": memory.available,
-        "disk_total_bytes": disk.total,
-        "disk_free_bytes": disk.free,
+        **memory_budget(memory.total, memory.available),
+        **disk_budget(data_dir, Path(HF_HUB_CACHE)),
         "gpus": gpus,
         "packages": packages,
         "cuda_available": cuda_available,

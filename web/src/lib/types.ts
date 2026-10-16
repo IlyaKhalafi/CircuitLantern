@@ -40,6 +40,15 @@ export interface Hardware {
   cpu_threads: number;
   ram_total_bytes: number;
   ram_available_bytes: number;
+  ram_scope?: "system" | "cgroup";
+  ram_host_total_bytes?: number;
+  ram_host_available_bytes?: number;
+  ram_constraints?: {
+    source: string;
+    limit_bytes: number;
+    used_bytes: number | null;
+    reclaimable_bytes: number;
+  }[];
   disk_total_bytes: number;
   disk_free_bytes: number;
   gpus: GPU[];

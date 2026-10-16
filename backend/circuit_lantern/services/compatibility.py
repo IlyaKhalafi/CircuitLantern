@@ -171,6 +171,10 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
     warnings.append(
         "Fit is an estimate for one visible execution device. Other running jobs can change available memory before loading."
     )
+    if hardware.get("ram_scope") == "cgroup":
+        warnings.append(
+            "System memory reflects the process or container memory limit, current usage and reclaimable inactive file cache."
+        )
     if metadata.get("parameter_estimated"):
         warnings.append(
             "Logical parameter count is derived from architecture configuration rather than packed tensor element counts. Checkpoint variants may differ."

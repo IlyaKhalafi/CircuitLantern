@@ -85,7 +85,7 @@ export default function HardwarePage() {
             <Metric
               label="Available system memory"
               value={bytes(hardware.ram_available_bytes)}
-              note={`${bytes(hardware.ram_total_bytes)} total RAM`}
+              note={`${bytes(hardware.ram_total_bytes)} ${hardware.ram_scope === "cgroup" ? "process memory capacity" : "total RAM"}`}
             />
             <Metric
               label="Free checkpoint storage"
@@ -304,6 +304,27 @@ export default function HardwarePage() {
                       lineHeight: 1.9,
                     }}
                   >
+                    {hardware.ram_scope === "cgroup" && (
+                      <span>
+                        RAM is constrained by the backend process or container.
+                        The host has{" "}
+                        {bytes(
+                          hardware.ram_host_total_bytes ||
+                            hardware.ram_total_bytes,
+                        )}
+                        . Available memory includes reclaimable inactive file
+                        cache.{" "}
+                      </span>
+                    )}
+                    {hardware.ram_constraints?.some(
+                      (limit) => limit.used_bytes === null,
+                    ) && (
+                      <span>
+                        Current usage for a memory constraint could not be read.
+                        The available RAM budget is zero until it can be
+                        measured.{" "}
+                      </span>
+                    )}
                     Selected matrices are converted to float32. The budget
                     includes temporary analysis space, execution weights,
                     residual states, bounded attention capture, a conservative

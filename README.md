@@ -69,6 +69,8 @@ NF4 and bitsandbytes FP4 are different from native NVFP4. CPU and CUDA quantizat
 
 The memory report accounts for the selected weight format, unquantized embeddings and output heads, residual capture, bounded attention, a conservative KV cache allowance and temporary float32 matrix space. Source checkpoint download size remains unchanged when selecting on-load quantization. Logical parameter counts come from a model initialized on meta tensors, avoiding packed byte counts. The report reserves 15 percent of currently available memory. Concurrent workloads can change availability before loading. CUDA checks use the first device visible to PyTorch and respect CUDA_VISIBLE_DEVICES. Multi GPU sharding is not implemented.
 
+On Linux, RAM budgets honor readable cgroup v1 and v2 memory constraints for the backend process and its parents. The budget considers shared parent usage and reclaimable inactive file cache, then applies the same memory reserve. A known limit with unreadable usage cannot claim available capacity. This prevents container deployments from being assessed using the host RAM total alone. See the [kernel memory controller documentation](https://docs.kernel.org/admin-guide/cgroup-v2.html#memory).
+
 See [Transformers bitsandbytes support](https://huggingface.co/docs/transformers/quantization/bitsandbytes), [bitsandbytes hardware compatibility](https://huggingface.co/docs/bitsandbytes/installation), [NVIDIA NVFP4 documentation](https://docs.nvidia.com/deeplearning/transformer-engine/features/low_precision_training/nvfp4/nvfp4.html) and [Transformers fine grained FP8 requirements](https://huggingface.co/docs/transformers/quantization/finegrained_fp8) for native hardware requirements.
 
 ## Measurement conventions
@@ -101,7 +103,7 @@ Copy [.env.example](.env.example) to `backend/.env` as needed. Never commit acce
 | `HF_TOKEN` | unset | Access to gated Hugging Face repositories |
 | `LANTERN_BACKEND_URL` | `http://127.0.0.1:8000` | Backend address read by the Next.js server at runtime |
 
-Hugging Face downloads use the standard Hub cache. Configure `HF_HOME` to move it. The default lockfile selects the CPU index. The CUDA installation target replaces only the environment PyTorch build using driver aware selection. The server page reports whether CUDA is actually available in Python.
+Hugging Face downloads use the standard Hub cache. Download storage checks measure that cache filesystem, separately from experiment database storage. Configure `HF_HOME` to move it. The default lockfile selects the CPU index. The CUDA installation target replaces only the environment PyTorch build using driver aware selection. The server page reports whether CUDA is actually available in Python.
 
 Both services bind to loopback by default. This is a personal research workstation with no authentication. Use a private SSH tunnel for remote access. Add authentication and deployment controls before exposing it to an untrusted network.
 
