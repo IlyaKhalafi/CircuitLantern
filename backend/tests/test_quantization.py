@@ -48,6 +48,7 @@ def test_execution_precision_propagates_through_real_traces(precision_runtime):
     runtime, _, precision = precision_runtime
     trace = runtime.trace("the capital of France is", 1, True, None)
     assert trace["execution_precision"] == precision
+    assert len(trace["execution_id"]) == 32
     assert trace["execution_config"]["precision"] == precision
     assert trace["execution_config"]["device"] == runtime.device
     assert trace["execution_config"]["context_length"] == runtime.state()["context_length"] == 32
@@ -115,6 +116,7 @@ def test_prequantized_safetensors_roundtrip(precision_runtime, tmp_path):
     metadata = dict(metadata, quantization=raw["quantization_config"])
     assert checkpoint_precision(metadata) == precision
     assert architecture_layout(str(checkpoint))["parameters"] == metadata["parameters"]
+    previous_execution_id = runtime.state()["metadata"]["execution_id"]
     job = JobRecord({"status": "queued", "progress": 0})
     with patch("circuit_lantern.services.runtime.snapshot_download", return_value=str(checkpoint)):
         runtime._load(job, metadata, runtime.device, "auto", 32)
@@ -123,6 +125,7 @@ def test_prequantized_safetensors_roundtrip(precision_runtime, tmp_path):
         expected
     )
     assert runtime.trace("the capital", 1, False, None)["execution_precision"] == precision
+    assert runtime.state()["metadata"]["execution_id"] != previous_execution_id
 
 
 def test_metadata_layout_uses_meta_tensors_without_allocating_weights(tmp_path):

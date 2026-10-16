@@ -9,6 +9,7 @@ from circuit_lantern.config import get_settings
 from circuit_lantern.schemas import (
     CausalRequest,
     CompatibilityRequest,
+    ExecutionId,
     ExperimentRequest,
     ExperimentUpdate,
     LoadRequest,
@@ -18,7 +19,7 @@ from circuit_lantern.schemas import (
 )
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
-from circuit_lantern.services.runtime import ModelRuntime, RuntimeBusyError
+from circuit_lantern.services.runtime import ModelChangedError, ModelRuntime, RuntimeBusyError
 from circuit_lantern.services.store import ExperimentStore
 
 
@@ -40,8 +41,9 @@ app.add_middleware(
 )
 
 
+@app.exception_handler(ModelChangedError)
 @app.exception_handler(RuntimeBusyError)
-async def runtime_busy(request: Request, error: RuntimeBusyError):
+async def runtime_conflict(request: Request, error: RuntimeBusyError | ModelChangedError):
     return JSONResponse(status_code=409, content={"detail": str(error)})
 
 
@@ -125,23 +127,29 @@ def cancel_job(job_id: str, request: Request):
 
 
 @app.delete("/api/runtime", status_code=204)
-def unload(request: Request):
-    request.app.state.runtime.unload()
+def unload(request: Request, expected_execution_id: ExecutionId | None = None):
+    request.app.state.runtime.unload(expected_execution_id)
 
 
 @app.get("/api/graph")
-def graph(request: Request):
-    return request.app.state.runtime.graph()
+def graph(request: Request, expected_execution_id: ExecutionId | None = None):
+    return request.app.state.runtime.graph(expected_execution_id)
 
 
 @app.get("/api/matrix")
-def matrix(request: Request, name: str = Query(max_length=240)):
-    return request.app.state.runtime.matrix(name)
+def matrix(
+    request: Request,
+    name: str = Query(max_length=240),
+    expected_execution_id: ExecutionId | None = None,
+):
+    return request.app.state.runtime.matrix(name, expected_execution_id)
 
 
 @app.post("/api/tokenize")
 def tokenize(payload: TokenizeRequest, request: Request):
-    return request.app.state.runtime.tokenize(payload.prompts, payload.reserved_tokens)
+    return request.app.state.runtime.tokenize(
+        payload.prompts, payload.reserved_tokens, payload.expected_execution_id
+    )
 
 
 @app.post("/api/trace")

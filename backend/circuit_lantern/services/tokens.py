@@ -1,5 +1,7 @@
 """Token previews and the shared bounds for interactive captures."""
 
+from circuit_lantern.services.execution import execution_provenance
+
 MAX_PREVIEW_TOKENS = 256
 
 
@@ -32,8 +34,7 @@ def preview_tokens(
             }
         )
     return {
-        "model_id": metadata["id"],
-        "revision": metadata["revision"],
+        **execution_provenance(metadata),
         "token_limit": limit,
         "reserved_tokens": reserved_tokens,
         "prompts": previews,

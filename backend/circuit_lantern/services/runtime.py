@@ -18,6 +18,7 @@ from circuit_lantern.services.compatibility import assess_compatibility
 from circuit_lantern.services.execution import (
     PACKED_PRECISIONS,
     describe_execution,
+    execution_provenance,
     loading_options,
     prepare_model_execution,
 )
@@ -35,6 +36,10 @@ from circuit_lantern.services.weights import (
 
 
 class RuntimeBusyError(ValueError):
+    pass
+
+
+class ModelChangedError(ValueError):
     pass
 
 
@@ -129,6 +134,7 @@ class ModelRuntime:
         with self.lock:
             model = tokenizer = None
             released_model = False
+            replacement_started = False
             try:
                 job.update(
                     status="loading",
@@ -151,6 +157,7 @@ class ModelRuntime:
                         "Server resources changed before loading. " + " ".join(report["blockers"])
                     )
                 released_model = self.model is not None
+                replacement_started = True
                 self._unload()
                 tokenizer = AutoTokenizer.from_pretrained(
                     path, trust_remote_code=False, local_files_only=True
@@ -172,6 +179,7 @@ class ModelRuntime:
                 execution_config["context_length"] = context_limit
                 metadata = dict(
                     metadata,
+                    execution_id=uuid.uuid4().hex,
                     execution_precision=resolved_precision,
                     execution_context_length=context_limit,
                     execution_config=execution_config,
@@ -203,7 +211,7 @@ class ModelRuntime:
                         else ""
                     ),
                 )
-            if job["status"] == "failed" and (released_model or self.model is None):
+            if job["status"] == "failed" and (replacement_started or self.model is None):
                 self._unload()
 
     def _unload(self):
@@ -216,10 +224,13 @@ class ModelRuntime:
             torch.cuda.empty_cache()
 
     def causal(self, payload: dict) -> dict:
+        payload = dict(payload)
+        expected_execution_id = payload.pop("expected_execution_id", None)
         with self.job_lock:
             state = self.state()
             if not state["loaded"]:
                 raise ValueError("Load a model from the model library first.")
+            self._verify_execution(expected_execution_id)
             if any(
                 j["status"] in ("queued", "running", "downloading", "loading")
                 for j in self.jobs.values()
@@ -229,6 +240,7 @@ class ModelRuntime:
                 {
                     "id": uuid.uuid4().hex,
                     "model_id": state["metadata"]["id"],
+                    "execution_id": state["metadata"].get("execution_id"),
                     "kind": "causal",
                     "status": "queued",
                     "progress": 0,
@@ -269,7 +281,11 @@ class ModelRuntime:
                     job.update(status="cancelled", message="Causal sweep cancelled before capture")
                     return
                 self._require_model()
-                if self.metadata["revision"] != revision or self.metadata["id"] != job["model_id"]:
+                if (
+                    self.metadata["revision"] != revision
+                    or self.metadata["id"] != job["model_id"]
+                    or self.metadata.get("execution_id") != job.get("execution_id")
+                ):
                     raise ValueError("The active model changed. Start the sweep again.")
                 job.update(status="running", message="Capturing clean and corrupted baselines")
                 result = activation_patch_sweep(
@@ -297,17 +313,27 @@ class ModelRuntime:
         finally:
             self.lock.release()
 
-    def unload(self):
+    def unload(self, expected_execution_id: str | None = None):
         with self.operation():
+            self._verify_execution(expected_execution_id)
             self._unload()
 
     def _require_model(self):
         if self.model is None:
             raise ValueError("Load a model from the model library first.")
 
-    def graph(self) -> dict:
+    def _verify_execution(self, expected_execution_id: str | None):
+        if expected_execution_id is not None and (
+            self.metadata is None or self.metadata.get("execution_id") != expected_execution_id
+        ):
+            raise ModelChangedError(
+                "The active model changed since this page opened. Refresh the runtime before continuing."
+            )
+
+    def graph(self, expected_execution_id: str | None = None) -> dict:
         with self.operation():
             self._require_model()
+            self._verify_execution(expected_execution_id)
             weights, total_parameters = model_weight_inventory(self.model)
             return {
                 "metadata": self.metadata,
@@ -315,9 +341,10 @@ class ModelRuntime:
                 "total_parameters": total_parameters,
             }
 
-    def matrix(self, name: str) -> dict:
+    def matrix(self, name: str, expected_execution_id: str | None = None) -> dict:
         with self.operation():
             self._require_model()
+            self._verify_execution(expected_execution_id)
             if name in self.metrics_cache:
                 return dict(self.metrics_cache[name])
             tensor, description = logical_weight(self.model, name)
@@ -326,8 +353,7 @@ class ModelRuntime:
                 **matrix_metrics(tensor, self.settings.max_analysis_elements),
                 source_format=description["dtype"],
                 quantized=description["quantized"],
-                execution_precision=self.metadata.get("execution_precision", "float32"),
-                execution_config=self.metadata.get("execution_config"),
+                **execution_provenance(self.metadata),
                 analysis_note="Statistics describe the dequantized float32 matrix."
                 if description["quantized"]
                 else "Statistics describe the loaded matrix converted to float32.",
@@ -360,9 +386,12 @@ class ModelRuntime:
                 return getattr(root, norm_name)
         return None
 
-    def tokenize(self, prompts: list[str], reserved_tokens: int = 0) -> dict:
+    def tokenize(
+        self, prompts: list[str], reserved_tokens: int = 0, expected_execution_id: str | None = None
+    ) -> dict:
         with self.operation():
             self._require_model()
+            self._verify_execution(expected_execution_id)
             return preview_tokens(
                 self.tokenizer,
                 self.metadata,
@@ -379,9 +408,11 @@ class ModelRuntime:
         capture_attention: bool,
         ablate_layer: int | None,
         ablate_head: dict | None = None,
+        expected_execution_id: str | None = None,
     ) -> dict:
         with self.operation():
             self._require_model()
+            self._verify_execution(expected_execution_id)
             if not 1 <= max_new_tokens <= 64:
                 raise ValueError("Generate between 1 and 64 tokens per interactive trace.")
             started = time.perf_counter()
@@ -512,10 +543,7 @@ class ModelRuntime:
                     min(10, final_probabilities.numel())
                 )
                 return {
-                    "model_id": self.metadata["id"],
-                    "revision": self.metadata["revision"],
-                    "execution_precision": self.metadata.get("execution_precision", "float32"),
-                    "execution_config": self.metadata.get("execution_config"),
+                    **execution_provenance(self.metadata),
                     "prompt": prompt,
                     "tokens": tokens,
                     "token_ids": inputs["input_ids"][0].cpu().tolist(),

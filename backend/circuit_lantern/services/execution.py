@@ -163,3 +163,13 @@ def describe_execution(model, precision: str, device: str) -> dict:
         if precision in PACKED_PRECISIONS
         else None,
     }
+
+
+def execution_provenance(metadata: dict) -> dict:
+    return {
+        "model_id": metadata["id"],
+        "revision": metadata["revision"],
+        "execution_id": metadata.get("execution_id"),
+        "execution_precision": metadata.get("execution_precision", "float32"),
+        "execution_config": metadata.get("execution_config"),
+    }

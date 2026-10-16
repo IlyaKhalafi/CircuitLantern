@@ -78,3 +78,26 @@ def test_replacement_rechecks_resources_after_download_and_preserves_the_active_
         loader.assert_not_called()
     assert runtime.model is active
     assert runtime.trace("the capital", 1, False, None)["predictions"]
+
+
+def test_failed_first_load_after_publishing_model_fields_clears_partial_state(runtime):
+    checkpoint = runtime.settings.data_dir / "source"
+    runtime.model.save_pretrained(checkpoint, safe_serialization=True)
+    runtime.tokenizer.save_pretrained(checkpoint)
+    metadata = checkpoint_metadata(runtime.model, checkpoint)
+    runtime.unload()
+    job = {}
+    with (
+        patch("circuit_lantern.services.runtime.snapshot_download", return_value=str(checkpoint)),
+        patch(
+            "circuit_lantern.services.runtime.attention_head_targets",
+            side_effect=RuntimeError("capability discovery failed"),
+        ),
+    ):
+        runtime._load(job, metadata, "cpu", context_length=32)
+    assert job["status"] == "failed"
+    assert "capability discovery failed" in job["message"]
+    assert not runtime.state()["loaded"]
+    assert runtime.model is runtime.tokenizer is runtime.metadata is None
+    with pytest.raises(ValueError, match="Load a model"):
+        runtime.graph()

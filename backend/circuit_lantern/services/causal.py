@@ -2,6 +2,7 @@ import time
 
 import torch
 
+from circuit_lantern.services.execution import execution_provenance
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.tokens import capture_token_limit
 
@@ -128,11 +129,8 @@ def activation_patch_sweep(
             message=f"Patched layer {index + 1} of {len(blocks)}",
         )
     return {
-        "model_id": metadata["id"],
-        "execution_precision": metadata.get("execution_precision", "float32"),
-        "execution_config": metadata.get("execution_config"),
+        **execution_provenance(metadata),
         "device": device,
-        "revision": metadata["revision"],
         "clean_prompt": clean_prompt,
         "corrupted_prompt": corrupted_prompt,
         "tokens": [tokenizer.decode([i]) for i in clean["input_ids"][0].tolist()],

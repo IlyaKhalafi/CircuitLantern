@@ -20,7 +20,14 @@ class CompatibilityRequest(ModelRequest):
     device: Literal["cpu", "cuda"] = "cpu"
 
 
-class TokenizeRequest(BaseModel):
+ExecutionId = Annotated[str, Field(min_length=32, max_length=32, pattern=r"^[a-f0-9]{32}$")]
+
+
+class BoundExecutionRequest(BaseModel):
+    expected_execution_id: ExecutionId | None = None
+
+
+class TokenizeRequest(BoundExecutionRequest):
     prompts: list[Annotated[str, Field(max_length=8000)]] = Field(min_length=1, max_length=2)
     reserved_tokens: int = Field(default=0, ge=0, le=64)
 
@@ -30,7 +37,7 @@ class HeadAblation(BaseModel):
     head: int = Field(ge=0)
 
 
-class TraceRequest(BaseModel):
+class TraceRequest(BoundExecutionRequest):
     prompt: str = Field(min_length=1, max_length=8000)
     max_new_tokens: int = Field(default=16, ge=1, le=64)
     capture_attention: bool = True
@@ -61,7 +68,7 @@ class LoadRequest(ModelRequest):
     device: Literal["cpu", "cuda"] = "cpu"
 
 
-class CausalRequest(BaseModel):
+class CausalRequest(BoundExecutionRequest):
     clean_prompt: str = Field(min_length=1, max_length=8000)
     corrupted_prompt: str = Field(min_length=1, max_length=8000)
     target: str = Field(default="", max_length=100)
