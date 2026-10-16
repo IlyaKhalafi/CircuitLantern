@@ -1,5 +1,7 @@
 """Feature frequencies and activating contexts without retaining dense feature matrices."""
 
+from collections.abc import Iterable
+
 import torch
 
 from circuit_lantern.services.features.autoencoder import SparseAutoencoder
@@ -25,9 +27,29 @@ def feature_statistics(
         raise ValueError(
             "Feature statistics need a nonempty activation matrix and a valid example count."
         )
+    batches = (model.encode(batch.to(model.decoder.device)) for batch in activations.split(256))
+    return summarize_feature_batches(
+        batches,
+        model.config.features,
+        len(activations),
+        top_examples=top_examples,
+        splits=splits,
+    )
+
+
+@torch.inference_mode()
+def summarize_feature_batches(
+    batches: Iterable[torch.Tensor],
+    width: int,
+    samples: int,
+    *,
+    top_examples: int = 6,
+    splits: list[str] | None = None,
+) -> list[dict]:
+    if samples < 1 or width < 1 or not 1 <= top_examples <= 20:
+        raise ValueError("Choose a nonempty feature matrix and a valid example count.")
     if splits is not None and (
-        len(splits) != len(activations)
-        or any(split not in ("train", "validation") for split in splits)
+        len(splits) != samples or any(split not in ("train", "validation") for split in splits)
     ):
         raise ValueError("Feature statistics require one recorded split for every activation row.")
     split_masks = (
@@ -38,27 +60,31 @@ def feature_statistics(
         if splits is not None
         else {}
     )
-    split_counts = {
-        split: torch.zeros(model.config.features, dtype=torch.int64) for split in split_masks
-    }
-    width = model.config.features
-    keep = min(top_examples, len(activations))
+    split_counts = {split: torch.zeros(width, dtype=torch.int64) for split in split_masks}
+    keep = min(top_examples, samples)
     maxima = torch.full((keep, width), -torch.inf, device="cpu")
     positions = torch.full((keep, width), -1, device="cpu", dtype=torch.int64)
     counts = torch.zeros(width, device="cpu", dtype=torch.int64)
     sums = torch.zeros(width, device="cpu", dtype=torch.float64)
     offset = 0
-    for batch in activations.split(256):
-        encoded = model.encode(batch.to(model.decoder.device))
-        if not torch.isfinite(encoded).all():
-            raise ValueError("The dictionary produced non finite feature activations.")
+    for encoded in batches:
+        if (
+            not isinstance(encoded, torch.Tensor)
+            or encoded.ndim != 2
+            or encoded.shape[1] != width
+            or len(encoded) < 1
+            or offset + len(encoded) > samples
+            or not torch.isfinite(encoded).all()
+            or (encoded < 0).any()
+        ):
+            raise ValueError("Feature statistics require aligned finite nonnegative batches.")
         counts += encoded.gt(0).sum(dim=0).cpu()
         for split, mask in split_masks.items():
-            chosen = mask[offset : offset + len(batch)].to(encoded.device)
+            chosen = mask[offset : offset + len(encoded)].to(encoded.device)
             split_counts[split] += encoded[chosen].gt(0).sum(dim=0).cpu()
 
         sums += encoded.double().sum(dim=0).cpu()
-        indices = encoded.argsort(dim=0, descending=True, stable=True)[: min(keep, len(batch))]
+        indices = encoded.argsort(dim=0, descending=True, stable=True)[: min(keep, len(encoded))]
         values = encoded.gather(0, indices)
         values, indices = values.cpu(), indices.cpu() + offset
         combined = torch.cat((maxima, values), dim=0)
@@ -66,7 +92,9 @@ def feature_statistics(
         selected = combined.gather(0, order)
         positions = torch.cat((positions, indices), dim=0).gather(0, order)
         maxima = selected
-        offset += len(batch)
+        offset += len(encoded)
+    if offset != samples:
+        raise ValueError("Feature batches did not cover the recorded samples.")
     example_values, example_positions = maxima.T.tolist(), positions.T.tolist()
     counts, sums = counts.tolist(), sums.tolist()
     split_totals = {split: int(mask.sum()) for split, mask in split_masks.items()}
@@ -76,8 +104,8 @@ def feature_statistics(
         {
             "index": feature,
             "activation_count": counts[feature],
-            "frequency": counts[feature] / len(activations),
-            "mean_activation": sums[feature] / len(activations),
+            "frequency": counts[feature] / samples,
+            "mean_activation": sums[feature] / samples,
             "max_activation": example_values[feature][0],
             "train_frequency": split_counts["train"][feature] / split_totals["train"]
             if split_totals.get("train")

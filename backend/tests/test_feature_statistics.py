@@ -61,3 +61,22 @@ def test_feature_statistics_separate_split_frequencies_and_tag_examples():
     assert all(example["split"] == "train" for example in rows[0]["examples"])
     assert rows[1]["train_frequency"] == 0.5
     assert rows[1]["validation_frequency"] == 1
+
+
+def test_streamed_feature_batches_preserve_global_ties_and_split_counts():
+    from circuit_lantern.services.features.statistics import summarize_feature_batches
+
+    values = torch.tensor([[2.0, 0], [2.0, 3], [0, 3], [2.0, 0], [1.0, 1]])
+    rows = summarize_feature_batches(
+        values.split(2),
+        2,
+        5,
+        top_examples=3,
+        splits=["train", "validation", "train", "validation", "train"],
+    )
+    assert [example["sample"] for example in rows[0]["examples"]] == [0, 1, 3]
+    assert [example["sample"] for example in rows[1]["examples"]] == [1, 2, 4]
+    assert rows[0]["frequency"] == 4 / 5
+    assert rows[0]["train_frequency"] == 2 / 3
+    assert rows[0]["validation_frequency"] == 1
+    assert rows[1]["mean_activation"] == 7 / 5
