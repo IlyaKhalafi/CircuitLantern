@@ -109,14 +109,21 @@ def test_narrow_zero_matrix_has_a_complete_spectrum_and_no_condition_number():
     assert result["cumulative_energy"] == [0, 0, 0]
 
 
-def test_narrow_exact_spectrum_respects_the_workspace_budget(monkeypatch):
+@pytest.mark.parametrize("threads", [1, 2, 4])
+def test_narrow_exact_spectrum_respects_the_workspace_budget(monkeypatch, threads):
     from circuit_lantern.services import metrics
 
     monkeypatch.setattr(metrics, "EXACT_THIN_SVD_MAX_ELEMENTS", 2000)
-    result = matrix_metrics(torch.ones(1000, 3))
+    previous_threads = torch.get_num_threads()
+    try:
+        torch.set_num_threads(threads)
+        result = matrix_metrics(torch.ones(1000, 3))
+    finally:
+        torch.set_num_threads(previous_threads)
     assert not result["spectrum_exact"]
     assert result["condition_number"] is result["numerical_rank"] is None
-    assert result["spectral_norm"] == pytest.approx(3000**0.5, rel=1e-5)
+    # Float32 randomized QR rounding varies across BLAS kernels and thread counts.
+    assert result["spectral_norm"] == pytest.approx(3000**0.5, rel=1e-4)
     assert result["spectrum_method"] == (
         "Full matrix randomized SVD with 3 components and 4 power iterations"
     )
