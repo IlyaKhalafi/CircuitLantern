@@ -41,6 +41,7 @@ Copy [.env.example](../.env.example) to `backend/.env` as needed. Never commit a
 | --- | --- | --- |
 | `LANTERN_DATA_DIR` | `data` | Experiment database directory |
 | `LANTERN_MAX_MODEL_BYTES` | `21474836480` | Maximum checkpoint download size |
+| `LANTERN_MAX_DICTIONARY_BYTES` | `1073741824` | Maximum weights file size for one sparse dictionary |
 | `LANTERN_MAX_PROMPT_TOKENS` | `128` | Interactive prompt capture limit |
 | `HF_TOKEN` | unset | Access to gated Hugging Face repositories |
 | `LANTERN_BACKEND_URL` | `http://127.0.0.1:8000` | Backend address read by the Next.js server at runtime |

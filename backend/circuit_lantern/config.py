@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     data_dir: Path = Path("data")
     allowed_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
     max_model_bytes: int = 20 * 1024**3
+    max_dictionary_bytes: int = 1024**3
     max_analysis_elements: int = 4_000_000
     max_prompt_tokens: int = 128
     device: str = "cpu"

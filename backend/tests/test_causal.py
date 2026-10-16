@@ -104,7 +104,7 @@ def test_causal_request_blocks_model_replacement(runtime):
 
 def test_download_cancellation_is_explicitly_unsupported(runtime):
     runtime.jobs["download"] = {"status": "queued", "kind": "download"}
-    with pytest.raises(ValueError, match="Only causal sweeps"):
+    with pytest.raises(ValueError, match="Only research jobs"):
         runtime.cancel_job("download")
     assert runtime.cancel_job("missing") is None
 

@@ -79,3 +79,28 @@ def test_cancel_request_during_final_forward_does_not_label_complete_result_part
     assert snapshot["progress"] == 100
     assert snapshot["result"]["cancelled"] is False
     assert snapshot["message"] == "Head sweep complete"
+
+
+def test_terminal_job_is_published_only_after_model_cleanup_releases_ownership(runtime):
+    import threading
+    import time
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    def cleanup():
+        entered.set()
+        assert release.wait(timeout=5)
+
+    with patch("circuit_lantern.services.runtime.gc.collect", side_effect=cleanup):
+        queued = runtime._start_sweep("sae_training", {}, lambda payload, job: {"complete": True})
+        assert entered.wait(timeout=5)
+        assert runtime.job(queued["id"])["status"] == "running"
+        release.set()
+        for _ in range(100):
+            if runtime.job(queued["id"])["status"] == "ready":
+                break
+            time.sleep(0.01)
+        assert runtime.job(queued["id"])["status"] == "ready"
+        with runtime.operation():
+            assert runtime.model is not None

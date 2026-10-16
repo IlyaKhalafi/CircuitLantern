@@ -5,6 +5,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from huggingface_hub.errors import HfHubHTTPError
 
+from circuit_lantern.api.features import router as feature_router
 from circuit_lantern.config import get_settings
 from circuit_lantern.schemas import (
     CausalRequest,
@@ -21,6 +22,8 @@ from circuit_lantern.schemas import (
     TokenizeRequest,
     TraceRequest,
 )
+from circuit_lantern.services.features.lab import FeatureLab
+from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
 from circuit_lantern.services.runtime import ModelChangedError, ModelRuntime, RuntimeBusyError
@@ -32,11 +35,22 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.runtime = ModelRuntime(settings)
     app.state.store = ExperimentStore(settings.data_dir / "experiments.sqlite3")
+    app.state.features = FeatureLab(
+        app.state.runtime,
+        DictionaryStore(
+            settings.data_dir / "dictionaries", max_weight_bytes=settings.max_dictionary_bytes
+        ),
+    )
     yield
+    with app.state.runtime.job_lock:
+        for job in app.state.runtime.jobs.values():
+            if job.get("kind") != "download":
+                job.request_cancel()
     app.state.runtime.executor.shutdown(wait=True, cancel_futures=True)
 
 
 app = FastAPI(title="Circuit Lantern", version="0.1.0", lifespan=lifespan)
+app.include_router(feature_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,

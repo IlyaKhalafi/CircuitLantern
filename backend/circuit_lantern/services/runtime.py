@@ -237,7 +237,7 @@ class ModelRuntime:
     def head_sweep(self, payload: dict) -> dict:
         return self._start_sweep("head_sweep", payload)
 
-    def _start_sweep(self, kind: str, payload: dict) -> dict:
+    def _start_sweep(self, kind: str, payload: dict, worker=None) -> dict:
         payload = dict(payload)
         expected_execution_id = payload.pop("expected_execution_id", None)
         with self.job_lock:
@@ -266,7 +266,7 @@ class ModelRuntime:
             self.jobs = dict(list(self.jobs.items())[-49:])
             self.jobs[job["id"]] = job
             try:
-                self.executor.submit(self._run_sweep, job, payload, revision)
+                self.executor.submit(self._run_sweep, job, payload, revision, worker)
             except RuntimeError:
                 job.update(status="failed", message="The model loader is shutting down.")
                 raise
@@ -282,42 +282,74 @@ class ModelRuntime:
             job = self.jobs.get(job_id)
             if job is None:
                 return None
-            if job.get("kind") not in ("causal", "head_sweep"):
+            if job.get("kind") not in ("causal", "head_sweep", "sae_training", "feature_circuit"):
                 raise ValueError(
-                    "Only causal sweeps and head sweeps can be cancelled. Model downloads must finish before another operation starts."
+                    "Only research jobs can be cancelled. Model downloads must finish before another operation starts."
                 )
             return job.request_cancel()
 
-    def _run_sweep(self, job: JobRecord, payload: dict, revision: str):
+    def _run_sweep(self, job: JobRecord, payload: dict, revision: str, worker=None):
         is_head_sweep = job["kind"] == "head_sweep"
-        label = "Head sweep" if is_head_sweep else "Causal sweep"
+        label = {
+            "sae_training": "Dictionary training",
+            "feature_circuit": "Feature ablation graph",
+        }.get(job["kind"], "Head sweep" if is_head_sweep else "Causal sweep")
+        result = None
+        failure = None
+        early_cancel = False
         with self.lock:
             try:
-                if job.get("cancel_requested"):
-                    job.update(status="cancelled", message=f"{label} cancelled before capture")
-                    return
-                self._require_model()
-                if (
-                    self.metadata["revision"] != revision
-                    or self.metadata["id"] != job["model_id"]
-                    or self.metadata.get("execution_id") != job.get("execution_id")
-                ):
-                    raise ValueError("The active model changed. Start the sweep again.")
-                job.update(status="running", message="Capturing baseline predictions")
-                operation = head_ablation_sweep if is_head_sweep else activation_patch_sweep
-                result = operation(
-                    self.model,
-                    self.tokenizer,
-                    self._blocks(),
-                    self.metadata,
-                    self.device,
-                    **payload,
-                    job=job,
-                    max_tokens=self.settings.max_prompt_tokens,
-                )
-                job.finish(result, label=label, unit="heads" if is_head_sweep else "layers")
+                early_cancel = bool(job.get("cancel_requested"))
+                if not early_cancel:
+                    self._require_model()
+                    if (
+                        self.metadata["revision"] != revision
+                        or self.metadata["id"] != job["model_id"]
+                        or self.metadata.get("execution_id") != job.get("execution_id")
+                    ):
+                        raise ValueError("The active model changed. Start the sweep again.")
+                    job.update(status="running", message="Capturing baseline predictions")
+                    if worker is not None:
+                        result = worker(payload, job)
+                    else:
+                        operation = head_ablation_sweep if is_head_sweep else activation_patch_sweep
+                        result = operation(
+                            self.model,
+                            self.tokenizer,
+                            self._blocks(),
+                            self.metadata,
+                            self.device,
+                            **payload,
+                            job=job,
+                            max_tokens=self.settings.max_prompt_tokens,
+                        )
             except Exception as error:  # noqa: BLE001 - background failures are reported through jobs
-                job.update(status="failed", message=str(error)[:1000])
+                failure = str(error)[:1000]
+            finally:
+                gc.collect()
+                if self.device.startswith("cuda"):
+                    try:
+                        torch.cuda.empty_cache()
+                    except RuntimeError as error:
+                        failure = failure or str(error)[:1000]
+        # A terminal snapshot guarantees that model hooks and operation ownership
+        # have been released before a caller starts its next research operation.
+        if early_cancel:
+            job.update(status="cancelled", message=f"{label} cancelled before capture")
+        elif failure:
+            job.update(status="failed", message=failure)
+        else:
+            job.finish(
+                result,
+                label=label,
+                unit="dictionaries"
+                if job["kind"] == "sae_training"
+                else "measurements"
+                if worker
+                else "heads"
+                if is_head_sweep
+                else "layers",
+            )
 
     @contextmanager
     def operation(self):
