@@ -268,6 +268,14 @@ export default function HardwarePage() {
                       <strong>{runtime?.device.toUpperCase() || "CPU"}</strong>
                     </div>
                     <div>
+                      <span>Context allowance</span>
+                      <strong>
+                        {runtime?.loaded
+                          ? `${runtime.context_length ?? runtime.metadata?.context_length} tokens`
+                          : "No model loaded"}
+                      </strong>
+                    </div>
+                    <div>
                       <span>Execution format</span>
                       <strong>
                         {runtime?.loaded

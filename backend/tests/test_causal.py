@@ -110,3 +110,21 @@ def test_recovery_requires_a_positive_measurable_corruption_gap():
     assert normalized_recovery(-1, -2, 0) == pytest.approx(2)
     assert normalized_recovery(-2, -1, -1.5) is None
     assert normalized_recovery(-1, -1.0001, -1) is None
+
+
+def test_causal_prompt_limit_uses_the_loaded_context_allowance(runtime):
+    runtime.metadata["execution_context_length"] = 16
+    with pytest.raises(ValueError, match="16 prompt tokens"):
+        activation_patch_sweep(
+            runtime.model,
+            runtime.tokenizer,
+            runtime._blocks(),
+            runtime.metadata,
+            "cpu",
+            clean_prompt="the " * 17,
+            corrupted_prompt="capital " * 17,
+            target="",
+            position=-1,
+            job={},
+            max_tokens=128,
+        )

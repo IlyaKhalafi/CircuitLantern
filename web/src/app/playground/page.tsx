@@ -37,7 +37,16 @@ export default function PlaygroundPage() {
   const [saving, setSaving] = useState(false);
   useEffect(() => {
     api<RuntimeState>("/runtime")
-      .then(setRuntime)
+      .then((state) => {
+        setRuntime(state);
+        const allowance =
+          state.context_length ?? state.metadata?.context_length ?? 2048;
+        setTokens((current) =>
+          current < allowance
+            ? current
+            : [64, 32, 16, 8, 4, 1].find((n) => n < allowance) || 1,
+        );
+      })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -77,12 +86,20 @@ export default function PlaygroundPage() {
       setSaving(false);
     }
   }
+  const contextLimit =
+    runtime?.context_length ?? runtime?.metadata?.context_length ?? 2048;
+  const promptLimit = Math.max(
+    0,
+    Math.min(runtime?.max_prompt_tokens ?? 128, contextLimit - tokens),
+  );
   const compatibleBaseline =
     baseline?.prompt === trace?.prompt &&
     baseline?.revision === trace?.revision &&
     baseline?.model_id === trace?.model_id &&
     baseline?.execution_precision === trace?.execution_precision &&
     baseline?.device === trace?.device &&
+    JSON.stringify(baseline?.execution_config) ===
+      JSON.stringify(trace?.execution_config) &&
     trace?.ablate_layer !== null
       ? baseline
       : null;
@@ -124,7 +141,7 @@ export default function PlaygroundPage() {
         <>
           <Panel
             title="Prompt your model"
-            subtitle="Deterministic generation with bounded activation capture. Up to 128 prompt tokens."
+            subtitle={`Deterministic generation with bounded activation capture. Up to ${promptLimit} prompt tokens with this generation length.`}
           >
             <form className="prompt-box" onSubmit={run}>
               <label htmlFor="prompt" className="sr-only">
@@ -159,11 +176,13 @@ export default function PlaygroundPage() {
                       value={tokens}
                       onChange={(e) => setTokens(+e.target.value)}
                     >
-                      {[8, 16, 32, 64].map((n) => (
-                        <option key={n} value={n}>
-                          {n} tokens
-                        </option>
-                      ))}
+                      {[1, 4, 8, 16, 32, 64]
+                        .filter((n) => n < contextLimit)
+                        .map((n) => (
+                          <option key={n} value={n}>
+                            {n} tokens
+                          </option>
+                        ))}
                     </select>
                   </label>
                   <label>
@@ -196,7 +215,7 @@ export default function PlaygroundPage() {
                 <button
                   type="submit"
                   className="button primary"
-                  disabled={busy || !prompt.trim()}
+                  disabled={busy || !prompt.trim() || promptLimit < 1}
                 >
                   <Play size={14} />
                   {busy ? "Tracing activations" : "Run & trace"}

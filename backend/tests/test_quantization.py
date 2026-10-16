@@ -43,7 +43,7 @@ def precision_runtime(request, tmp_path, execution_device):
     instance = ModelRuntime(Settings(data_dir=tmp_path))
     job = JobRecord({"status": "queued", "progress": 0})
     with patch("circuit_lantern.services.runtime.snapshot_download", return_value=str(checkpoint)):
-        instance._load(job, metadata, execution_device, request.param)
+        instance._load(job, metadata, execution_device, request.param, 32)
     assert job["status"] == "ready", job.snapshot()
     yield instance, metadata, request.param
     instance.executor.shutdown(wait=True)
@@ -55,6 +55,7 @@ def test_execution_precision_propagates_through_real_traces(precision_runtime):
     assert trace["execution_precision"] == precision
     assert trace["execution_config"]["precision"] == precision
     assert trace["execution_config"]["device"] == runtime.device
+    assert trace["execution_config"]["context_length"] == runtime.state()["context_length"] == 32
     assert bool(trace["execution_config"]["quantization"]) == (precision in ("int4", "int8"))
     assert len(trace["layers"]) == 3
     assert len(trace["geometry"]["cka"]) == 3
@@ -121,7 +122,7 @@ def test_prequantized_safetensors_roundtrip(precision_runtime, tmp_path):
     assert architecture_layout(str(checkpoint))["parameters"] == metadata["parameters"]
     job = JobRecord({"status": "queued", "progress": 0})
     with patch("circuit_lantern.services.runtime.snapshot_download", return_value=str(checkpoint)):
-        runtime._load(job, metadata, runtime.device, "auto")
+        runtime._load(job, metadata, runtime.device, "auto", 32)
     assert job["status"] == "ready", job.snapshot()
     assert runtime.matrix("transformer.h.0.attn.c_attn.weight")["frobenius_norm"] == pytest.approx(
         expected

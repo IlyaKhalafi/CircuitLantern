@@ -1,3 +1,8 @@
+export interface ExecutionProvenance {
+  execution_precision?: string;
+  execution_context_length?: number;
+  execution_config?: Record<string, unknown> | null;
+}
 export interface ModelCard {
   id: string;
   name: string;
@@ -7,7 +12,7 @@ export interface ModelCard {
   tag: string;
   color: string;
 }
-export interface ModelMetadata {
+export interface ModelMetadata extends ExecutionProvenance {
   id: string;
   revision: string;
   architecture: string;
@@ -22,7 +27,6 @@ export interface ModelMetadata {
   vocab_size: number;
   dtype: string;
   quantization: Record<string, unknown> | null;
-  execution_precision?: string;
   quantizable_parameters?: number;
   largest_matrix_elements?: number;
   download_bytes?: number;
@@ -64,6 +68,7 @@ export interface Hardware {
   };
 }
 export interface Compatibility {
+  context_length?: number;
   compatible: boolean;
   status: string;
   precision: string;
@@ -91,6 +96,8 @@ export interface Job {
   message: string;
 }
 export interface RuntimeState {
+  context_length?: number;
+  max_prompt_tokens?: number;
   precision?: string;
   loaded: boolean;
   metadata: ModelMetadata | null;
@@ -107,7 +114,7 @@ export interface ModelGraph {
   matrices: Weight[];
   total_parameters: number;
 }
-export interface MatrixMetrics {
+export interface MatrixMetrics extends ExecutionProvenance {
   operator_1_norm?: number;
   nuclear_norm?: number | null;
   effective_rank?: number | null;
@@ -116,7 +123,6 @@ export interface MatrixMetrics {
   spectrum_precision?: string;
   source_format?: string;
   quantized?: boolean;
-  execution_precision?: string;
   analysis_note?: string;
   name: string;
   shape: number[];
@@ -183,9 +189,8 @@ export interface TraceGeometry {
   undefined_layers: number[];
   method: string;
 }
-export interface Trace {
+export interface Trace extends ExecutionProvenance {
   geometry?: TraceGeometry;
-  execution_precision?: string;
   model_id: string;
   revision: string;
   prompt: string;
@@ -216,8 +221,7 @@ export interface CausalLayer {
   delta_log_probability: number;
   recovery: number | null;
 }
-export interface CausalResult {
-  execution_precision?: string;
+export interface CausalResult extends ExecutionProvenance {
   requested_target: string;
   total_layers: number;
   cancelled: boolean;

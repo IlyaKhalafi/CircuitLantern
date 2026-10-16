@@ -41,8 +41,13 @@ def activation_patch_sweep(
         raise ValueError(
             "Clean and corrupted prompts must tokenize to the same length. Adjust the wording so token positions align."
         )
-    if length > min(max_tokens, metadata["context_length"]):
-        raise ValueError(f"Causal captures are limited to {max_tokens} prompt tokens.")
+    limit = min(
+        max_tokens,
+        metadata["context_length"],
+        metadata.get("execution_context_length", metadata["context_length"]),
+    )
+    if length > limit:
+        raise ValueError(f"Causal captures are limited to {limit} prompt tokens.")
     if position is not None and not -length <= position < length:
         raise ValueError("Patch position is outside the tokenized prompt.")
     if blocks is None:

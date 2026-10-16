@@ -77,3 +77,18 @@ def test_nonfinite_logits_fail_cleanly_and_remove_capture_hooks(runtime):
     finally:
         handle.remove()
     assert all(not block._forward_hooks for block in runtime._blocks())
+
+
+def test_loaded_context_allowance_bounds_prompt_and_generation_together(runtime):
+    runtime.metadata["execution_context_length"] = 16
+    with pytest.raises(ValueError, match="at most 8 tokens"):
+        runtime.trace("the " * 9, 8, False, None)
+    trace = runtime.trace("the " * 9, 4, False, None)
+    assert len(trace["tokens"]) == 9
+    assert len(trace["layers"]) == 3
+
+
+def test_generation_must_leave_room_for_a_prompt_token(runtime):
+    runtime.metadata["execution_context_length"] = 16
+    with pytest.raises(ValueError, match="generation length exceeds"):
+        runtime.trace("the", 16, False, None)

@@ -46,9 +46,11 @@ class ModelRuntime:
         torch.set_num_threads(min(4, torch.get_num_threads()))
 
     def state(self) -> dict:
-        return dict(self._state)
+        return dict(self._state, max_prompt_tokens=self.settings.max_prompt_tokens)
 
-    def load(self, metadata: dict, device: str, precision: str = "auto") -> dict:
+    def load(
+        self, metadata: dict, device: str, precision: str = "auto", context_length: int = 128
+    ) -> dict:
         with self.job_lock:
             if any(
                 j["status"] in ("queued", "running", "downloading", "loading")
@@ -72,13 +74,20 @@ class ModelRuntime:
             self.jobs = dict(list(self.jobs.items())[-49:])
             self.jobs[job["id"]] = job
         try:
-            self.executor.submit(self._load, job, metadata, device, precision)
+            self.executor.submit(self._load, job, metadata, device, precision, context_length)
         except RuntimeError:
             job.update(status="failed", message="The model loader is shutting down.")
             raise
         return job.snapshot()
 
-    def _load(self, job: JobRecord | dict, metadata: dict, device: str, precision: str = "auto"):
+    def _load(
+        self,
+        job: JobRecord | dict,
+        metadata: dict,
+        device: str,
+        precision: str = "auto",
+        context_length: int = 128,
+    ):
         try:
             job.update(
                 status="downloading",
@@ -122,10 +131,14 @@ class ModelRuntime:
                 model.eval()
                 if resolved_precision not in PACKED_PRECISIONS:
                     model.to("cuda:0" if device == "cuda" else device)
+                context_limit = min(context_length, metadata["context_length"])
+                execution_config = describe_execution(model, resolved_precision, device)
+                execution_config["context_length"] = context_limit
                 metadata = dict(
                     metadata,
                     execution_precision=resolved_precision,
-                    execution_config=describe_execution(model, resolved_precision, device),
+                    execution_context_length=context_limit,
+                    execution_config=execution_config,
                 )
                 self.model, self.tokenizer, self.metadata, self.device = (
                     model,
@@ -138,6 +151,7 @@ class ModelRuntime:
                     "metadata": metadata,
                     "device": device,
                     "precision": resolved_precision,
+                    "context_length": context_limit,
                 }
                 job.update(status="ready", progress=100, message="Model is ready for inspection")
             except Exception as error:  # noqa: BLE001 - worker failures must reach the job record
@@ -322,10 +336,18 @@ class ModelRuntime:
             token_count = encoded.input_ids.shape[1]
             if not token_count:
                 raise ValueError("The prompt must contain at least one token.")
-            context_limit = self.metadata["context_length"]
-            if token_count > min(self.settings.max_prompt_tokens, context_limit - max_new_tokens):
+            context_limit = min(
+                self.metadata["context_length"],
+                self.metadata.get("execution_context_length", self.metadata["context_length"]),
+            )
+            prompt_limit = min(self.settings.max_prompt_tokens, context_limit - max_new_tokens)
+            if prompt_limit < 1:
                 raise ValueError(
-                    f"Prompt is too long for interactive capture or the model context window. Shorten it to at most {self.settings.max_prompt_tokens} tokens."
+                    "The generation length exceeds the loaded context allowance. Choose fewer generated tokens."
+                )
+            if token_count > prompt_limit:
+                raise ValueError(
+                    f"Prompt is too long for interactive capture or the loaded context allowance. Shorten it to at most {prompt_limit} tokens."
                 )
             inputs = {name: tensor.to(self.device) for name, tensor in encoded.items()}
             handles = []

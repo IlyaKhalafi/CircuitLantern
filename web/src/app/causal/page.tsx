@@ -29,6 +29,10 @@ export default function CausalPage() {
   const { job, error, start, cancel, busy } =
     useBackgroundJob<CausalResult>("lantern-causal-job");
   const result = job?.result;
+  const captureLimit = Math.min(
+    runtime?.max_prompt_tokens ?? 128,
+    runtime?.context_length ?? runtime?.metadata?.context_length ?? 2048,
+  );
 
   useEffect(() => {
     api<RuntimeState>("/runtime")
@@ -98,7 +102,7 @@ export default function CausalPage() {
         <>
           <Panel
             title="Design a controlled comparison"
-            subtitle="Prompts must have equal token counts so positions align. The active model runs the entire sweep."
+            subtitle={`Prompts must have equal token counts so positions align. Up to ${captureLimit} tokens per prompt within the loaded context allowance.`}
           >
             <form className="panel-body" onSubmit={run}>
               <div className="comparison-grid">
@@ -163,7 +167,7 @@ export default function CausalPage() {
                       aria-label="Patch token position"
                       type="number"
                       min={0}
-                      max={127}
+                      max={Math.max(0, captureLimit - 1)}
                       value={customPosition}
                       onChange={(e) => setCustomPosition(+e.target.value)}
                       disabled={busy}

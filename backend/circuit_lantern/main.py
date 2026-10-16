@@ -96,10 +96,12 @@ def compatibility(request: CompatibilityRequest):
 
 @app.post("/api/models/load", status_code=202)
 def load_model(payload: LoadRequest, request: Request):
-    report = check(CompatibilityRequest(**payload.model_dump(), context_length=128))
+    report = check(CompatibilityRequest(**payload.model_dump()))
     if not report["compatible"]:
         raise HTTPException(409, detail=" ".join(report["blockers"]))
-    return request.app.state.runtime.load(report["metadata"], payload.device, payload.precision)
+    return request.app.state.runtime.load(
+        report["metadata"], payload.device, payload.precision, payload.context_length
+    )
 
 
 @app.get("/api/jobs/{job_id}")

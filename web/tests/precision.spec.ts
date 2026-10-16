@@ -20,7 +20,9 @@ test("NF4 selection loads packed weights, traces and exports logical statistics"
       request.url().endsWith("/api/models/load") && request.method() === "POST",
   );
   await page.getByRole("button", { name: "Download & explore" }).click();
-  expect((await loading).postDataJSON().precision).toBe("int4");
+  const payload = (await loading).postDataJSON();
+  expect(payload.precision).toBe("int4");
+  expect(payload.context_length).toBe(256);
   await expect(page).toHaveURL(/workspace/);
   await page.getByLabel("Filter matrices").fill("h.0.attn.c_attn");
   await page

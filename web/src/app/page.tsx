@@ -41,7 +41,7 @@ export default function LibraryPage() {
   const [error, setError] = useState<string | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [device, setDevice] = useState("cpu");
-  const [context, setContext] = useState(128);
+  const [context, setContext] = useState(256);
   const [precision, setPrecision] = useState("auto");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
@@ -125,6 +125,7 @@ export default function LibraryPage() {
         model_id: selected,
         revision: report.metadata.revision,
         precision: report.precision,
+        context_length: report.context_length ?? context,
         device: report.device,
       });
       setJob(result);
@@ -373,11 +374,13 @@ export default function LibraryPage() {
                   check(selected, device, +e.target.value);
                 }}
               >
-                {[128, 512, 1024, 2048, 4096, 8192].map((n) => (
-                  <option key={n} value={n}>
-                    {n.toLocaleString()} tokens
-                  </option>
-                ))}
+                {[16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192].map(
+                  (n) => (
+                    <option key={n} value={n}>
+                      {n.toLocaleString()} tokens
+                    </option>
+                  ),
+                )}
               </select>
             </label>
             <label>

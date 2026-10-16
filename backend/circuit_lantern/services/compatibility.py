@@ -200,6 +200,7 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         "compatible": not blockers,
         "status": "ready" if not blockers else "blocked",
         "precision": precision,
+        "context_length": request.context_length,
         "runtime_precision": runtime_precision,
         "device": request.device,
         "weight_bytes": int(weight_bytes),

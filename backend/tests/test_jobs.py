@@ -57,4 +57,9 @@ def test_failed_replacement_reports_the_released_model(runtime):
         runtime._load(job, {"id": "replacement", "revision": "test"}, "cpu")
     assert job["status"] == "failed"
     assert "previous model was released" in job["message"]
-    assert runtime.state() == {"loaded": False, "metadata": None, "device": "cpu"}
+    assert runtime.state() == {
+        "loaded": False,
+        "metadata": None,
+        "device": "cpu",
+        "max_prompt_tokens": runtime.settings.max_prompt_tokens,
+    }
