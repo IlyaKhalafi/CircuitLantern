@@ -5,12 +5,13 @@ import Link from "next/link";
 import { Bookmark, Check } from "lucide-react";
 import { ErrorNotice } from "@/components/ui";
 import { truncateText } from "@/lib/text";
-import type { Experiment } from "@/lib/types";
+import type { Experiment, Trace } from "@/lib/types";
 import { post } from "@/lib/api";
 
 type ExperimentSource =
   | { kind: "job"; id: string }
-  | { kind: "matrix"; id: string; executionId?: string };
+  | { kind: "matrix"; id: string; executionId?: string }
+  | { kind: "trace"; trace: Trace };
 
 export function SaveExperiment({
   source,
@@ -23,7 +24,7 @@ export function SaveExperiment({
 }) {
   const [name, setName] = useState(truncateText(defaultName, 100));
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState<Experiment | null>(null);
   const [error, setError] = useState<string | null>(null);
   const pending = useRef(false);
 
@@ -37,19 +38,23 @@ export function SaveExperiment({
       const record = await post<Experiment>(
         source.kind === "job"
           ? "/experiments/from-job"
-          : "/experiments/from-matrix",
+          : source.kind === "matrix"
+            ? "/experiments/from-matrix"
+            : "/experiments",
         {
           ...(source.kind === "job"
             ? { job_id: source.id }
-            : {
-                analysis_id: source.id,
-                expected_execution_id: source.executionId,
-              }),
+            : source.kind === "matrix"
+              ? {
+                  analysis_id: source.id,
+                  expected_execution_id: source.executionId,
+                }
+              : { trace: source.trace }),
           name: name.trim(),
         },
       );
       setName(record.name);
-      setSaved(true);
+      setSaved(record);
     } catch (reason) {
       setError((reason as Error).message);
     } finally {
@@ -68,12 +73,12 @@ export function SaveExperiment({
           onChange={(event) => setName(truncateText(event.target.value, 100))}
           placeholder="Name this experiment"
           maxLength={200}
-          disabled={disabled || saving || saved}
+          disabled={disabled || saving || !!saved}
           required
         />
         <button
           className="button secondary"
-          disabled={disabled || saving || saved || !name.trim()}
+          disabled={disabled || saving || !!saved || !name.trim()}
         >
           {saved ? <Check size={14} /> : <Bookmark size={14} />}
           {saved
@@ -83,8 +88,11 @@ export function SaveExperiment({
               : "Save experiment"}
         </button>
         {saved && (
-          <Link className="button secondary" href="/experiments">
-            Open notebook
+          <Link
+            className="button secondary"
+            href={`/experiments?experiment=${saved.id}`}
+          >
+            View saved experiment
           </Link>
         )}
       </form>

@@ -39,9 +39,9 @@ for (const [path, runLabel, complete, kind, heading] of [
       page.getByRole("button", { name: "Saved to experiments", exact: true }),
     ).toBeDisabled();
     await page
-      .getByRole("link", { name: "Open notebook", exact: true })
+      .getByRole("link", { name: "View saved experiment", exact: true })
       .click();
-    await page.getByRole("link", { name: new RegExp(name) }).click();
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(name);
     await expect(
       page.getByRole("heading", { name: heading, exact: true }),
     ).toBeVisible();

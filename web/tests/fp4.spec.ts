@@ -123,8 +123,9 @@ test("native bitsandbytes FP4 stays distinct from NF4 across deployed and saved 
   await page
     .getByRole("button", { name: "Save experiment", exact: true })
     .click();
-  await page.getByRole("link", { name: "Open notebook", exact: true }).click();
-  await page.getByRole("link", { name: /Native FP4 causal evidence/ }).click();
+  await page
+    .getByRole("link", { name: "View saved experiment", exact: true })
+    .click();
   await expect(
     page
       .locator(".trace-meta")

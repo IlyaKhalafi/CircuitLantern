@@ -84,7 +84,11 @@ test("matrix measurements remain editable and inspectable after a real model unl
     recordId = record.id;
     expect(record.kind).toBe("matrix");
     await page
-      .getByRole("link", { name: "Open notebook", exact: true })
+      .getByRole("link", { name: "View saved experiment", exact: true })
+      .click();
+    await expect(page).toHaveURL(new RegExp("experiment=" + recordId));
+    await page
+      .getByRole("link", { name: "All experiments", exact: true })
       .click();
     await page.getByLabel("Experiment type").selectOption("matrix");
     await page.getByRole("link", { name: /Saved embedding geometry/ }).click();

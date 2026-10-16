@@ -3,8 +3,6 @@
 import {
   Activity,
   ArrowRight,
-  Bookmark,
-  Check,
   Download,
   Play,
   RefreshCw,
@@ -19,6 +17,7 @@ import {
   Panel,
 } from "@/components/ui";
 import { TraceResults } from "@/components/trace-results";
+import { SaveExperiment } from "@/components/save-experiment";
 import {
   HeadInspectionNotice,
   useHeadInspection,
@@ -50,9 +49,7 @@ export default function PlaygroundPage() {
   const [baseline, setBaseline] = useState<Trace | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [name, setName] = useState("");
-  const [saved, setSaved] = useState(false);
-  const [saving, setSaving] = useState(false);
+  const [traceSequence, setTraceSequence] = useState(0);
   const tokenPreview = useTokenPreview(
     [prompt],
     tokens,
@@ -102,7 +99,6 @@ export default function PlaygroundPage() {
     if (inspection.pending) return;
     setBusy(true);
     setError(null);
-    setSaved(false);
     try {
       const result = await post<Trace>("/trace", {
         prompt,
@@ -114,26 +110,13 @@ export default function PlaygroundPage() {
         ablate_head: ablate === "head" ? { layer: headLayer, head } : null,
       });
       setTrace(result);
-      setName(`${interventionLabel(result)} · ${truncateText(prompt, 45)}`);
+      setTraceSequence((sequence) => sequence + 1);
       if (result.ablate_layer === null && !result.ablate_head)
         setBaseline(result);
     } catch (e) {
       setError((e as Error).message);
     } finally {
       setBusy(false);
-    }
-  }
-  async function save() {
-    if (!trace || !name.trim()) return;
-    setSaving(true);
-    setError(null);
-    try {
-      await post("/experiments", { name: name.trim(), notes: "", trace });
-      setSaved(true);
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSaving(false);
     }
   }
   const contextLimit =
@@ -160,7 +143,6 @@ export default function PlaygroundPage() {
     setHead(draft.head);
     setTrace(null);
     setBaseline(null);
-    setSaved(false);
     setError(null);
   }, []);
   const inspection = useHeadInspection(runtime, applyInspection);
@@ -432,39 +414,15 @@ export default function PlaygroundPage() {
               }
             />
           )}
-          {trace && !busy && !inspection.pending && (
-            <>
-              <TraceResults
-                key={`${trace.duration_ms}-${interventionLabel(trace)}-${trace.prompt}`}
-                trace={trace}
-                comparison={compatibleBaseline}
+          {trace && (
+            <div key={traceSequence} hidden={busy || inspection.pending}>
+              <TraceResults trace={trace} comparison={compatibleBaseline} />
+              <SaveExperiment
+                source={{ kind: "trace", trace }}
+                defaultName={`${interventionLabel(trace)} · ${truncateText(trace.prompt, 45)}`}
+                disabled={busy || inspection.pending}
               />
-              <div className="save-form">
-                <input
-                  className="form-input"
-                  aria-label="Experiment name"
-                  placeholder="Give this experiment a name"
-                  value={name}
-                  onChange={(e) => {
-                    setName(e.target.value);
-                    setSaved(false);
-                  }}
-                  maxLength={100}
-                />
-                <button
-                  className="button secondary"
-                  onClick={save}
-                  disabled={saving || saved || !name.trim()}
-                >
-                  {saved ? <Check size={14} /> : <Bookmark size={14} />}
-                  {saved
-                    ? "Saved to experiments"
-                    : saving
-                      ? "Saving"
-                      : "Save experiment"}
-                </button>
-              </div>
-            </>
+            </div>
           )}
           {!trace && !busy && (
             <div className="how-it-works">
