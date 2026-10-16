@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Heatmap, SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
 import { RepresentationGeometry } from "@/components/representation-geometry";
+import { AttentionHeads } from "@/components/attention-heads";
 import { number } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
 import type { Trace } from "@/lib/types";
@@ -208,59 +209,68 @@ export function TraceResults({
       )}
       {tab === "attention" &&
         (attention ? (
-          <div className="two-column">
-            <Panel
-              title="Attention pattern"
-              subtitle="Mean across heads. Rows attend to columns. Future positions are causally masked."
-            >
-              <div className="attention-controls">
-                <select
-                  aria-label="Attention layer"
-                  value={attentionLayer}
-                  onChange={(e) => setAttentionLayer(+e.target.value)}
-                >
-                  {trace.attention.map((a, i) => (
-                    <option key={a.layer} value={i}>
-                      Layer {a.layer}
-                    </option>
-                  ))}
-                </select>
-                <span>
-                  {attention.heads} heads · {trace.tokens.length} tokens
-                </span>
+          <>
+            {trace.ablate_layer === attention.layer && (
+              <div className="notice info">
+                This block's output was bypassed. Its captured attention
+                reflects computation before the intervention.
               </div>
-              <Heatmap
-                data={attention.pattern}
-                label="Hover over a cell to inspect query → key token attention. Colors are normalized within this layer."
-                xLabels={trace.tokens}
-                yLabels={trace.tokens}
-                sequential
-              />
-            </Panel>
-            <Panel
-              title="Attention head entropy"
-              subtitle="Mean entropy across query positions in natural units. Lower values indicate more focused attention."
-            >
-              <SeriesChart
-                data={attention.head_entropy.map((v, i) => ({
-                  index: i,
-                  entropy: v,
-                }))}
-                series={[
-                  {
-                    key: "entropy",
-                    label: "Entropy in nats",
-                    color: "#88a68e",
-                  },
-                ]}
-                area
-              />
-              <p className="inline-note">
-                Causal masking gives earlier query positions fewer available
-                keys. Compare heads within the same capture.
-              </p>
-            </Panel>
-          </div>
+            )}
+            <div className="two-column">
+              <Panel
+                title="Attention pattern"
+                subtitle="Mean across heads. Rows attend to columns. Future positions are causally masked."
+              >
+                <div className="attention-controls">
+                  <select
+                    aria-label="Attention layer"
+                    value={attentionLayer}
+                    onChange={(e) => setAttentionLayer(+e.target.value)}
+                  >
+                    {trace.attention.map((a, i) => (
+                      <option key={a.layer} value={i}>
+                        Layer {a.layer}
+                      </option>
+                    ))}
+                  </select>
+                  <span>
+                    {attention.heads} heads · {trace.tokens.length} tokens
+                  </span>
+                </div>
+                <Heatmap
+                  data={attention.pattern}
+                  label="Hover over a cell to inspect query → key token attention. Colors are normalized within this layer."
+                  xLabels={trace.tokens}
+                  yLabels={trace.tokens}
+                  sequential
+                />
+              </Panel>
+              <Panel
+                title="Attention head entropy"
+                subtitle="Mean entropy across query positions in natural units. Lower values indicate more focused attention."
+              >
+                <SeriesChart
+                  data={attention.head_entropy.map((v, i) => ({
+                    index: i,
+                    entropy: v,
+                  }))}
+                  series={[
+                    {
+                      key: "entropy",
+                      label: "Entropy in nats",
+                      color: "#88a68e",
+                    },
+                  ]}
+                  area
+                />
+                <p className="inline-note">
+                  Causal masking gives earlier query positions fewer available
+                  keys. Compare heads within the same capture.
+                </p>
+              </Panel>
+            </div>
+            <AttentionHeads attention={attention} tokens={trace.tokens} />
+          </>
         ) : (
           <div className="notice info">
             Attention was not captured for this trace. Enable attention capture

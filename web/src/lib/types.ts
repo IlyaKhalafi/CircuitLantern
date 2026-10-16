@@ -148,6 +148,9 @@ export interface LayerTrace {
   token_predictions: string[];
 }
 export interface Attention {
+  query_position?: number;
+  query_by_head?: number[][];
+  query_head_entropy?: number[];
   layer: number;
   pattern: number[][];
   head_entropy: number[];

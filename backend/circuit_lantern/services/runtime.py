@@ -10,6 +10,7 @@ from huggingface_hub import snapshot_download
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
+from circuit_lantern.services.attention import attention_summary
 from circuit_lantern.services.causal import activation_patch_sweep
 from circuit_lantern.services.execution import (
     PACKED_PRECISIONS,
@@ -413,16 +414,7 @@ class ModelRuntime:
                     for index, tensor in enumerate(outputs.attentions):
                         if tensor is None:
                             continue
-                        values = tensor[0].float()
-                        entropy = -(values * values.clamp_min(1e-30).log()).sum(-1).mean(-1)
-                        attention.append(
-                            {
-                                "layer": index,
-                                "pattern": values.mean(0).cpu().tolist(),
-                                "head_entropy": entropy.cpu().tolist(),
-                                "heads": values.shape[0],
-                            }
-                        )
+                        attention.append({"layer": index, **attention_summary(tensor)})
                 generated = self.model.generate(
                     **inputs,
                     max_new_tokens=max_new_tokens,

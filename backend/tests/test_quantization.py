@@ -60,6 +60,8 @@ def test_execution_precision_propagates_through_real_traces(precision_runtime):
     assert len(trace["geometry"]["cka"]) == 3
     assert len(trace["geometry"]["sampled_positions"]) == len(trace["tokens"])
     assert len(trace["attention"]) == 2
+    assert len(trace["attention"][0]["query_by_head"]) == 2
+    assert len(trace["attention"][0]["query_by_head"][0]) == len(trace["tokens"])
     assert trace["layers"][-1]["norm"] > 0
     assert all(0 <= p["probability"] <= 1 for p in trace["predictions"])
 
