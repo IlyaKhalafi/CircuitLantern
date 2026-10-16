@@ -132,11 +132,29 @@ def quantization_capabilities() -> dict:
                     restored = functional.int8_vectorwise_dequant(packed, scales)
                 if precision == "int4":
                     layer = nn.Linear4bit(
-                        64, 64, bias=False, compute_dtype=torch.float32, quant_type="nf4"
+                        64,
+                        64,
+                        bias=False,
+                        compute_dtype=torch.float32,
+                        quant_type="nf4",
+                        device="meta",
+                    )
+                    layer.weight = nn.Params4bit(
+                        torch.linspace(-1, 1, 4096).reshape(64, 64),
+                        requires_grad=False,
+                        quant_type="nf4",
+                        compress_statistics=True,
+                        module=layer,
                     )
                 else:
-                    layer = nn.Linear8bitLt(64, 64, bias=False, has_fp16_weights=False)
-                layer.weight.data = torch.linspace(-1, 1, 4096).reshape(64, 64)
+                    layer = nn.Linear8bitLt(
+                        64, 64, bias=False, has_fp16_weights=False, device="meta"
+                    )
+                    layer.weight = nn.Int8Params(
+                        torch.linspace(-1, 1, 4096).reshape(64, 64),
+                        requires_grad=False,
+                        has_fp16_weights=False,
+                    )
                 layer = layer.to(device).eval()
                 prepare_model_execution(layer, precision, device)
                 with torch.inference_mode():

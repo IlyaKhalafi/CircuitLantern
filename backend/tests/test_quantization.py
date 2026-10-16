@@ -270,3 +270,13 @@ def test_head_sweep_keeps_loaded_precision_and_canonical_weights(precision_runti
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())
     for name, parameter in runtime.model.named_parameters():
         assert torch.equal(before[name], parameter)
+
+
+def test_hardware_capability_probe_does_not_change_torch_random_state():
+    from circuit_lantern.services.execution import quantization_capabilities
+
+    quantization_capabilities.cache_clear()
+    before = torch.get_rng_state().clone()
+    capabilities = quantization_capabilities()
+    assert torch.equal(before, torch.get_rng_state())
+    assert capabilities["cpu"]
