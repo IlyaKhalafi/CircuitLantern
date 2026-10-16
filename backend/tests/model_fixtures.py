@@ -28,3 +28,24 @@ def tiny_gpt2(*, vocab_size=16, context_length=64, hidden_size=16, layers=2, hea
         tokenizer_object=tokenizer, eos_token="<eos>", unk_token="<unk>", pad_token="<pad>"
     )
     return model, tokenizer
+
+
+def checkpoint_metadata(model, checkpoint, model_id="local-test", revision="local-revision"):
+    from circuit_lantern.services.architecture import describe_model_layout
+
+    config = model.config
+    return {
+        "id": model_id,
+        "revision": revision,
+        **describe_model_layout(model),
+        "hidden_size": config.hidden_size,
+        "num_layers": config.num_hidden_layers,
+        "num_heads": config.num_attention_heads,
+        "num_kv_heads": getattr(config, "num_key_value_heads", config.num_attention_heads),
+        "vocab_size": config.vocab_size,
+        "dtype": "float32",
+        "has_safetensors": (checkpoint / "model.safetensors").exists(),
+        "weight_bytes": (checkpoint / "model.safetensors").stat().st_size,
+        "quantization": None,
+        "config": config.to_dict(),
+    }

@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
-from model_fixtures import tiny_gpt2
+from model_fixtures import checkpoint_metadata, tiny_gpt2
 
 from circuit_lantern.config import Settings
 from circuit_lantern.services.architecture import architecture_layout, describe_model_layout
@@ -34,12 +34,7 @@ def precision_runtime(request, tmp_path, execution_device):
     checkpoint = tmp_path / "source"
     model.save_pretrained(checkpoint, safe_serialization=True)
     tokenizer.save_pretrained(checkpoint)
-    metadata = {
-        "id": "local-precision-test",
-        "revision": "local-revision",
-        "context_length": 64,
-        **describe_model_layout(model),
-    }
+    metadata = checkpoint_metadata(model, checkpoint, "local-precision-test", "local-revision")
     instance = ModelRuntime(Settings(data_dir=tmp_path))
     job = JobRecord({"status": "queued", "progress": 0})
     with patch("circuit_lantern.services.runtime.snapshot_download", return_value=str(checkpoint)):
@@ -175,11 +170,7 @@ def test_native_bnb_fp4_checkpoint_can_be_traced_and_analyzed(tmp_path):
     original = tmp_path / "original"
     packed = tmp_path / "packed"
     model.save_pretrained(original, safe_serialization=True)
-    metadata = dict(
-        id="fp4-checkpoint",
-        revision="local",
-        **describe_model_layout(model),
-    )
+    metadata = checkpoint_metadata(model, original, "fp4-checkpoint", "local")
     model = AutoModelForCausalLM.from_pretrained(
         original,
         dtype=torch.float32,

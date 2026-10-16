@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from model_fixtures import checkpoint_metadata
 
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.runtime import RuntimeBusyError
@@ -46,6 +47,9 @@ def test_foreground_model_operations_fail_quickly_while_the_runtime_is_busy(runt
 
 def test_failed_replacement_reports_the_released_model(runtime):
     runtime.device = "cuda"
+    checkpoint = runtime.settings.data_dir / "source"
+    runtime.model.save_pretrained(checkpoint, safe_serialization=True)
+    metadata = checkpoint_metadata(runtime.model, checkpoint, "replacement", "test")
     job = JobRecord({"status": "queued", "progress": 0})
     with (
         patch("circuit_lantern.services.runtime.snapshot_download", return_value="/unused"),
@@ -54,7 +58,7 @@ def test_failed_replacement_reports_the_released_model(runtime):
             side_effect=ValueError("invalid tokenizer"),
         ),
     ):
-        runtime._load(job, {"id": "replacement", "revision": "test"}, "cpu")
+        runtime._load(job, metadata, "cpu")
     assert job["status"] == "failed"
     assert "previous model was released" in job["message"]
     assert runtime.state() == {

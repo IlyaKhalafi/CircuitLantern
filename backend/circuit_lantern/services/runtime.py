@@ -10,8 +10,11 @@ from huggingface_hub import snapshot_download
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
+from circuit_lantern.schemas import CompatibilityRequest
 from circuit_lantern.services.attention import attention_summary
+from circuit_lantern.services.cache import checkpoint_cache
 from circuit_lantern.services.causal import activation_patch_sweep
+from circuit_lantern.services.compatibility import assess_compatibility
 from circuit_lantern.services.execution import (
     PACKED_PRECISIONS,
     describe_execution,
@@ -53,12 +56,17 @@ class ModelRuntime:
     def state(self) -> dict:
         return dict(self._state, max_prompt_tokens=self.settings.max_prompt_tokens)
 
-    def fit_snapshot(self) -> dict:
-        # Keep free memory and owned storage consistent while a model may be replaced.
+    def assess_fit(self, metadata: dict, request: CompatibilityRequest) -> dict:
         with self.operation():
-            snapshot = hardware_snapshot(self.settings.data_dir)
-            snapshot["reclaimable_tensor_bytes"] = resident_tensor_bytes(self.model)
-            return snapshot
+            return self._assess_fit(metadata, request)
+
+    def _assess_fit(self, metadata: dict, request: CompatibilityRequest) -> dict:
+        # Caller holds the operation lock for consistent free and owned memory.
+        snapshot = hardware_snapshot(self.settings.data_dir)
+        snapshot["reclaimable_tensor_bytes"] = resident_tensor_bytes(self.model)
+        snapshot["max_model_bytes"] = self.settings.max_model_bytes
+        snapshot["max_prompt_tokens"] = self.settings.max_prompt_tokens
+        return assess_compatibility(metadata, snapshot, request, cache=checkpoint_cache(metadata))
 
     def load(
         self, metadata: dict, device: str, precision: str = "auto", context_length: int = 128
@@ -126,6 +134,20 @@ class ModelRuntime:
                     message="Loading model and building the weight index",
                 )
                 options, resolved_precision = loading_options(metadata, precision, device)
+                report = self._assess_fit(
+                    metadata,
+                    CompatibilityRequest(
+                        model_id=metadata["id"],
+                        revision=metadata["revision"],
+                        device=device,
+                        precision=precision,
+                        context_length=min(context_length, metadata["context_length"]),
+                    ),
+                )
+                if not report["compatible"]:
+                    raise ValueError(
+                        "Server resources changed before loading. " + " ".join(report["blockers"])
+                    )
                 released_model = self.model is not None
                 self._unload()
                 tokenizer = AutoTokenizer.from_pretrained(

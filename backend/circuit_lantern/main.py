@@ -15,8 +15,6 @@ from circuit_lantern.schemas import (
     ModelRequest,
     TraceRequest,
 )
-from circuit_lantern.services.cache import checkpoint_cache
-from circuit_lantern.services.compatibility import assess_compatibility
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
 from circuit_lantern.services.runtime import ModelRuntime, RuntimeBusyError
@@ -81,12 +79,7 @@ def metadata(request: ModelRequest):
 
 
 def check(request: CompatibilityRequest, runtime: ModelRuntime):
-    settings = get_settings()
-    metadata = model_metadata(request.model_id, request.revision)
-    snapshot = runtime.fit_snapshot()
-    snapshot["max_model_bytes"] = settings.max_model_bytes
-    snapshot["max_prompt_tokens"] = settings.max_prompt_tokens
-    return assess_compatibility(metadata, snapshot, request, cache=checkpoint_cache(metadata))
+    return runtime.assess_fit(model_metadata(request.model_id, request.revision), request)
 
 
 @app.post("/api/models/compatibility")
