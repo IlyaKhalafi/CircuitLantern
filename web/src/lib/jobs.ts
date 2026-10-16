@@ -138,7 +138,7 @@ export function useBackgroundJob<T>(storageKey: string) {
 
   return {
     job,
-    error: job?.status === "failed" ? job.message : actionError || error,
+    error: error || actionError,
     clearError: () => {
       setError(null);
       setActionError(null);

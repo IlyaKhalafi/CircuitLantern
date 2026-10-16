@@ -99,3 +99,44 @@ for (const [path, endpoint, runLabel] of [
     ).toBeVisible();
   });
 }
+
+for (const [path, endpoint, runLabel] of [
+  ["/causal", "/api/causal", "Run patch sweep"],
+  ["/causal/heads", "/api/head-sweep", "Run head sweep"],
+]) {
+  test(`${path} shows a new submission failure instead of the previous job error`, async ({
+    page,
+  }) => {
+    let attempts = 0;
+    const failed = {
+      id: "failed-research-job",
+      model_id: "checkpoint",
+      status: "failed",
+      progress: 0,
+      message: "Previous capture failed",
+    };
+    await page.route(`**${endpoint}`, (route) => {
+      attempts += 1;
+      return route.fulfill(
+        attempts === 1
+          ? { status: 202, json: failed }
+          : {
+              status: 409,
+              json: {
+                detail: "The active model changed. Refresh the runtime.",
+              },
+            },
+      );
+    });
+    await page.route("**/api/jobs/failed-research-job", (route) =>
+      route.fulfill({ json: failed }),
+    );
+    await page.goto(path);
+    await page.getByRole("button", { name: runLabel, exact: true }).click();
+    const alert = page.getByRole("main").getByRole("alert");
+    await expect(alert).toContainText("Previous capture failed");
+    await page.getByRole("button", { name: runLabel, exact: true }).click();
+    await expect(alert).toContainText("The active model changed");
+    await expect(alert).not.toContainText("Previous capture failed");
+  });
+}
