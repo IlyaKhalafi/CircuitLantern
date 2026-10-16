@@ -129,11 +129,26 @@ def test_prequantized_safetensors_roundtrip(precision_runtime, tmp_path):
 
 
 def test_metadata_layout_uses_meta_tensors_without_allocating_weights(tmp_path):
+    from transformers import AutoModelForCausalLM
+
     model, _ = tiny_gpt2()
     model.config.save_pretrained(tmp_path)
     measured = describe_model_layout(model)
-    assert architecture_layout(str(tmp_path)) == measured
-    assert measured["quantizable_parameters"] < measured["parameters"]
+    original = AutoModelForCausalLM.from_config
+    built = []
+
+    def build(*args, **kwargs):
+        instance = original(*args, **kwargs)
+        assert all(parameter.device.type == "meta" for parameter in instance.parameters())
+        built.append(instance)
+        return instance
+
+    with patch("circuit_lantern.services.architecture.AutoModelForCausalLM.from_config", build):
+        actual = architecture_layout(str(tmp_path))
+    assert len(built) == 1
+    assert {key: actual[key] for key in measured} == measured
+    assert not actual["fp8_layout"]["supported"]
+    assert 0 < measured["quantizable_parameters"] < measured["parameters"]
 
 
 def test_quantized_causal_sweep_keeps_canonical_weights_and_removes_hooks(precision_runtime):

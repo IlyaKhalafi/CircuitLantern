@@ -268,3 +268,28 @@ def test_outer_null_quantization_preserves_the_nested_text_configuration(checkpo
     metadata = inspect(checkpoint, {"config.json": 100, "model.safetensors": 1000})
     assert metadata["quantization"] == quantization
     assert checkpoint_precision(metadata) == "int4"
+
+
+def test_public_metadata_summarizes_fp8_storage_without_copying_the_operator_index(checkpoint):
+    planned = {
+        "supported": True,
+        "matrix_count": 1,
+        "residual_dtype": "float32",
+        "resident_weight_bytes": 3456,
+        "config": {"weight_block_size": [128, 128]},
+        "block_size": [128, 128],
+        "matrices": [{"name": "model.layers.0.self_attn.q_proj.weight", "shape": [128, 128]}],
+    }
+    with patch(
+        "circuit_lantern.services.hub.architecture_layout",
+        return_value={"parameters": 1234, "fp8_layout": planned},
+    ):
+        result = inspect(checkpoint, {"model.safetensors": 100, "config.json": 100})
+    assert result["fp8_layout"]["matrix_count"] == 1
+    assert result["fp8_layout"]["resident_weight_bytes"] == 3456
+    assert "matrices" not in result["fp8_layout"]
+    assert len(planned["matrices"]) == 1
+    result["fp8_layout"]["config"]["weight_block_size"][0] = 64
+    result["fp8_layout"]["block_size"][1] = 64
+    assert planned["config"]["weight_block_size"] == [128, 128]
+    assert planned["block_size"] == [128, 128]

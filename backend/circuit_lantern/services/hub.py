@@ -1,5 +1,6 @@
 import json
 import re
+from copy import deepcopy
 from fnmatch import fnmatch
 from functools import lru_cache
 from pathlib import Path, PurePosixPath
@@ -218,6 +219,11 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
             intermediate_config, "intermediate_size", "n_inner", hidden * 4
         )
         parameters = int(2 * vocab * hidden + layers * (4 * hidden**2 + 3 * hidden * intermediate))
+    fp8_layout = layout.get("fp8_layout")
+    if fp8_layout is not None:
+        fp8_layout = deepcopy(
+            {key: value for key, value in fp8_layout.items() if key != "matrices"}
+        )
     return {
         "id": model_id,
         "revision": info.sha,
@@ -225,6 +231,7 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         "parameters": parameters,
         "parameter_estimated": not bool(tensor_info) or bool(quantization),
         "quantizable_parameters": layout.get("quantizable_parameters"),
+        "fp8_layout": fp8_layout,
         "largest_matrix_elements": layout.get("largest_matrix_elements"),
         "tied_embeddings": layout.get("tied_embeddings"),
         "architecture_supported": architecture_supported,

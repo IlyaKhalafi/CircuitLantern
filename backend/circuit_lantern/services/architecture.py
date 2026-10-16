@@ -4,6 +4,8 @@ import torch
 from transformers import AutoConfig, AutoModelForCausalLM
 from transformers.pytorch_utils import Conv1D
 
+from circuit_lantern.services.fp8_layout import describe_fp8_layout
+
 
 def describe_model_layout(model, skipped_modules: list[str] | None = None) -> dict:
     parameters = list(model.parameters())
@@ -44,4 +46,7 @@ def architecture_layout(config_directory: str) -> dict:
         )
     model.tie_weights()
     quantization = getattr(config, "quantization_config", None) or {}
-    return describe_model_layout(model, quantization.get("llm_int8_skip_modules"))
+    return {
+        **describe_model_layout(model, quantization.get("llm_int8_skip_modules")),
+        "fp8_layout": describe_fp8_layout(model, quantization or None),
+    }
