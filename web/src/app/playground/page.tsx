@@ -10,7 +10,7 @@ import {
   RefreshCw,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
   EmptyState,
   ErrorNotice,
@@ -19,6 +19,11 @@ import {
   Panel,
 } from "@/components/ui";
 import { TraceResults } from "@/components/trace-results";
+import {
+  HeadInspectionNotice,
+  useHeadInspection,
+} from "@/components/head-inspection";
+import type { HeadInspectionDraft } from "@/lib/inspection";
 import { TokenPreview } from "@/components/token-preview";
 import { useTokenPreview } from "@/lib/token-preview";
 import { downloadJSON, post } from "@/lib/api";
@@ -83,6 +88,7 @@ export default function PlaygroundPage() {
   }, [runtime]);
   async function run(event: React.FormEvent) {
     event.preventDefault();
+    if (inspection.pending) return;
     setBusy(true);
     setError(null);
     setSaved(false);
@@ -132,6 +138,19 @@ export default function PlaygroundPage() {
       Math.min(current, Math.max(0, (headTarget?.heads ?? 1) - 1)),
     );
   }, [headTarget?.heads]);
+  const applyInspection = useCallback((draft: HeadInspectionDraft) => {
+    setPrompt(draft.prompt);
+    setTokens(0);
+    setCaptureAttention(true);
+    setAblate("head");
+    setHeadLayer(draft.layer);
+    setHead(draft.head);
+    setTrace(null);
+    setBaseline(null);
+    setSaved(false);
+    setError(null);
+  }, []);
+  const inspection = useHeadInspection(runtime, applyInspection);
   const compatibleBaseline =
     baseline?.prompt === trace?.prompt &&
     baseline?.revision === trace?.revision &&
@@ -178,6 +197,7 @@ export default function PlaygroundPage() {
         }
       />
       <ErrorNotice message={runtimeError || error} />
+      <HeadInspectionNotice inspection={inspection} />
       {trace?.execution_id &&
         runtime?.metadata?.execution_id &&
         trace.execution_id !== runtime.metadata.execution_id && (
@@ -215,10 +235,11 @@ export default function PlaygroundPage() {
               <textarea
                 id="prompt"
                 aria-label="Prompt"
+                disabled={inspection.pending}
                 value={prompt}
-                onChange={(e) => setPrompt(e.target.value)}
+                onChange={(e) => setPrompt(truncateText(e.target.value, 8000))}
                 placeholder="Ask a question about how a model thinks…"
-                maxLength={8000}
+                maxLength={16000}
                 required
               />
               <TokenPreview preview={tokenPreview} />
@@ -228,7 +249,12 @@ export default function PlaygroundPage() {
                   "When Mary and John went to the store, John gave a drink to",
                   "The opposite of hot is",
                 ].map((p) => (
-                  <button type="button" key={p} onClick={() => setPrompt(p)}>
+                  <button
+                    type="button"
+                    key={p}
+                    disabled={inspection.pending}
+                    onClick={() => setPrompt(p)}
+                  >
                     {p.length > 42 ? `${p.slice(0, 42)}…` : p}
                   </button>
                 ))}
@@ -239,7 +265,7 @@ export default function PlaygroundPage() {
                     Generate
                     <select
                       aria-label="Generated tokens"
-                      disabled={busy}
+                      disabled={busy || inspection.pending}
                       value={tokens}
                       onChange={(e) => setTokens(+e.target.value)}
                     >
@@ -256,6 +282,7 @@ export default function PlaygroundPage() {
                     Intervention
                     <select
                       aria-label="Layer intervention"
+                      disabled={inspection.pending}
                       value={ablate}
                       onChange={(e) => setAblate(e.target.value)}
                     >
@@ -279,6 +306,7 @@ export default function PlaygroundPage() {
                         Layer
                         <select
                           aria-label="Head ablation layer"
+                          disabled={inspection.pending}
                           value={headLayer}
                           onChange={(event) => {
                             setHeadLayer(+event.target.value);
@@ -296,6 +324,7 @@ export default function PlaygroundPage() {
                         Head
                         <select
                           aria-label="Attention head to zero"
+                          disabled={inspection.pending}
                           value={head}
                           onChange={(event) => setHead(+event.target.value)}
                         >
@@ -314,6 +343,7 @@ export default function PlaygroundPage() {
                   <label>
                     <input
                       type="checkbox"
+                      disabled={inspection.pending}
                       checked={captureAttention}
                       onChange={(e) => setCaptureAttention(e.target.checked)}
                     />{" "}
@@ -327,6 +357,7 @@ export default function PlaygroundPage() {
                     busy ||
                     !prompt.trim() ||
                     !promptFits ||
+                    inspection.pending ||
                     promptLimit < 1 ||
                     (ablate === "head" && !headTarget)
                   }
@@ -354,7 +385,7 @@ export default function PlaygroundPage() {
               }
             />
           )}
-          {trace && !busy && (
+          {trace && !busy && !inspection.pending && (
             <>
               <TraceResults
                 key={`${trace.duration_ms}-${interventionLabel(trace)}-${trace.prompt}`}

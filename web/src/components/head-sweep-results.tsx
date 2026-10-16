@@ -1,13 +1,28 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight } from "lucide-react";
 import { Heatmap } from "@/components/charts";
-import { Metric, Panel } from "@/components/ui";
+import { ErrorNotice, Metric, Panel } from "@/components/ui";
 import { number } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
-import type { HeadSweepResult } from "@/lib/types";
+import type { HeadSweepResult, HeadSweepRow } from "@/lib/types";
+import { prepareHeadInspection } from "@/lib/inspection";
 
 export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
+  const router = useRouter();
+  const [opening, startOpening] = useTransition();
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
+  function inspect(head: HeadSweepRow) {
+    setInspectionError(null);
+    try {
+      const path = prepareHeadInspection(result, head);
+      startOpening(() => router.push(path));
+    } catch (reason) {
+      setInspectionError((reason as Error).message);
+    }
+  }
   const [order, setOrder] = useState("magnitude");
   const [layer, setLayer] = useState("all");
   const byPosition = new Map(
@@ -52,6 +67,7 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
         <span>{result.device.toUpperCase()}</span>
         <span>{number(result.duration_ms, 0)} ms</span>
       </div>
+      <ErrorNotice message={inspectionError} />
       {result.failed_head && (
         <div className="notice error" role="alert">
           The sweep stopped at layer {result.failed_head.layer}, head{" "}
@@ -140,6 +156,10 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
             </select>
           </label>
         </div>
+        <p className="inline-note">
+          Select a head index to prepare its prompt and ablation in the
+          activation lab.
+        </p>
         <div className="table-wrap head-sweep-table">
           <table>
             <caption className="sr-only">
@@ -159,7 +179,16 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
               {sorted.map((head) => (
                 <tr key={`${head.layer}/${head.head}`}>
                   <td>{head.layer}</td>
-                  <td>{head.head}</td>
+                  <td>
+                    <button
+                      className="head-inspect-button"
+                      disabled={opening}
+                      onClick={() => inspect(head)}
+                      aria-label={`Inspect layer ${head.layer} head ${head.head} in activation lab`}
+                    >
+                      {head.head} <ArrowUpRight size={12} />
+                    </button>
+                  </td>
                   <td className="code">
                     {number(head.delta_log_probability, 6)}
                   </td>

@@ -48,11 +48,12 @@ export function SaveJobExperiment({
     <>
       <form className="save-form" onSubmit={save}>
         <input
+          className="form-input"
           aria-label="Experiment name"
           value={name}
-          onChange={(event) => setName(event.target.value)}
+          onChange={(event) => setName(truncateText(event.target.value, 100))}
           placeholder="Name this experiment"
-          maxLength={100}
+          maxLength={200}
           disabled={disabled || saving || saved}
           required
         />

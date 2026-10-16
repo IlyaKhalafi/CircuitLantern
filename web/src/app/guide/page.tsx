@@ -136,7 +136,9 @@ export default function GuidePage() {
             token distribution. Zero ablation can move activations outside their
             usual distribution. Results describe the tested prompt and execution
             precision. Cancel between forwards and export completed heads,
-            including partial results.
+            including partial results. Select a head index to prepare its prompt
+            and ablation in the activation lab. The recorded checkpoint must be
+            loaded first.
           </p>
         </article>
         <article className="panel guide-card">

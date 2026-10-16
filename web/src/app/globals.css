@@ -2631,3 +2631,41 @@ form .head-sweep-controls {
   font-weight: 600;
   cursor: pointer;
 }
+
+.head-inspect-button {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 30px;
+  padding: 3px 6px;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  background: transparent;
+  color: #985024;
+  font: 11px var(--mono);
+}
+.head-inspect-button:hover {
+  border-color: #e9d6c7;
+  background: #fcf6ef;
+}
+.inspection-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+.inspection-notice > div {
+  min-width: 0;
+  flex: 1;
+}
+.inspection-notice p {
+  margin: 5px 0;
+  overflow-wrap: anywhere;
+}
+.inspection-notice > .button {
+  flex-shrink: 0;
+}
+@media (max-width: 720px) {
+  .inspection-notice {
+    flex-direction: column;
+  }
+}
