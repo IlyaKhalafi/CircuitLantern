@@ -1464,6 +1464,7 @@ tbody tr.selectable:hover {
 }
 .prompt-controls {
   display: flex;
+  flex-wrap: wrap;
   gap: 13px;
   align-items: center;
 }

@@ -6,6 +6,7 @@ import { Panel } from "@/components/ui";
 import { RepresentationGeometry } from "@/components/representation-geometry";
 import { AttentionHeads } from "@/components/attention-heads";
 import { number } from "@/lib/api";
+import { interventionLabel } from "@/lib/interventions";
 import { executionLabel } from "@/lib/execution";
 import type { Trace } from "@/lib/types";
 
@@ -36,12 +37,16 @@ export function TraceResults({
         <span>{number(trace.duration_ms, 0)} ms</span>
         <span>{trace.device.toUpperCase()}</span>
         <span>{executionLabel(trace.execution_precision)}</span>
-        {trace.ablate_layer !== null && (
-          <span className="pill orange">
-            Block {trace.ablate_layer} bypassed
-          </span>
+        {(trace.ablate_layer != null || trace.ablate_head) && (
+          <span className="pill orange">{interventionLabel(trace)}</span>
         )}
       </div>
+      {trace.ablate_head && (
+        <div className="notice info">
+          This trace zeros one attention head output at every prompt and
+          generated token before the attention output projection.
+        </div>
+      )}
       <Panel
         title="Tokenized prompt"
         subtitle="Hover over a token to see its vocabulary ID."
@@ -97,9 +102,9 @@ export function TraceResults({
               <SeriesChart
                 data={residual}
                 series={[
-                  { key: "norm", label: "Current trace", color: "#bd906b" },
+                  { key: "norm", label: "Current trace", color: "#b85b28" },
                   ...(comparison
-                    ? [{ key: "baseline", label: "Baseline", color: "#7e9dbd" }]
+                    ? [{ key: "baseline", label: "Baseline", color: "#557ca0" }]
                     : []),
                 ]}
                 area={!comparison}
@@ -214,6 +219,13 @@ export function TraceResults({
               <div className="notice info">
                 This block's output was bypassed. Its captured attention
                 reflects computation before the intervention.
+              </div>
+            )}
+            {trace.ablate_head?.layer === attention.layer && (
+              <div className="notice info">
+                Head {trace.ablate_head.head} output was zeroed after attention
+                routing. The captured patterns still show its routing before the
+                intervention.
               </div>
             )}
             <div className="two-column">

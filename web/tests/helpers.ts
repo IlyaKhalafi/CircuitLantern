@@ -7,7 +7,8 @@ export async function capturePage(
   await page.waitForTimeout(100);
   await page.evaluate(async () => {
     await document.fonts.ready;
-    document.getElementById("main-content")?.focus({ preventScroll: true });
+    if (document.activeElement instanceof HTMLElement)
+      document.activeElement.blur();
     // Cancel in-flight inspector scrolling before capturing fixed page elements.
     for (let frame = 0; frame < 4; frame++) {
       window.scrollTo({ top: 0, left: 0, behavior: "instant" });

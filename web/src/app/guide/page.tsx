@@ -103,8 +103,9 @@ export default function GuidePage() {
           <p>
             The logit lens applies final normalization and the model unembedding
             to intermediate states. These are diagnostic projections. Their
-            confidence is not calibrated. The final captured state already
-            includes normalization.
+            confidence is not calibrated. The final logit lens projection uses
+            the model's normalized output. Residual magnitude is measured before
+            final normalization for supported block layouts.
           </p>
         </article>
         <article className="panel guide-card">
@@ -113,13 +114,14 @@ export default function GuidePage() {
           </div>
           <h2>Test a causal hypothesis</h2>
           <p>
-            Run a baseline prompt, then bypass one transformer block and run the
-            same prompt again. Bypassing replaces the block output with its
-            input residual, preserving the rest of the computation.
+            Run a baseline, then bypass a transformer block or zero an attention
+            head. Block bypass replaces its output with its input residual. Head
+            zeroing removes one head output before the attention output
+            projection at every prompt and generated token.
           </p>
           <p>
-            The lab overlays baseline residual norms when model revision and
-            prompt match. The{" "}
+            The lab overlays baseline residual norms when the prompt, checkpoint
+            and execution settings match. The{" "}
             <Link href="/causal">causal tracing workspace</Link> also restores
             clean residual outputs in a corrupted prompt across every block.
             Prompts must align by token position. Attention is descriptive. A

@@ -99,7 +99,22 @@ export interface Job {
   progress: number;
   message: string;
 }
+export interface AttentionHeadTarget {
+  layer: number;
+  heads: number;
+  head_dim: number;
+}
+export interface HeadAblation {
+  layer: number;
+  head: number;
+  heads?: number;
+  head_dim?: number;
+  projection?: string;
+  scope?: string;
+  method?: string;
+}
 export interface RuntimeState {
+  attention_head_targets?: AttentionHeadTarget[];
   context_length?: number;
   max_prompt_tokens?: number;
   precision?: string;
@@ -207,6 +222,7 @@ export interface Trace extends ExecutionProvenance {
   duration_ms: number;
   device: string;
   ablate_layer: number | null;
+  ablate_head?: HeadAblation | null;
   method: string;
 }
 export interface Experiment {

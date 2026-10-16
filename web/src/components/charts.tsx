@@ -10,6 +10,7 @@ import {
   CartesianGrid,
   Line,
   LineChart,
+  Legend,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -48,6 +49,14 @@ export function SeriesChart({
               typeof v === "number" ? v.toPrecision(2) : v
             }
           />
+          {series.length > 1 && (
+            <Legend
+              iconType="line"
+              formatter={(value) => (
+                <span style={{ color: "var(--muted)" }}>{value}</span>
+              )}
+            />
+          )}
           <Tooltip
             formatter={(value) =>
               typeof value === "number" ? value.toPrecision(5) : String(value)

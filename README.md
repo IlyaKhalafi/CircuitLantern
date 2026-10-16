@@ -17,7 +17,7 @@ Circuit Lantern runs locally with a Next.js frontend and a Python backend. Model
 - **Weight geometry** with pooled heatmaps, singular value spectra, cumulative energy, norms, spectral radius, stable rank, condition numbers, operator norms, numerical and effective rank, nuclear norms, distributions and sparsity
 - **Live activation traces** with prompt tokens, residual stream norms, layer predictions, next token logits and attention patterns
 - **Representation geometry** with layer CKA, token cosine similarity and block residual update magnitudes
-- **Causal interventions** with transformer block bypass, a baseline residual overlay and clean to corrupted activation patching across every block
+- **Causal interventions** with transformer block bypass, individual attention head zero ablation, a baseline residual overlay and clean to corrupted activation patching across every block
 - **Experiment notebooks** with local SQLite persistence, editable observations and portable JSON exports
 
 <details>
@@ -30,6 +30,8 @@ These screenshots use NF4 execution of the trained SmolLM2 135M checkpoint at re
 ![Residual streams and prediction uncertainty](docs/images/activation-lab.png)
 
 ![Layer and token representation geometry](docs/images/representation-geometry.png)
+
+![Individual attention head zero ablation with a matching baseline](docs/images/head-ablation.png)
 
 </details>
 
@@ -85,6 +87,8 @@ Full matrix norms and descriptive statistics use all elements. Spectral analysis
 The logit lens applies final normalization and the model unembedding to intermediate hidden states. Its intermediate probabilities are diagnostic projections and should not be treated as calibrated confidence. The final residual magnitude is captured before normalization through a block hook for supported architectures. Interactive captures default to at most 128 prompt tokens. The selected context allowance is enforced after loading, including generated tokens. The activation lab shows the remaining prompt budget for the chosen generation length. Causal sweeps also respect the loaded allowance. Web loading defaults to a 256 token allowance and offers smaller budgets when needed. The attention view includes a head average, mean query entropy per head, and each head's routing from the final prompt token. A head routing table reports the strongest key position and final query entropy. The final query measure is separate from entropy averaged over every prompt position. Attention captured in a bypassed block is labeled because its output is replaced after the block computes.
 
 The representation geometry tab uses biased linear CKA across prompt token positions to compare centered layer representations. It also shows final capture token cosine similarity and each block's residual update norm, full prompt update RMS and update to input norm ratio. These are diagnostics within one prompt. High similarity does not establish equivalent or causal computation. CKA is undefined with fewer than three sampled positions or zero centered variance. Cosine similarity is undefined for zero vectors. Geometry uses at most 128 evenly spaced prompt positions and exports their original indices. Residual update statistics use every prompt position. See [Kornblith and colleagues on representation similarity](https://proceedings.mlr.press/v97/kornblith19a.html).
+
+Individual head zero ablation supports verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts, including grouped query attention. Choose Zero attention head in the activation lab, then select its layer and query head index. The intervention zeros the selected head slice before the attention output projection at every prompt and generated token. Output projection biases remain active. A matching baseline can be overlaid on the residual chart. Attention routing is captured before the zero intervention, so the selected head still has an attention pattern. Unsupported and pruned layouts do not offer this control. Traces and saved experiments record the head, projection, dimensions and scope. Zero ablation measures the effect of this intervention and does not establish that a head is unnecessary across prompts.
 
 ## Causal tracing
 

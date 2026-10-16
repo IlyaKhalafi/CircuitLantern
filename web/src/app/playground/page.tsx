@@ -19,6 +19,7 @@ import {
 } from "@/components/ui";
 import { TraceResults } from "@/components/trace-results";
 import { api, downloadJSON, post } from "@/lib/api";
+import { interventionLabel } from "@/lib/interventions";
 import type { RuntimeState, Trace } from "@/lib/types";
 
 export default function PlaygroundPage() {
@@ -28,6 +29,8 @@ export default function PlaygroundPage() {
   const [tokens, setTokens] = useState(16);
   const [captureAttention, setCaptureAttention] = useState(true);
   const [ablate, setAblate] = useState("");
+  const [headLayer, setHeadLayer] = useState(0);
+  const [head, setHead] = useState(0);
   const [trace, setTrace] = useState<Trace | null>(null);
   const [baseline, setBaseline] = useState<Trace | null>(null);
   const [busy, setBusy] = useState(false);
@@ -39,6 +42,9 @@ export default function PlaygroundPage() {
     api<RuntimeState>("/runtime")
       .then((state) => {
         setRuntime(state);
+        if (state.attention_head_targets?.length) {
+          setHeadLayer(state.attention_head_targets[0].layer);
+        }
         const allowance =
           state.context_length ?? state.metadata?.context_length ?? 2048;
         setTokens((current) =>
@@ -60,13 +66,13 @@ export default function PlaygroundPage() {
         prompt,
         max_new_tokens: tokens,
         capture_attention: captureAttention,
-        ablate_layer: ablate === "" ? null : +ablate,
+        ablate_layer: ablate === "" || ablate === "head" ? null : +ablate,
+        ablate_head: ablate === "head" ? { layer: headLayer, head } : null,
       });
       setTrace(result);
-      setName(
-        `${ablate ? `Block ${ablate} bypass` : "Baseline"} · ${prompt.slice(0, 45)}`,
-      );
-      if (ablate === "") setBaseline(result);
+      setName(`${interventionLabel(result)} · ${prompt.slice(0, 45)}`);
+      if (result.ablate_layer === null && !result.ablate_head)
+        setBaseline(result);
     } catch (e) {
       setError((e as Error).message);
     } finally {
@@ -92,6 +98,9 @@ export default function PlaygroundPage() {
     0,
     Math.min(runtime?.max_prompt_tokens ?? 128, contextLimit - tokens),
   );
+  const headTarget = runtime?.attention_head_targets?.find(
+    (target) => target.layer === headLayer,
+  );
   const compatibleBaseline =
     baseline?.prompt === trace?.prompt &&
     baseline?.revision === trace?.revision &&
@@ -100,7 +109,7 @@ export default function PlaygroundPage() {
     baseline?.device === trace?.device &&
     JSON.stringify(baseline?.execution_config) ===
       JSON.stringify(trace?.execution_config) &&
-    trace?.ablate_layer !== null
+    (trace?.ablate_layer != null || !!trace?.ablate_head)
       ? baseline
       : null;
   return (
@@ -193,6 +202,9 @@ export default function PlaygroundPage() {
                       onChange={(e) => setAblate(e.target.value)}
                     >
                       <option value="">None · baseline</option>
+                      {!!runtime.attention_head_targets?.length && (
+                        <option value="head">Zero attention head</option>
+                      )}
                       {Array.from(
                         { length: runtime.metadata?.num_layers || 0 },
                         (_, i) => (
@@ -203,6 +215,44 @@ export default function PlaygroundPage() {
                       )}
                     </select>
                   </label>
+                  {ablate === "head" && (
+                    <>
+                      <label>
+                        Layer
+                        <select
+                          aria-label="Head ablation layer"
+                          value={headLayer}
+                          onChange={(event) => {
+                            setHeadLayer(+event.target.value);
+                            setHead(0);
+                          }}
+                        >
+                          {runtime.attention_head_targets?.map((target) => (
+                            <option key={target.layer} value={target.layer}>
+                              Layer {target.layer}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label>
+                        Head
+                        <select
+                          aria-label="Attention head to zero"
+                          value={head}
+                          onChange={(event) => setHead(+event.target.value)}
+                        >
+                          {Array.from(
+                            { length: headTarget?.heads ?? 0 },
+                            (_, i) => (
+                              <option key={i} value={i}>
+                                Head {i}
+                              </option>
+                            ),
+                          )}
+                        </select>
+                      </label>
+                    </>
+                  )}
                   <label>
                     <input
                       type="checkbox"
@@ -215,7 +265,12 @@ export default function PlaygroundPage() {
                 <button
                   type="submit"
                   className="button primary"
-                  disabled={busy || !prompt.trim() || promptLimit < 1}
+                  disabled={
+                    busy ||
+                    !prompt.trim() ||
+                    promptLimit < 1 ||
+                    (ablate === "head" && !headTarget)
+                  }
                 >
                   <Play size={14} />
                   {busy ? "Tracing activations" : "Run & trace"}
@@ -224,7 +279,7 @@ export default function PlaygroundPage() {
               </div>
             </form>
           </Panel>
-          {ablate !== "" && (
+          {ablate !== "" && ablate !== "head" && (
             <div className="notice info section-gap">
               Block bypass replaces the selected transformer block output with
               its input residual stream. Run a baseline with the same prompt
@@ -237,7 +292,7 @@ export default function PlaygroundPage() {
           {trace && !busy && (
             <>
               <TraceResults
-                key={`${trace.duration_ms}-${trace.ablate_layer}-${trace.prompt}`}
+                key={`${trace.duration_ms}-${interventionLabel(trace)}-${trace.prompt}`}
                 trace={trace}
                 comparison={compatibleBaseline}
               />
@@ -294,7 +349,7 @@ export default function PlaygroundPage() {
                 </span>
                 <div>
                   <h3>Causal interventions</h3>
-                  <p>Bypass a block and measure what changes.</p>
+                  <p>Bypass a block or zero a head and measure what changes.</p>
                 </div>
               </div>
             </div>
