@@ -4,6 +4,10 @@ import { Download, Play } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
 import { Heatmap } from "@/components/charts";
+import {
+  FeaturePairControls,
+  FeaturePairResult,
+} from "@/components/feature-pair";
 import { downloadJSON, number, post } from "@/lib/api";
 import type {
   DictionaryEvaluation,
@@ -55,7 +59,7 @@ export function FeatureInspectionPanel({
       sequence.current++;
     };
   }, [dictionary.id, executionId]);
-  async function run(multiplier?: number) {
+  async function run(multiplier?: number, other?: number) {
     const id = ++sequence.current;
     setBusy(true);
     setError(null);
@@ -67,7 +71,11 @@ export function FeatureInspectionPanel({
           expected_execution_id: executionId,
           feature: multiplier === undefined ? null : feature,
           multiplier: multiplier ?? 0,
-          position: position === "all" ? null : Number(position),
+          position:
+            multiplier === undefined || position === "all"
+              ? null
+              : Number(position),
+          comparison_features: other === undefined ? null : [feature, other],
         },
       );
       if (id === sequence.current) setResult(value);
@@ -175,6 +183,13 @@ export function FeatureInspectionPanel({
             "Interventions change the selected decoded contribution and preserve the original reconstruction error.",
           )}
         </p>
+        <FeaturePairControls
+          feature={feature}
+          featureCount={dictionary.features}
+          busy={busy}
+          enabled={enabled && !!prompt.trim()}
+          onCompare={(other) => run(undefined, other)}
+        />
         {result && (
           <div className="feature-inspection-result">
             <div className="feature-toolbar">
@@ -206,27 +221,33 @@ export function FeatureInspectionPanel({
             <p className="mono feature-captured-prompt" dir="auto">
               {result.prompt}
             </p>
-            {result.features.length > 0 && (
-              <Heatmap
-                data={result.features.map((row) => row.activations)}
-                sequential
-                label={t(
-                  "Columns are prompt tokens. Rows are sparse features. Values are normalized SAE coefficients.",
+            {result.feature_comparison ? (
+              <FeaturePairResult result={result} />
+            ) : (
+              <>
+                {result.features.length > 0 && (
+                  <Heatmap
+                    data={result.features.map((row) => row.activations)}
+                    sequential
+                    label={t(
+                      "Columns are prompt tokens. Rows are sparse features. Values are normalized SAE coefficients.",
+                    )}
+                    xLabels={result.tokens}
+                    yLabels={result.features.map((row) =>
+                      t("Feature {v0}", { v0: row.index }),
+                    )}
+                    height={Math.min(
+                      320,
+                      Math.max(96, result.features.length * 14),
+                    )}
+                  />
                 )}
-                xLabels={result.tokens}
-                yLabels={result.features.map((row) =>
-                  t("Feature {v0}", { v0: row.index }),
-                )}
-                height={Math.min(
-                  320,
-                  Math.max(96, result.features.length * 14),
-                )}
-              />
+                <div className="feature-heatmap-legend">
+                  <span aria-hidden="true" />
+                  {t("Gray cells mark excluded token positions.")}
+                </div>
+              </>
             )}
-            <div className="feature-heatmap-legend">
-              <span aria-hidden="true" />
-              {t("Gray cells mark excluded token positions.")}
-            </div>
             <div className="two-column">
               <div>
                 <h3>{t("Baseline predictions")}</h3>

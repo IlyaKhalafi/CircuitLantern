@@ -36,6 +36,8 @@ export function SeriesChart({
   height = 235,
   xKey = "index",
   yAxis,
+  interpolation = "monotone",
+  showPoints = false,
 }: {
   data: Record<string, number | string | null>[];
   series: {
@@ -46,6 +48,8 @@ export function SeriesChart({
   area?: boolean;
   height?: number;
   xKey?: string;
+  interpolation?: "monotone" | "linear";
+  showPoints?: boolean;
   yAxis?: {
     scale?: "linear" | "log";
     reversed?: boolean;
@@ -107,24 +111,34 @@ export function SeriesChart({
               <Area
                 isAnimationActive={false}
                 key={item.key}
-                type="monotone"
+                type={interpolation}
+                connectNulls={false}
                 dataKey={item.key}
                 name={t(item.label)}
                 stroke={item.color}
                 fill={item.color}
                 fillOpacity={0.09}
-                dot={hasIsolatedValue(data, item.key) ? { r: 3 } : false}
+                dot={
+                  showPoints || hasIsolatedValue(data, item.key)
+                    ? { r: 3 }
+                    : false
+                }
                 strokeWidth={1.7}
               />
             ) : (
               <Line
                 isAnimationActive={false}
                 key={item.key}
-                type="monotone"
+                type={interpolation}
+                connectNulls={false}
                 dataKey={item.key}
                 name={t(item.label)}
                 stroke={item.color}
-                dot={hasIsolatedValue(data, item.key) ? { r: 3 } : false}
+                dot={
+                  showPoints || hasIsolatedValue(data, item.key)
+                    ? { r: 3 }
+                    : false
+                }
                 strokeWidth={1.7}
               />
             ),

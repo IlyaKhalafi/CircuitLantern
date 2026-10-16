@@ -8,6 +8,7 @@ from functools import wraps
 import torch
 
 from circuit_lantern.services.execution import execution_provenance
+from circuit_lantern.services.features.comparison import feature_pair_statistics
 from circuit_lantern.services.features.corpus import prompt_split
 from circuit_lantern.services.scoring import log_probabilities, target_score
 from circuit_lantern.services.tokens import capture_token_limit
@@ -186,6 +187,12 @@ def inspect_prompt(lab, identifier: str, request) -> dict:
     runtime._require_model()
     inputs, tokens = prompt_inputs(runtime, request.prompt)
     manifest, dictionary = lab.load_dictionaries([identifier], len(tokens))[0]
+    pair = request.comparison_features
+    if pair:
+        if pair[0] == pair[1]:
+            raise ValueError("Choose two different features to compare.")
+        if any(index >= dictionary.config.features for index in pair):
+            raise ValueError("The selected feature is outside this dictionary.")
     if request.position is not None and request.position >= len(tokens):
         raise ValueError("The intervention position is outside the prompt.")
     eligible = eligible_positions(manifest, inputs["input_ids"][0], runtime.tokenizer)
@@ -207,6 +214,8 @@ def inspect_prompt(lab, identifier: str, request) -> dict:
         dictionary.feature_direction(request.feature)
         if request.feature not in selected:
             selected.append(request.feature)
+    if pair:
+        selected.extend(index for index in pair if index not in selected)
     baseline = log_probabilities(baseline_logits[-1])
     target = (
         request.target_token_id if request.target_token_id is not None else int(baseline.argmax())
@@ -241,6 +250,14 @@ def inspect_prompt(lab, identifier: str, request) -> dict:
         "baseline_predictions": prediction(runtime.tokenizer, baseline),
         "activation_units": "Normalized SAE coefficients. Decoder directions convert changes back to original residual units.",
     }
+    if pair:
+        response["feature_comparison"] = {
+            "feature_ids": list(pair),
+            **feature_pair_statistics(
+                encoded[:, list(pair)][eligible],
+                dictionary.decoder[:, list(pair)],
+            ),
+        }
     if request.feature is not None:
         operation = feature_intervention(
             dictionary, request.feature, request.multiplier, request.position, eligible

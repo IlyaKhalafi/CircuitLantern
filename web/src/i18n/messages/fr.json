@@ -1563,5 +1563,22 @@
   "Insufficient available RAM to compare these decoder directions.": "La RAM disponible est insuffisante pour comparer ces directions du décodeur.",
   "Export feature inspection": "Exporter l’inspection des caractéristiques",
   "Export reconstruction": "Exporter la reconstruction",
-  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "Utilisez les touches fléchées pour inspecter les cellules. Sur écran tactile, touchez une cellule."
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "Utilisez les touches fléchées pour inspecter les cellules. Sur écran tactile, touchez une cellule.",
+  "Compare two features": "Comparer deux caractéristiques",
+  "Compare the selected feature with another feature across eligible positions in this prompt.": "Comparez la caractéristique sélectionnée à une autre aux positions admissibles de ce prompt.",
+  "Compare with feature": "Comparer avec la caractéristique",
+  "Compare prompt activations": "Comparer les activations du prompt",
+  "Choose a different feature from 0 to {v0}.": "Choisissez une autre caractéristique entre 0 et {v0}.",
+  "Prompt feature comparison": "Comparaison des caractéristiques du prompt",
+  "Compared features {v0} and {v1}": "Comparaison des caractéristiques {v0} et {v1}",
+  "Decoder cosine measures weight geometry. Activation statistics describe normalized baseline coefficients in this prompt and do not establish shared meaning or causal influence.": "Le cosinus du décodeur mesure la géométrie des poids. Les statistiques décrivent les coefficients normalisés de référence sur ce prompt sans établir une signification commune ni une influence causale.",
+  "Pearson correlation": "Corrélation de Pearson",
+  "Activation cosine": "Cosinus des activations",
+  "Activation overlap": "Chevauchement des activations",
+  "Active intersection divided by active union": "Intersection active divisée par l’union active",
+  "Correlation is unavailable for fewer than two eligible positions or constant activity.": "La corrélation est indéfinie avec moins de deux positions admissibles ou une activité constante.",
+  "Feature comparisons require finite two-column matrices.": "La comparaison exige des matrices finies à deux colonnes.",
+  "Choose two different features to compare.": "Choisissez deux caractéristiques différentes à comparer.",
+  "No eligible token positions in this prompt.": "Ce prompt ne contient aucune position de token admissible.",
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "Les deux caractéristiques sont actives à {v0} sur {v1, plural, one {# position admissible} other {# positions admissibles}}."
 }

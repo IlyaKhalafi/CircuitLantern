@@ -27,9 +27,13 @@ class DictionaryTrainingRequest(BoundExecutionRequest):
     exclude_first_position: bool = True
 
 
+FeatureIndex = Annotated[int, Field(strict=True, ge=0, le=65535)]
+
+
 class FeatureInspectionRequest(BoundExecutionRequest):
     prompt: str = Field(min_length=1, max_length=8000)
     target_token_id: int | None = Field(default=None, ge=0)
+    comparison_features: tuple[FeatureIndex, FeatureIndex] | None = None
     feature: int | None = Field(default=None, ge=0)
     multiplier: float = Field(default=0, ge=-10, le=10, allow_inf_nan=False)
     position: int | None = Field(default=None, ge=0)

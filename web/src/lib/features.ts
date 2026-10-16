@@ -123,7 +123,21 @@ export interface FeatureMeasurement extends ExecutionProvenance {
   dictionary_id: string;
   dictionary_source: FeatureDictionarySource;
 }
+export interface FeaturePairComparison {
+  feature_ids: [number, number];
+  eligible_position_count: number;
+  active_counts: [number, number];
+  coactive_count: number;
+  active_union_count: number;
+  activation_overlap: number | null;
+  activation_cosine: number | null;
+  pearson_correlation: number | null;
+  decoder_cosine: number | null;
+  scope: string;
+}
+
 export interface FeatureInspection extends FeatureMeasurement {
+  feature_comparison?: FeaturePairComparison;
   prompt: string;
   tokens: string[];
   token_ids: number[];

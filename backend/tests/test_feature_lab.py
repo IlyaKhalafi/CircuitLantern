@@ -521,3 +521,64 @@ async def test_empty_feature_graph_fails_without_publishing_a_complete_run(clien
     assert "No selected feature is active" in job["message"]
     assert not lab.store.runs()
     assert all(not block._forward_hooks for block in lab.runtime._blocks())
+
+
+@pytest.mark.anyio
+async def test_prompt_feature_pair_uses_one_baseline_forward_and_validates_before_inference(
+    client, lab
+):
+    from circuit_lantern.services.features import inference
+
+    trained = await finished(
+        client, (await client.post("/api/features/train", json=request().model_dump())).json()["id"]
+    )
+    identifier = trained["result"]["dictionaries"][0]["id"]
+    path = "/api/features/dictionaries/" + identifier + "/inspect"
+    observed = []
+    original = inference.forward
+
+    def recording(*args, **kwargs):
+        result = original(*args, **kwargs)
+        observed.append(result)
+        return result
+
+    with patch.object(inference, "forward", side_effect=recording) as forward:
+        response = await client.post(
+            path, json={"prompt": "the capital of France", "comparison_features": [0, 1]}
+        )
+    assert response.status_code == 200, response.text
+    assert forward.call_count == 1
+    data = response.json()
+    comparison = data["feature_comparison"]
+    assert comparison["feature_ids"] == [0, 1]
+    assert data["eligible_positions"] == [1, 2, 3]
+    assert comparison["eligible_position_count"] == 3
+    assert {0, 1}.issubset(row["index"] for row in data["features"])
+    assert all(row["activations"][0] is None for row in data["features"])
+    raw = observed[0][1][identifier].double().numpy()[1:, :2]
+    import numpy as np
+
+    expected_active = (raw > 0).sum(axis=0)
+    assert comparison["active_counts"] == expected_active.tolist()
+    if all(np.std(raw, axis=0) > 0):
+        assert comparison["pearson_correlation"] == pytest.approx(
+            np.corrcoef(raw.T)[0, 1], abs=1e-12
+        )
+    else:
+        assert comparison["pearson_correlation"] is None
+    assert "Baseline normalized" in comparison["scope"]
+    assert data["dictionary_source"]["id"] == identifier
+    width = lab.store.get(identifier)["features"]
+    with patch.object(inference, "forward") as forward:
+        for pair in ([0, 0], [0, width]):
+            invalid = await client.post(
+                path, json={"prompt": "the capital of France", "comparison_features": pair}
+            )
+            assert invalid.status_code == 400
+        for pair in ([0], [0, 1, 2], [-1, 0], [True, 0], [0.5, 1]):
+            invalid = await client.post(
+                path, json={"prompt": "the capital of France", "comparison_features": pair}
+            )
+            assert invalid.status_code == 422
+    forward.assert_not_called()
+    assert all(not block._forward_hooks for block in lab.runtime._blocks())

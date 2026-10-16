@@ -1563,5 +1563,22 @@
   "Insufficient available RAM to compare these decoder directions.": "حافظه RAM آزاد برای مقایسه این جهت‌های رمزگشا کافی نیست.",
   "Export feature inspection": "خروجی گرفتن از بررسی ویژگی",
   "Export reconstruction": "خروجی گرفتن از بازسازی",
-  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "برای بررسی خانه‌ها از کلیدهای جهت‌نما استفاده کنید. در صفحه لمسی روی یک خانه بزنید."
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "برای بررسی خانه‌ها از کلیدهای جهت‌نما استفاده کنید. در صفحه لمسی روی یک خانه بزنید.",
+  "Compare two features": "مقایسه دو ویژگی",
+  "Compare the selected feature with another feature across eligible positions in this prompt.": "ویژگی انتخاب‌شده را با ویژگی دیگری در جایگاه‌های مجاز این پرسش مقایسه کنید.",
+  "Compare with feature": "مقایسه با ویژگی",
+  "Compare prompt activations": "مقایسه فعال‌سازی‌های پرسش",
+  "Choose a different feature from 0 to {v0}.": "ویژگی متفاوتی از 0 تا {v0} انتخاب کنید.",
+  "Prompt feature comparison": "مقایسه ویژگی‌ها در پرسش",
+  "Compared features {v0} and {v1}": "ویژگی‌های {v0} و {v1} مقایسه شدند",
+  "Decoder cosine measures weight geometry. Activation statistics describe normalized baseline coefficients in this prompt and do not establish shared meaning or causal influence.": "کسینوس رمزگشا هندسه وزن‌ها را می‌سنجد. آمار فعال‌سازی ضرایب نرمال‌شده پایه را در این پرسش توصیف می‌کند و معنای مشترک یا تأثیر علّی را ثابت نمی‌کند.",
+  "Pearson correlation": "همبستگی پیرسون",
+  "Activation cosine": "کسینوس فعال‌سازی",
+  "Activation overlap": "همپوشانی فعال‌سازی",
+  "Active intersection divided by active union": "اشتراک جایگاه‌های فعال تقسیم بر اجتماع آن‌ها",
+  "Correlation is unavailable for fewer than two eligible positions or constant activity.": "همبستگی برای کمتر از دو جایگاه مجاز یا فعال‌سازی ثابت تعریف نمی‌شود.",
+  "Feature comparisons require finite two-column matrices.": "مقایسه ویژگی‌ها به ماتریس‌های متناهی با دو ستون نیاز دارد.",
+  "Choose two different features to compare.": "دو ویژگی متفاوت برای مقایسه انتخاب کنید.",
+  "No eligible token positions in this prompt.": "در این پرسش هیچ جایگاه مجاز برای توکن‌ها وجود ندارد.",
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "هر دو ویژگی در {v0} جایگاه از {v1} جایگاه مجاز فعال‌اند."
 }

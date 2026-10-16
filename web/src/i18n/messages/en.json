@@ -1563,5 +1563,22 @@
   "Insufficient available RAM to compare these decoder directions.": "Insufficient available RAM to compare these decoder directions.",
   "Export feature inspection": "Export feature inspection",
   "Export reconstruction": "Export reconstruction",
-  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "Use arrow keys to inspect cells. Tap a cell on touch screens."
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "Use arrow keys to inspect cells. Tap a cell on touch screens.",
+  "Compare two features": "Compare two features",
+  "Compare the selected feature with another feature across eligible positions in this prompt.": "Compare the selected feature with another feature across eligible positions in this prompt.",
+  "Compare with feature": "Compare with feature",
+  "Compare prompt activations": "Compare prompt activations",
+  "Choose a different feature from 0 to {v0}.": "Choose a different feature from 0 to {v0}.",
+  "Prompt feature comparison": "Prompt feature comparison",
+  "Compared features {v0} and {v1}": "Compared features {v0} and {v1}",
+  "Decoder cosine measures weight geometry. Activation statistics describe normalized baseline coefficients in this prompt and do not establish shared meaning or causal influence.": "Decoder cosine measures weight geometry. Activation statistics describe normalized baseline coefficients in this prompt and do not establish shared meaning or causal influence.",
+  "Pearson correlation": "Pearson correlation",
+  "Activation cosine": "Activation cosine",
+  "Activation overlap": "Activation overlap",
+  "Active intersection divided by active union": "Active intersection divided by active union",
+  "Correlation is unavailable for fewer than two eligible positions or constant activity.": "Correlation is unavailable for fewer than two eligible positions or constant activity.",
+  "Feature comparisons require finite two-column matrices.": "Feature comparisons require finite two-column matrices.",
+  "Choose two different features to compare.": "Choose two different features to compare.",
+  "No eligible token positions in this prompt.": "No eligible token positions in this prompt.",
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}."
 }

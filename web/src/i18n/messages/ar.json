@@ -1563,5 +1563,22 @@
   "Insufficient available RAM to compare these decoder directions.": "ذاكرة RAM المتاحة غير كافية لمقارنة اتجاهات مفكك الترميز هذه.",
   "Export feature inspection": "تصدير فحص الميزات",
   "Export reconstruction": "تصدير إعادة البناء",
-  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "استخدم مفاتيح الأسهم لفحص الخلايا. اضغط على خلية في الشاشات اللمسية."
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "استخدم مفاتيح الأسهم لفحص الخلايا. اضغط على خلية في الشاشات اللمسية.",
+  "Compare two features": "مقارنة ميزتين",
+  "Compare the selected feature with another feature across eligible positions in this prompt.": "قارن الميزة المحددة بميزة أخرى عبر المواضع المؤهلة في هذا الموجّه.",
+  "Compare with feature": "المقارنة مع الميزة",
+  "Compare prompt activations": "مقارنة تنشيطات الموجّه",
+  "Choose a different feature from 0 to {v0}.": "اختر ميزة مختلفة من 0 إلى {v0}.",
+  "Prompt feature comparison": "مقارنة الميزات في الموجّه",
+  "Compared features {v0} and {v1}": "تمت مقارنة الميزتين {v0} و{v1}",
+  "Decoder cosine measures weight geometry. Activation statistics describe normalized baseline coefficients in this prompt and do not establish shared meaning or causal influence.": "يقيس جيب تمام مفكك الترميز هندسة الأوزان. تصف إحصاءات التنشيط معاملات خط الأساس المطبّعة في هذا الموجّه ولا تثبت معنى مشتركًا أو تأثيرًا سببيًا.",
+  "Pearson correlation": "ارتباط بيرسون",
+  "Activation cosine": "جيب تمام التنشيط",
+  "Activation overlap": "تداخل التنشيط",
+  "Active intersection divided by active union": "تقاطع المواضع النشطة مقسومًا على اتحادها",
+  "Correlation is unavailable for fewer than two eligible positions or constant activity.": "لا يُعرّف الارتباط عند وجود أقل من موضعين مؤهلين أو نشاط ثابت.",
+  "Feature comparisons require finite two-column matrices.": "تتطلب مقارنة الميزات مصفوفتين بقيم منتهية وعمودين.",
+  "Choose two different features to compare.": "اختر ميزتين مختلفتين للمقارنة.",
+  "No eligible token positions in this prompt.": "لا توجد مواضع رموز مؤهلة في هذا الموجّه.",
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "تنشط الميزتان معًا في {v0} من أصل {v1} موضعًا مؤهلًا."
 }

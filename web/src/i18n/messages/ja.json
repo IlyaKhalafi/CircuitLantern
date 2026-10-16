@@ -1563,5 +1563,22 @@
   "Insufficient available RAM to compare these decoder directions.": "これらのデコーダー方向を比較するための空きRAMが不足しています。",
   "Export feature inspection": "特徴の検査をエクスポート",
   "Export reconstruction": "再構成をエクスポート",
-  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "矢印キーでセルを調べます。タッチ画面ではセルをタップしてください。"
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "矢印キーでセルを調べます。タッチ画面ではセルをタップしてください。",
+  "Compare two features": "2つの特徴を比較",
+  "Compare the selected feature with another feature across eligible positions in this prompt.": "選択した特徴を、このプロンプトの対象位置で別の特徴と比較します。",
+  "Compare with feature": "比較する特徴",
+  "Compare prompt activations": "プロンプトの活性化を比較",
+  "Choose a different feature from 0 to {v0}.": "0から{v0}までの異なる特徴を選択してください。",
+  "Prompt feature comparison": "プロンプトの特徴比較",
+  "Compared features {v0} and {v1}": "特徴{v0}と{v1}の比較",
+  "Decoder cosine measures weight geometry. Activation statistics describe normalized baseline coefficients in this prompt and do not establish shared meaning or causal influence.": "デコーダーのコサインは重みの幾何を表します。活性化統計はこのプロンプトの正規化されたベースライン係数を記述し、意味の共通性や因果的影響を示すものではありません。",
+  "Pearson correlation": "ピアソン相関",
+  "Activation cosine": "活性化のコサイン",
+  "Activation overlap": "活性化の重なり",
+  "Active intersection divided by active union": "活性位置の積集合を和集合で割った値",
+  "Correlation is unavailable for fewer than two eligible positions or constant activity.": "対象位置が2個未満の場合や活性化が一定の場合、相関は定義されません。",
+  "Feature comparisons require finite two-column matrices.": "特徴の比較には、有限値を持つ2列の行列が必要です。",
+  "Choose two different features to compare.": "比較する異なる2つの特徴を選択してください。",
+  "No eligible token positions in this prompt.": "このプロンプトには対象となるトークン位置がありません。",
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "{v1}個の対象位置のうち{v0}個で両方の特徴が活性化します。"
 }

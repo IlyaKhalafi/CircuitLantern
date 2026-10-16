@@ -52,6 +52,10 @@ Prediction effects compare a fixed target token against the unmodified baseline.
 
 Reconstruction evaluation replaces one eligible residual stream with its SAE reconstruction or the training mean, then measures next-token cross entropy on the prompt. Loss recovery can be negative or exceed one. It is undefined for a zero baseline gap or a prompt without an observed next token. The result records whether the document group belonged to training, validation or neither.
 
+Open **Compare two features** to compare the selected feature with another dictionary feature on a prompt. The comparison reuses one baseline forward pass and shows both coefficient trajectories, decoder cosine, activation cosine, Pearson correlation and active-position overlap. Every activation statistic uses the dictionary's eligible token positions. The overlap is the active intersection divided by the active union, with activity defined as a positive coefficient. An empty union has no defined overlap. Pearson correlation is unavailable for fewer than two eligible positions or constant activity. Zero norm vectors have no defined cosine. The export records both feature IDs, position counts and the measurement convention.
+
+These are descriptive prompt statistics. Neighboring tokens are dependent observations, and a short prompt can give unstable correlations. Decoder geometry and activation overlap do not establish shared meaning or causal influence. Use novel prompts and measured interventions to investigate a hypothesis.
+
 Use **Export feature inspection** to retain the captured coefficients, tokens, predictions and any intervention effect. **Export reconstruction** saves the loss measurements and scoring scope. Both exports include a UTC capture time, the current inference execution identity, and a separate dictionary source with weight and manifest checksums, training settings, corpus fingerprint and original training execution identity. Exporting uses the captured result without another model forward and remains available after unloading the model while the page stays open. Save the JSON before leaving or reloading the page.
 
 ## Measure feature circuits
