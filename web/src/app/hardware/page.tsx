@@ -137,7 +137,7 @@ export default function HardwarePage() {
                           <div
                             style={{
                               width: `${(1 - gpu.free_bytes / gpu.total_bytes) * 100}%`,
-                              background: "#a8b8cc",
+                              background: "var(--muted)",
                             }}
                           />
                         </div>

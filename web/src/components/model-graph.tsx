@@ -310,7 +310,7 @@ export function ModelGraphView({
             nodeColor={(node) =>
               node.data.selected ? "var(--accent)" : "var(--blue)"
             }
-            maskColor="#070d1abf"
+            maskColor="var(--graph-mask)"
             style={{ width: 90, height: 110 }}
           />
         </ReactFlow>

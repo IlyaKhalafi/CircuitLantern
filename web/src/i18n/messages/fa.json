@@ -1141,5 +1141,10 @@
   "The checkpoint index contains invalid JSON.": "فهرست نقطه‌بازبینی شامل JSON نامعتبر است.",
   "The model configuration has an invalid {field} value. Expected a nonnegative integer.": "پیکربندی مدل مقدار نامعتبری برای {field} دارد. یک عدد صحیح نامنفی انتظار می‌رفت.",
   "The checkpoint quantization configuration must be a nonempty JSON object.": "پیکربندی کوانتیزاسیون checkpoint باید یک شیء JSON غیرتهی باشد.",
-  "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}.": "چک‌پوینت مبدأ {v0}. قالب اجرا {v1}. وزن‌های مقیم در حافظه {v2}. فضای کاری موقت {v3}. بافرهای لاجیت {v4}. بافرهای MLP {v5}. بافرهای مدل {v6}."
+  "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}.": "چک‌پوینت مبدأ {v0}. قالب اجرا {v1}. وزن‌های مقیم در حافظه {v2}. فضای کاری موقت {v3}. بافرهای لاجیت {v4}. بافرهای MLP {v5}. بافرهای مدل {v6}.",
+  "Color theme": "پوسته رنگی",
+  "Light theme": "پوسته روشن",
+  "Dark theme": "پوسته تیره",
+  "Row {v0}": "ردیف {v0}",
+  "Column {v0}": "ستون {v0}"
 }

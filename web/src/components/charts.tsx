@@ -1,4 +1,5 @@
 "use client";
+import { useTheme } from "@/components/theme-provider";
 import { useI18n } from "@/i18n/provider";
 import { useEffect, useRef, useState } from "react";
 import { number } from "@/lib/api";
@@ -176,6 +177,11 @@ export function Histogram({
     </div>
   );
 }
+function axisLabel(value: string | undefined, fallback: string) {
+  if (value === undefined) return fallback;
+  if (value === "") return "∅";
+  return value.trim() ? value : JSON.stringify(value);
+}
 export function Heatmap({
   data,
   sequential = false,
@@ -196,19 +202,37 @@ export function Heatmap({
   height?: number;
 }) {
   const { t } = useI18n();
+  const { theme } = useTheme();
   const canvas = useRef<HTMLCanvasElement>(null);
   const maximum =
     maxAbs ??
-    Math.max(
-      ...data
-        .flat()
-        .filter((value): value is number => value !== null)
-        .map(Math.abs),
+    data.reduce<number>(
+      (maximum, row) =>
+        row.reduce<number>(
+          (maximum, value) =>
+            value === null ? maximum : Math.max(maximum, Math.abs(value)),
+          maximum,
+        ),
       0,
     );
   useEffect(() => {
     const context = canvas.current?.getContext("2d");
-    if (!context || !data.length || !data[0].length) return;
+    if (!context) return;
+    if (!data[0]?.length) {
+      context.clearRect(0, 0, context.canvas.width, context.canvas.height);
+      return;
+    }
+    const palette = getComputedStyle(context.canvas);
+    const rgb = (name: string) => {
+      const hex = palette.getPropertyValue(name).trim();
+      return [1, 3, 5].map((offset) =>
+        parseInt(hex.slice(offset, offset + 2), 16),
+      );
+    };
+    const low = rgb("--heatmap-zero");
+    const positive = rgb("--heatmap-positive");
+    const negative = rgb("--heatmap-negative");
+    const missing = palette.getPropertyValue("--heatmap-missing").trim();
     const rows = data.length,
       columns = data[0].length;
     const cellWidth = 8,
@@ -218,7 +242,7 @@ export function Heatmap({
     data.forEach((row, y) =>
       row.forEach((value, x) => {
         if (value === null) {
-          context.fillStyle = "#283954";
+          context.fillStyle = missing;
           context.fillRect(
             x * cellWidth,
             y * cellHeight,
@@ -237,8 +261,7 @@ export function Heatmap({
                   : magnitude / maximum,
               )
             : 0;
-        const low = [16, 27, 48];
-        const high = value >= 0 ? [255, 195, 84] : [131, 171, 244];
+        const high = value >= 0 ? positive : negative;
         context.fillStyle = `rgb(${low.map((v, i) => Math.round(v + (high[i] - v) * strength)).join(",")})`;
         context.fillRect(
           x * cellWidth,
@@ -248,8 +271,13 @@ export function Heatmap({
         );
       }),
     );
-  }, [data, maximum, sequential, logarithmic]);
-  const [hover, setHover] = useState("");
+  }, [data, maximum, sequential, logarithmic, theme]);
+  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  const hovered = hover && data[hover.y]?.[hover.x];
+  const hoverText =
+    hover && hovered !== undefined
+      ? `${axisLabel(yLabels?.[hover.y], t("Row {v0}", { v0: hover.y }))} → ${axisLabel(xLabels?.[hover.x], t("Column {v0}", { v0: hover.x }))}  ${hovered?.toPrecision(4) ?? t("Unavailable")}`
+      : "";
   return (
     <div className="heatmap-wrapper">
       <canvas
@@ -259,6 +287,7 @@ export function Heatmap({
         role="img"
         aria-label={t(label)}
         onMouseMove={(event) => {
+          if (!data[0]?.length) return;
           const bounds = event.currentTarget.getBoundingClientRect();
           const x = Math.min(
             data[0].length - 1,
@@ -272,11 +301,9 @@ export function Heatmap({
               ((event.clientY - bounds.top) / bounds.height) * data.length,
             ),
           );
-          setHover(
-            `${yLabels?.[y] || `Row ${y}`} → ${xLabels?.[x] || `Column ${x}`}  ${data[y][x]?.toPrecision(4) ?? "Undefined"}`,
-          );
+          setHover({ x, y });
         }}
-        onMouseLeave={() => setHover("")}
+        onMouseLeave={() => setHover(null)}
       />
       <div
         className={`heatmap-key ${logarithmic && sequential ? "logarithmic" : ""}`}
@@ -287,7 +314,10 @@ export function Heatmap({
         <div
           style={
             sequential
-              ? { background: "linear-gradient(90deg,#101b30,#ffc354)" }
+              ? {
+                  background:
+                    "linear-gradient(90deg,var(--heatmap-zero),var(--heatmap-positive))",
+                }
               : undefined
           }
         >
@@ -299,7 +329,7 @@ export function Heatmap({
         </div>
         <span>{maximum.toPrecision(2)}</span>
       </div>
-      <p>{hover ? t(hover) : t(label)}</p>
+      <p>{hoverText || t(label)}</p>
     </div>
   );
 }

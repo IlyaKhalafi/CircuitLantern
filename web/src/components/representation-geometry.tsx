@@ -42,8 +42,8 @@ export function RepresentationGeometry({
               data={geometry.cka}
               sequential
               maxAbs={1}
-              xLabels={geometry.labels}
-              yLabels={geometry.labels}
+              xLabels={geometry.labels.map((label) => t(label))}
+              yLabels={geometry.labels.map((label) => t(label))}
               label={t(
                 "Hover to compare two captures. One means aligned centered geometry. Gray cells have zero centered variance and are undefined.",
               )}

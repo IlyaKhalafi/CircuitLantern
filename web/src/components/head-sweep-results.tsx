@@ -135,11 +135,12 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
             label={t(
               "Columns are query head indices. Rows are selected transformer layers. Values are ablated minus baseline target log probability in nats.",
             )}
-            xLabels={Array.from(
-              { length: columns },
-              (_, head) => `Head ${head}`,
+            xLabels={Array.from({ length: columns }, (_, head) =>
+              t("Head {v0}", { v0: head }),
             )}
-            yLabels={result.layer_targets.map((item) => `Layer ${item.layer}`)}
+            yLabels={result.layer_targets.map((item) =>
+              t("Layer {v0}", { v0: item.layer }),
+            )}
           />
         </div>
         <p className="inline-note">

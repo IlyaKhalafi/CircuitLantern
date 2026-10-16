@@ -216,7 +216,7 @@ export function TraceResults({
                 },
               )}
               xLabels={trace.tokens}
-              yLabels={trace.layers.map((l) => l.label)}
+              yLabels={trace.layers.map((l) => t(l.label))}
               logarithmic={logResidualColors}
               sequential
             />

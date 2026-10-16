@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
+import { ThemeSelect } from "@/components/theme-select";
 import { LanguageSelect } from "@/components/language-select";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -105,7 +106,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <Link href="/" className="brand" onClick={closeNavigation}>
           <span className="brand-mark">
             <Image
-              src="/brand/lantern.webp"
+              src="/brand/lantern-emblem.webp"
               alt=""
               width={52}
               height={52}
@@ -123,7 +124,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             {t("Local workspace")}
             <small>{t("Personal research environment")}</small>
           </div>
-          <ChevronRight size={14} />
         </div>
         <div className="nav-label">{t("WORKBENCH")}</div>
         <nav aria-label={t("Main navigation")}>
@@ -197,6 +197,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </strong>
           </div>
           <div className="topbar-tools">
+            <ThemeSelect />
             <LanguageSelect />
             <div className="runtime-status">
               <span className={`status-dot ${online ? "" : "offline"}`} />

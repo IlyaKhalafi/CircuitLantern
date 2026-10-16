@@ -1141,5 +1141,10 @@
   "The checkpoint index contains invalid JSON.": "The checkpoint index contains invalid JSON.",
   "The model configuration has an invalid {field} value. Expected a nonnegative integer.": "The model configuration has an invalid {field} value. Expected a nonnegative integer.",
   "The checkpoint quantization configuration must be a nonempty JSON object.": "The checkpoint quantization configuration must be a nonempty JSON object.",
-  "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}.": "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}."
+  "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}.": "Source checkpoint {v0}. Execution format {v1}. Resident weights {v2}. Temporary workspace {v3}. Logit buffers {v4}. MLP buffers {v5}. Model buffers {v6}.",
+  "Color theme": "Color theme",
+  "Light theme": "Light theme",
+  "Dark theme": "Dark theme",
+  "Row {v0}": "Row {v0}",
+  "Column {v0}": "Column {v0}"
 }

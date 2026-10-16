@@ -31,7 +31,7 @@ export function AttentionHeads({
       <Heatmap
         data={attention.query_by_head}
         xLabels={tokens.map((token, index) => `${index} · ${token || "∅"}`)}
-        yLabels={labels}
+        yLabels={labels.map((label) => t(label))}
         sequential
         label={t(
           "Rows are individual attention heads. Columns are prompt key positions. Each row shows routing from prompt query position {v0}. Color is normalized across heads within this layer.",

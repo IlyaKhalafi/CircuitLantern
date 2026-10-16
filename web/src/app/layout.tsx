@@ -1,4 +1,7 @@
 import type { Metadata } from "next";
+import { cookies } from "next/headers";
+import { ThemeProvider } from "@/components/theme-provider";
+import { resolveTheme, themeCookie } from "@/lib/theme";
 import { Shell } from "@/components/shell";
 import { I18nProvider } from "@/i18n/provider";
 import { requestLanguage } from "@/i18n/server";
@@ -30,11 +33,14 @@ export default async function RootLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const { locale, messages } = await requestLanguage();
+  const theme = resolveTheme((await cookies()).get(themeCookie)?.value);
   return (
-    <html lang={locale} dir={direction(locale)}>
+    <html lang={locale} dir={direction(locale)} data-theme={theme}>
       <body>
         <I18nProvider initialLocale={locale} initialMessages={messages}>
-          <Shell>{children}</Shell>
+          <ThemeProvider initialTheme={theme}>
+            <Shell>{children}</Shell>
+          </ThemeProvider>
         </I18nProvider>
       </body>
     </html>
