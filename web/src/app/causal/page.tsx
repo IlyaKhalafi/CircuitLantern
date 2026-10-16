@@ -11,6 +11,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { CausalNavigation } from "@/components/causal-navigation";
 import { SeriesChart } from "@/components/charts";
 import { TokenPreview } from "@/components/token-preview";
 import { useTokenPreview } from "@/lib/token-preview";
@@ -120,6 +121,7 @@ export default function CausalPage() {
           </>
         }
       />
+      <CausalNavigation />
       <ErrorNotice message={runtimeError || error} />
       {result?.execution_id &&
         runtime?.metadata?.execution_id &&

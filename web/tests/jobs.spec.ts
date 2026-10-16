@@ -3,6 +3,7 @@ import { capturePage } from "./helpers";
 
 for (const [path, endpoint, runLabel] of [
   ["/causal", "/api/causal", "Run patch sweep"],
+  ["/causal/heads", "/api/head-sweep", "Run head sweep"],
 ]) {
   test(`${path} keeps cancellation failures visible and restores pending cancellation`, async ({
     page,

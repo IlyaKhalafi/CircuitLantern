@@ -20,6 +20,7 @@ Circuit Lantern runs locally with a Next.js frontend and a Python backend. Model
 - **Auditable generation** with context decoded text, generated vocabulary IDs, special token visibility and exported generation settings
 - **Representation geometry** with layer CKA, token cosine similarity and block residual update magnitudes
 - **Causal interventions** with transformer block bypass, individual attention head zero ablation, a baseline residual overlay and clean to corrupted activation patching across every block
+- **Attention head sweeps** with independent zero interventions, target log probability changes, full distribution divergence, cancellation and partial result export
 - **Experiment notebooks** with local SQLite persistence, editable observations and portable JSON exports
 
 <details>
@@ -34,6 +35,8 @@ These screenshots use NF4 execution of the trained SmolLM2 135M checkpoint at re
 ![Layer and token representation geometry](docs/images/representation-geometry.png)
 
 ![Individual attention head zero ablation with a matching baseline](docs/images/head-ablation.png)
+
+![Independent attention head effects on the target token](docs/images/head-sweep.png)
 
 </details>
 
@@ -95,6 +98,8 @@ The logit lens applies final normalization and the model unembedding to intermed
 The representation geometry tab uses biased linear CKA across prompt token positions to compare centered layer representations. It also shows final capture token cosine similarity and each block's residual update norm, full prompt update RMS and update to input norm ratio. These are diagnostics within one prompt. High similarity does not establish equivalent or causal computation. CKA is undefined with fewer than three sampled positions or zero centered variance. Cosine similarity is undefined for zero vectors. Geometry uses at most 128 evenly spaced prompt positions and exports their original indices. Residual update statistics use every prompt position. See [Kornblith and colleagues on representation similarity](https://proceedings.mlr.press/v97/kornblith19a.html).
 
 Individual head zero ablation supports verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts, including grouped query attention. Choose Zero attention head in the activation lab, then select its layer and query head index. The intervention zeros the selected head slice before the attention output projection at every prompt and generated token. Output projection biases remain active. A baseline from the same loaded model session and prompt can be overlaid on the residual chart. Attention routing is captured before the zero intervention, so the selected head still has an attention pattern. Unsupported and pruned layouts do not offer this control. Traces and saved experiments record the head, projection, dimensions and scope. Zero ablation measures the effect of this intervention and does not establish that a head is unnecessary across prompts.
+
+The head ablation workspace under Causal tracing tests query heads independently at every prompt position. Start with one layer, then expand to all supported layers within the 512 head job limit. Each sweep records a baseline, target log probability changes and baseline to ablated KL divergence over the complete next token vocabulary. Negative deltas mean removal reduced the target probability. Zero ablation can move activations outside their usual distribution, so rankings describe the tested prompt and intervention. No tokens are generated. Scores reflect the loaded precision. Sweeps request only final position logits when the model supports it. Cancellation takes effect between forwards, retaining completed heads. A failed head stops the sweep and preserves earlier results for export. Completed jobs remain complete when a cancellation arrives during the last forward.
 
 ## Causal tracing
 

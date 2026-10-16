@@ -139,6 +139,7 @@ export function Heatmap({
   yLabels,
   maxAbs,
   logarithmic = false,
+  height,
 }: {
   data: (number | null)[][];
   sequential?: boolean;
@@ -147,6 +148,7 @@ export function Heatmap({
   yLabels?: string[];
   maxAbs?: number;
   logarithmic?: boolean;
+  height?: number;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   const maximum =
@@ -207,6 +209,7 @@ export function Heatmap({
       <canvas
         ref={canvas}
         className="heatmap"
+        style={height === undefined ? undefined : { height }}
         role="img"
         aria-label={label}
         onMouseMove={(event) => {

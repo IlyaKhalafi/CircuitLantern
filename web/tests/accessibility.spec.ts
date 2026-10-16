@@ -1,20 +1,22 @@
 import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 
-for (const path of [
-  "/",
-  "/workspace",
-  "/hardware",
-  "/playground",
-  "/causal",
-  "/experiments",
-  "/guide",
-]) {
+for (const [path, title] of Object.entries({
+  "/": "Model library",
+  "/workspace": "Model explorer",
+  "/hardware": "Server & runtime",
+  "/playground": "Activation lab",
+  "/causal": "Causal tracing",
+  "/causal/heads": "Head ablation",
+  "/experiments": "Experiments",
+  "/guide": "Field guide",
+})) {
   test(`page ${path} has accessible controls and readable contrast`, async ({
     page,
   }) => {
     await page.goto(path, { waitUntil: "domcontentloaded" });
     await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await expect(page).toHaveTitle(title + " · Circuit Lantern");
     await expect(
       page.getByText("Backend connected", { exact: true }),
     ).toBeVisible();

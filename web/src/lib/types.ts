@@ -119,6 +119,7 @@ export interface RuntimeState {
   attention_head_targets?: AttentionHeadTarget[];
   context_length?: number;
   max_prompt_tokens?: number;
+  max_head_sweep_heads?: number;
   precision?: string;
   loaded: boolean;
   metadata: ModelMetadata | null;
@@ -305,4 +306,43 @@ export interface TokenPreviewResponse extends ExecutionProvenance {
   token_limit: number;
   reserved_tokens: number;
   prompts: TokenizedPrompt[];
+}
+
+export interface HeadSweepScore {
+  log_probability: number;
+  probability: number;
+}
+export interface HeadSweepRow extends HeadSweepScore {
+  layer: number;
+  head: number;
+  projection: string;
+  delta_log_probability: number;
+  kl_divergence: number;
+  top_token_id: number;
+  top_token: string;
+}
+export interface HeadSweepResult extends ExecutionProvenance {
+  complete: boolean;
+  error: string | null;
+  failed_head: { layer: number; head: number } | null;
+  logits_dtype: string;
+  last_token_logits_only: boolean;
+  model_id: string;
+  revision: string;
+  device: string;
+  prompt: string;
+  tokens: string[];
+  token_ids: number[];
+  requested_target: string;
+  target_token_id: number;
+  target_token: string;
+  baseline: HeadSweepScore;
+  baseline_top_token_id: number;
+  layer_targets: AttentionHeadTarget[];
+  heads: HeadSweepRow[];
+  total_heads: number;
+  duration_ms: number;
+  cancelled: boolean;
+  scope: string;
+  method: string;
 }
