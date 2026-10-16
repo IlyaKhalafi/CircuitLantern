@@ -11,7 +11,8 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { TraceResults } from "@/components/trace-results";
+import { ExperimentResult } from "@/components/experiment-result";
+import { experimentArtifact, experimentLabel } from "@/lib/experiments";
 import {
   EmptyState,
   ErrorNotice,
@@ -20,6 +21,7 @@ import {
   Panel,
 } from "@/components/ui";
 import { api, downloadJSON } from "@/lib/api";
+import { truncateText } from "@/lib/text";
 import type { Experiment } from "@/lib/types";
 
 export default function ExperimentsPage() {
@@ -32,6 +34,7 @@ export default function ExperimentsPage() {
   const [name, setName] = useState("");
   const [saved, setSaved] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const selectedArtifact = selected ? experimentArtifact(selected) : undefined;
   useEffect(() => {
     api<Experiment[]>("/experiments")
       .then(setExperiments)
@@ -99,7 +102,7 @@ export default function ExperimentsPage() {
         description={
           selected
             ? `${selected.model_id} · saved ${new Date(selected.created_at).toLocaleString()}`
-            : "Save traces, record observations, and return to the experiments that matter."
+            : "Save traces and sweeps, record observations, and return to the experiments that matter."
         }
         actions={
           selected ? (
@@ -135,7 +138,7 @@ export default function ExperimentsPage() {
           </button>
           <Panel
             title="Research notes"
-            subtitle="A checkpoint revision and capture settings are preserved with every trace."
+            subtitle="The checkpoint revision and capture settings are preserved with every experiment."
           >
             <div className="experiment-detail">
               <label>
@@ -195,14 +198,13 @@ export default function ExperimentsPage() {
                   className="mono"
                   style={{ fontSize: 9, color: "var(--muted)" }}
                 >
-                  revision {selected.trace?.revision.slice(0, 10)}
+                  revision{" "}
+                  {selectedArtifact?.revision?.slice(0, 10) ?? "unavailable"}
                 </span>
               </div>
             </div>
           </Panel>
-          {selected.trace && (
-            <TraceResults key={selected.id} trace={selected.trace} />
-          )}
+          <ExperimentResult key={selected.id} experiment={selected} />
         </>
       ) : experiments.length ? (
         <div className="experiment-grid">
@@ -214,14 +216,14 @@ export default function ExperimentsPage() {
               onClick={() => open(exp.id)}
             >
               <span className="pill subtle">
-                <FlaskConical size={11} /> Saved trace
+                <FlaskConical size={11} /> {experimentLabel(exp.kind)}
               </span>
               <h3>{exp.name}</h3>
               <span className="mono">{exp.model_id}</span>
               <p style={{ marginTop: 13 }}>
                 {exp.notes
-                  ? exp.notes.slice(0, 110)
-                  : "Open this experiment to explore its trace and add research notes."}
+                  ? truncateText(exp.notes, 110)
+                  : "Open this experiment to explore its captured result and add research notes."}
               </p>
               <div className="experiment-meta">
                 <span>{new Date(exp.created_at).toLocaleDateString()}</span>
@@ -237,8 +239,8 @@ export default function ExperimentsPage() {
           href="/playground"
           action="Run your first trace"
         >
-          Save an activation trace from the lab to keep its prompt, predictions,
-          residual states and your observations together.
+          Save an activation trace, residual patch sweep or head ablation sweep
+          to keep its measurements and your observations together.
         </EmptyState>
       )}
     </>

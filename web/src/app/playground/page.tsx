@@ -24,6 +24,7 @@ import { useTokenPreview } from "@/lib/token-preview";
 import { downloadJSON, post } from "@/lib/api";
 import { interventionLabel } from "@/lib/interventions";
 import type { Trace } from "@/lib/types";
+import { truncateText } from "@/lib/text";
 import { useRuntime } from "@/lib/runtime";
 
 export default function PlaygroundPage() {
@@ -95,7 +96,7 @@ export default function PlaygroundPage() {
         ablate_head: ablate === "head" ? { layer: headLayer, head } : null,
       });
       setTrace(result);
-      setName(`${interventionLabel(result)} · ${prompt.slice(0, 45)}`);
+      setName(`${interventionLabel(result)} · ${truncateText(prompt, 45)}`);
       if (result.ablate_layer === null && !result.ablate_head)
         setBaseline(result);
     } catch (e) {

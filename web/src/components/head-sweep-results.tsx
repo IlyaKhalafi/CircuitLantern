@@ -44,6 +44,7 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
           {!result.complete ? "Partial head sweep" : "Head sweep complete"}
         </span>
         <span className="trace-source">{result.model_id}</span>
+        {result.cancelled && <span>Cancelled between forwards</span>}
         <span>revision {result.revision.slice(0, 8)}</span>
         <span>{executionLabel(result.execution_precision)}</span>
         <span>{result.device.toUpperCase()}</span>
@@ -52,8 +53,8 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
       {result.failed_head && (
         <div className="notice error" role="alert">
           The sweep stopped at layer {result.failed_head.layer}, head{" "}
-          {result.failed_head.head}. Completed heads remain available for
-          inspection and export.
+          {result.failed_head.head}. {result.error} Completed heads remain
+          available for inspection and export.
         </div>
       )}
       <div className="metrics-grid">
@@ -185,7 +186,7 @@ export function HeadSweepResults({ result }: { result: HeadSweepResult }) {
           not establish that a head is unnecessary across other prompts.
         </p>
       </Panel>
-      <details className="head-sweep-method">
+      <details className="capture-details">
         <summary>Captured prompt and method</summary>
         <p className="trace-output">{result.prompt}</p>
         <p className="inline-note">{result.method}</p>

@@ -144,14 +144,16 @@ export default function GuidePage() {
           </div>
           <h2>Keep reproducible evidence</h2>
           <p>
-            Save a trace as an experiment, add observations and export the
-            result as JSON. Records include the checkpoint revision, token IDs,
-            intervention, device and measured activations.
+            Save a trace or completed sweep as an experiment, add observations
+            and export the result as JSON. Available partial sweep results can
+            be saved too. Records preserve the captured checkpoint and execution
+            settings alongside their measurements.
           </p>
           <p>
             Experiments are stored in local SQLite and can be reopened without
-            keeping the model loaded. Keep prompts and settings fixed when
-            comparing interventions.
+            keeping the model loaded. Retrying a sweep save returns its existing
+            record and preserves edited notes. Keep prompts and settings fixed
+            when comparing interventions.
           </p>
         </article>
       </div>

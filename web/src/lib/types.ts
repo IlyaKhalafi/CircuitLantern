@@ -251,14 +251,18 @@ export interface Trace extends ExecutionProvenance {
   ablate_head?: HeadAblation | null;
   method: string;
 }
-export interface Experiment {
+interface ExperimentBase {
+  source_job_id?: string | null;
   id: string;
   name: string;
   notes: string;
   created_at: string;
   model_id: string;
-  trace?: Trace;
 }
+export type Experiment =
+  | (ExperimentBase & { kind?: "trace"; trace?: Trace })
+  | (ExperimentBase & { kind: "causal"; result?: CausalResult })
+  | (ExperimentBase & { kind: "head_sweep"; result?: HeadSweepResult });
 
 export interface CausalLayer {
   layer: number;
@@ -268,6 +272,8 @@ export interface CausalLayer {
   recovery: number | null;
 }
 export interface CausalResult extends ExecutionProvenance {
+  device?: string;
+  complete?: boolean;
   requested_target: string;
   total_layers: number;
   cancelled: boolean;

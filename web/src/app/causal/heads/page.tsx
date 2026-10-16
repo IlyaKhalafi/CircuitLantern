@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { Download, FlaskConical, Play, RefreshCw, Square } from "lucide-react";
 import { CausalNavigation } from "@/components/causal-navigation";
+import { SaveJobExperiment } from "@/components/save-job-experiment";
 import { HeadSweepResults } from "@/components/head-sweep-results";
 import { TokenPreview } from "@/components/token-preview";
 import {
@@ -14,6 +15,7 @@ import {
 } from "@/components/ui";
 import { downloadJSON } from "@/lib/api";
 import { useBackgroundJob } from "@/lib/jobs";
+import { truncateText } from "@/lib/text";
 import { useRuntime } from "@/lib/runtime";
 import { useTokenPreview } from "@/lib/token-preview";
 import type { HeadSweepResult } from "@/lib/types";
@@ -101,7 +103,9 @@ export default function HeadSweepPage() {
         }
       />
       <CausalNavigation />
-      <ErrorNotice message={runtimeError || error} />
+      <ErrorNotice
+        message={runtimeError || (error === result?.error ? null : error)}
+      />
       {result?.execution_id &&
         runtime?.metadata?.execution_id &&
         result.execution_id !== runtime.metadata.execution_id && (
@@ -235,6 +239,14 @@ export default function HeadSweepPage() {
       {result ? (
         <div className="section-gap">
           <HeadSweepResults key={job?.id} result={result} />
+          {job && (
+            <SaveJobExperiment
+              key={job.id}
+              jobId={job.id}
+              defaultName={"Head ablation · " + truncateText(result.prompt, 60)}
+              disabled={busy}
+            />
+          )}
         </div>
       ) : (
         !busy && (

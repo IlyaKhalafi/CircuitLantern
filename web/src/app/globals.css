@@ -2618,14 +2618,14 @@ form .head-sweep-controls {
   background: #f8fafc;
   z-index: 1;
 }
-.head-sweep-method {
+.capture-details {
   background: white;
   border: 1px solid var(--line);
   border-radius: 8px;
   margin: 22px 0;
   overflow: hidden;
 }
-.head-sweep-method summary {
+.capture-details summary {
   padding: 16px 20px;
   font-size: 12px;
   font-weight: 600;
