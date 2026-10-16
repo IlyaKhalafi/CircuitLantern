@@ -1,3 +1,5 @@
+import pytest
+
 from circuit_lantern.schemas import CompatibilityRequest
 from circuit_lantern.services.compatibility import assess_compatibility
 
@@ -219,3 +221,24 @@ def test_logit_and_mlp_buffers_are_included_in_analysis_memory():
     assert result["logits_bytes"] == 5 * 2 * 128 * 250_000 * 4
     assert result["activation_bytes"] == 3 * 2 * 128 * 4096 * 4
     assert result["overhead_bytes"] > result["logits_bytes"] + result["activation_bytes"]
+
+
+@pytest.mark.parametrize("context_limit", [None, 0, -1, "unknown", True])
+def test_unknown_context_window_blocks_fit_without_a_server_error(context_limit):
+    model = metadata()
+    model["context_length"] = context_limit
+    result = assess_compatibility(
+        model, hardware(), CompatibilityRequest(model_id="model", context_length=128)
+    )
+    assert not result["compatible"]
+    assert any("context window could not be determined" in b for b in result["blockers"])
+
+
+def test_cpu_fit_does_not_require_a_physical_gpu_inventory():
+    machine = hardware()
+    del machine["gpus"]
+    machine["cuda_available"] = False
+    result = assess_compatibility(
+        metadata(), machine, CompatibilityRequest(model_id="model", context_length=128)
+    )
+    assert result["compatible"]

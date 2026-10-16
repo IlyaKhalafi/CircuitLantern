@@ -90,9 +90,8 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
             blockers.append(
                 f"Packed weight inspection for {method} is not supported by the current runtime. Select a supported checkpoint format."
             )
-    execution_gpu = hardware.get("execution_gpu") or (
-        hardware["gpus"][0] if hardware["gpus"] else None
-    )
+    gpus = hardware.get("gpus") or []
+    execution_gpu = hardware.get("execution_gpu") or (gpus[0] if gpus else None)
     capability = execution_gpu["compute_capability"] if execution_gpu else 0
     if request.device == "cuda" and not hardware["cuda_available"]:
         blockers.append(
@@ -174,7 +173,12 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         blockers.append(
             "No supported Transformers safetensors checkpoint was found. A model.safetensors file or shard index is required."
         )
-    if request.context_length > metadata["context_length"]:
+    context_limit = metadata.get("context_length")
+    if not isinstance(context_limit, int) or isinstance(context_limit, bool) or context_limit < 1:
+        blockers.append(
+            "The model context window could not be determined. Context fit cannot be verified."
+        )
+    elif request.context_length > context_limit:
         blockers.append(
             f"Requested context exceeds this model's {metadata['context_length']:,} token context window."
         )

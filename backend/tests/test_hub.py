@@ -132,3 +132,12 @@ def test_moving_branch_resolves_fresh_commits_while_pinned_metadata_is_cached(ch
         assert model_metadata("test-model", first["revision"]) == first
         assert model_metadata("test-model", second["revision"]) == second
         assert download.call_count == 2
+
+
+def test_default_context_is_read_from_the_supported_architecture(checkpoint):
+    config_path = checkpoint / "config.json"
+    config = json.loads(config_path.read_text())
+    config.pop("n_positions")
+    config_path.write_text(json.dumps(config))
+    result = inspect(checkpoint, {"model.safetensors": 1000})
+    assert result["context_length"] == 1024

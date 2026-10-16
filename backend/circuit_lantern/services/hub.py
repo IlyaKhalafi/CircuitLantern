@@ -175,7 +175,9 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         "num_heads": heads,
         "num_kv_heads": config.get("num_key_value_heads") or heads,
         "head_dim": config.get("head_dim") or hidden // max(heads, 1),
-        "context_length": config.get("max_position_embeddings", config.get("n_positions", 2048)),
+        "context_length": config.get("max_position_embeddings")
+        or config.get("n_positions")
+        or layout.get("context_length"),
         "vocab_size": vocab,
         "dtype": config.get("dtype", config.get("torch_dtype", "float32")),
         "quantization": quantization,

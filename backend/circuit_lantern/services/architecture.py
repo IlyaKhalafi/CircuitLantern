@@ -21,6 +21,8 @@ def describe_model_layout(model, skipped_modules: list[str] | None = None) -> di
         ):
             quantizable[id(module.weight)] = module.weight.numel()
     return {
+        "context_length": getattr(model.config, "max_position_embeddings", None)
+        or getattr(model.config, "n_positions", None),
         "parameters": sum(p.numel() for p in parameters),
         "quantizable_parameters": sum(quantizable.values()),
         "largest_matrix_elements": max((p.numel() for p in parameters if p.ndim == 2), default=0),

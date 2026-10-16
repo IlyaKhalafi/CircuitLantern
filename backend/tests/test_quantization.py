@@ -178,7 +178,6 @@ def test_native_bnb_fp4_checkpoint_can_be_traced_and_analyzed(tmp_path):
     metadata = dict(
         id="fp4-checkpoint",
         revision="local",
-        context_length=64,
         **describe_model_layout(model),
     )
     model = AutoModelForCausalLM.from_pretrained(
