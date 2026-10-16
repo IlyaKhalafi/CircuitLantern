@@ -32,13 +32,15 @@ Explained variance is one minus total reconstruction error divided by the error 
 
 Pooled feature frequencies and activating contexts describe the complete captured corpus. Separate training and held out activation frequencies are also reported, and every activating example records its split. Held out reconstruction metrics describe only validation tokens. A feature with no activating examples stays unnamed until a researcher supplies an annotation. Sparse reconstruction alone does not establish monosemanticity. [Scaling Monosemanticity](https://transformer-circuits.pub/2024/scaling-monosemanticity/index.html) provides broader context for feature interpretation and steering.
 
-Dictionary records and weights remain available after unloading the language model. Annotations are separate from immutable scientific measurements. Safetensors weights and manifests have checksums. Startup recovery and publication use an interprocess artifact lock. Deleting a dictionary removes its weights and examples while retaining previously saved circuit measurements.
+Dictionary records and weights remain available after unloading the language model. Annotations are separate from immutable scientific measurements. Unsaved annotation drafts remain with their feature while browsing the same dictionary. Safetensors weights and manifests have checksums. Startup recovery and publication use an interprocess artifact lock. Deleting a dictionary removes its weights and examples while retaining previously saved circuit measurements.
 
 ## Compare decoder directions
 
 Open a saved dictionary, select a feature and expand **Related decoder directions**. Rank the other decoder columns by highest or lowest signed cosine. Follow a result to its activating contexts and annotations. This comparison runs on the CPU from verified saved weights and remains available after unloading the language model.
 
 The comparison normalizes each column and accumulates in float64, using bounded chunks rather than a full pairwise matrix. It excludes the selected feature and zero directions. Equal scores are ordered by feature number. Inactive features are included, and displayed frequencies describe the recorded corpus. The JSON export retains the checkpoint revision, execution settings, capture point and checksums of the source weights and manifest.
+
+The v2 directions export records a UTC measurement time and identifies CPU analysis separately from teacher inference. Source checksums and the original training execution are nested under `dictionary_source`. Busy artifact access returns a retryable response instead of queuing weight loads.
 
 Decoder overlap describes geometry. It does not establish shared meaning, activation correlation or causal influence. In particular, negative cosine is not evidence that two features are semantic opposites. Anthropic's [April 2025 research update](https://transformer-circuits.pub/2025/april-update/index.html) discusses antipodal decoder pairs and differences between SAE and transcoder geometry.
 

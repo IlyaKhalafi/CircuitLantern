@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Download, Save } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
@@ -19,22 +19,50 @@ export function FeatureBrowser({
   dictionary: DictionaryManifest;
   feature: number;
   onSelect: (value: number) => void;
-  onUpdated: () => void;
-  onDeleted: () => void;
+  onUpdated: (identifier: string) => Promise<void>;
+  onDeleted: (identifier: string) => void;
 }) {
   const { t } = useI18n();
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(0);
-  const [label, setLabel] = useState(
-    dictionary.feature_labels[String(feature)]?.label || "",
-  );
-  const [notes, setNotes] = useState(
-    dictionary.feature_labels[String(feature)]?.notes || "",
-  );
+  const [drafts, setDrafts] = useState<
+    Record<number, { label: string; notes: string }>
+  >({});
+  const saved = dictionary.feature_labels[String(feature)] || {
+    label: "",
+    notes: "",
+  };
+  const { label, notes } = drafts[feature] || saved;
+  const dirty = label !== saved.label || notes !== saved.notes;
+  useEffect(() => {
+    setDrafts((current) => {
+      let next = current;
+      for (const [index, draft] of Object.entries(current)) {
+        const recorded = dictionary.feature_labels[index] || {
+          label: "",
+          notes: "",
+        };
+        if (draft.label === recorded.label && draft.notes === recorded.notes) {
+          if (next === current) next = { ...current };
+          delete next[Number(index)];
+        }
+      }
+      return next;
+    });
+  }, [dictionary.feature_labels]);
+  function edit(change: Partial<{ label: string; notes: string }>) {
+    setDrafts((current) => ({
+      ...current,
+      [feature]: { ...(current[feature] || saved), ...change },
+    }));
+  }
   const [busy, setBusy] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<{
+    feature: number | null;
+    message: string;
+  } | null>(null);
   const features = useMemo(
     () =>
       dictionary.feature_statistics
@@ -51,12 +79,6 @@ export function FeatureBrowser({
     [dictionary, search],
   );
   const selected = dictionary.feature_statistics[feature];
-  function select(index: number) {
-    onSelect(index);
-    setLabel(dictionary.feature_labels[String(index)]?.label || "");
-    setNotes(dictionary.feature_labels[String(index)]?.notes || "");
-    setError(null);
-  }
   async function save() {
     setBusy(true);
     setError(null);
@@ -65,9 +87,9 @@ export function FeatureBrowser({
         "/features/dictionaries/" + dictionary.id + "/features/" + feature,
         { method: "PATCH", body: JSON.stringify({ label, notes }) },
       );
-      onUpdated();
+      await onUpdated(dictionary.id);
     } catch (reason) {
-      setError((reason as Error).message);
+      setError({ feature, message: (reason as Error).message });
     } finally {
       setBusy(false);
     }
@@ -79,9 +101,9 @@ export function FeatureBrowser({
       await api("/features/dictionaries/" + dictionary.id, {
         method: "DELETE",
       });
-      onDeleted();
+      onDeleted(dictionary.id);
     } catch (reason) {
-      setError((reason as Error).message);
+      setError({ feature: null, message: (reason as Error).message });
     } finally {
       setBusy(false);
     }
@@ -173,7 +195,7 @@ export function FeatureBrowser({
               <button
                 type="button"
                 key={row.index}
-                onClick={() => select(row.index)}
+                onClick={() => onSelect(row.index)}
                 aria-pressed={feature === row.index}
                 className={
                   "feature-row " + (feature === row.index ? "selected" : "")
@@ -246,13 +268,19 @@ export function FeatureBrowser({
                   </strong>
                 </span>
               </div>
-              <ErrorNotice message={error} />
+              <ErrorNotice
+                message={
+                  error && (error.feature === null || error.feature === feature)
+                    ? error.message
+                    : null
+                }
+              />
               <label>
                 {t("Feature annotation")}
                 <input
                   className="form-input"
                   value={label}
-                  onChange={(e) => setLabel(e.target.value)}
+                  onChange={(e) => edit({ label: e.target.value })}
                   maxLength={100}
                   dir="auto"
                 />
@@ -263,7 +291,7 @@ export function FeatureBrowser({
                   aria-label={t("Research notes")}
                   rows={2}
                   value={notes}
-                  onChange={(e) => setNotes(e.target.value)}
+                  onChange={(e) => edit({ notes: e.target.value })}
                   maxLength={10000}
                   dir="auto"
                 />
@@ -276,10 +304,13 @@ export function FeatureBrowser({
                 <Save size={14} />
                 {t("Save annotation")}
               </button>
+              {dirty && (
+                <span className="pill subtle">{t("Unsaved changes")}</span>
+              )}
               <FeatureDirections
                 dictionaryId={dictionary.id}
                 feature={feature}
-                onSelect={select}
+                onSelect={onSelect}
               />
               <h3>{t("Strongest activating contexts")}</h3>
               {!selected.examples.length && (

@@ -47,7 +47,21 @@ test("static interface copy stays in the translation catalog", () => {
         )
           raw.push(file + " " + node.initializer.text);
         if (ts.isStringLiteral(node)) {
-          const parent = node.parent;
+          let expression: ts.Node = node;
+          while (
+            ts.isParenthesizedExpression(expression.parent) ||
+            (ts.isConditionalExpression(expression.parent) &&
+              (expression.parent.whenTrue === expression ||
+                expression.parent.whenFalse === expression)) ||
+            (ts.isBinaryExpression(expression.parent) &&
+              [
+                ts.SyntaxKind.BarBarToken,
+                ts.SyntaxKind.QuestionQuestionToken,
+              ].includes(expression.parent.operatorToken.kind))
+          ) {
+            expression = expression.parent;
+          }
+          const parent = expression.parent;
           const property = ts.isPropertyAssignment(parent)
             ? parent.name.getText(source)
             : "";
@@ -64,7 +78,7 @@ test("static interface copy stays in the translation catalog", () => {
               ["t", "rich", "localizedMetadata"].includes(
                 parent.expression.getText(source),
               ) &&
-              parent.arguments[0] === node);
+              parent.arguments[0] === expression);
           if (message && node.text.trim() && !Object.hasOwn(english, node.text))
             missing.push(file + " " + node.text);
         }

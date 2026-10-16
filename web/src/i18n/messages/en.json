@@ -1580,5 +1580,11 @@
   "Feature comparisons require finite two-column matrices.": "Feature comparisons require finite two-column matrices.",
   "Choose two different features to compare.": "Choose two different features to compare.",
   "No eligible token positions in this prompt.": "No eligible token positions in this prompt.",
-  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}."
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.",
+  "Dictionary artifacts are already in use. Try again when the current operation finishes.": "Dictionary artifacts are already in use. Try again when the current operation finishes.",
+  "Unsaved changes": "Unsaved changes",
+  "Training": "Training",
+  "Held out": "Held out",
+  "Cancellation requested": "Cancellation requested",
+  "Cancel training": "Cancel training"
 }

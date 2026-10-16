@@ -115,13 +115,16 @@ export interface FeatureDictionarySource extends Pick<
   corpus_fingerprint: string;
   training_execution: ExecutionProvenance;
 }
-export interface FeatureMeasurement extends ExecutionProvenance {
+export interface FeatureArtifactEvidence {
   format: string;
   captured_at: string;
-  model_id: string;
-  revision: string;
   dictionary_id: string;
   dictionary_source: FeatureDictionarySource;
+}
+export interface FeatureMeasurement
+  extends ExecutionProvenance, FeatureArtifactEvidence {
+  model_id: string;
+  revision: string;
 }
 export interface FeaturePairComparison {
   feature_ids: [number, number];
@@ -142,7 +145,7 @@ export interface FeatureInspection extends FeatureMeasurement {
   tokens: string[];
   token_ids: number[];
   features: { index: number; activations: (number | null)[] }[];
-  active_features_per_token: number[];
+  active_features_per_token: (number | null)[];
   eligible_positions: number[];
   prompt_split: "train" | "validation" | "unseen";
   dictionary_training: DictionarySummary["training_summary"];
@@ -201,20 +204,8 @@ export type FeatureRunSummary = Pick<
   "id" | "kind" | "created_at" | "prompt" | "complete" | "dictionary_ids"
 >;
 
-export interface DecoderDirections {
-  format: string;
-  dictionary_id: string;
-  model_id: string;
-  revision: string;
-  execution_id: string;
-  execution_precision: string;
-  execution_config: Record<string, unknown>;
-  dictionary_method: DictionarySummary["method"];
-  input_dim: number;
-  layer: number;
-  capture_point: string;
-  weights_sha256: string;
-  manifest_sha256: string;
+export interface DecoderDirections extends FeatureArtifactEvidence {
+  analysis_device: "cpu";
   feature: number;
   compared_features: number;
   highest: DecoderDirection[];

@@ -1,13 +1,34 @@
 """Bounded decoder geometry from verified dictionary artifacts on the CPU."""
 
 import math
+from contextlib import contextmanager
 
 import psutil
 import torch
+from filelock import Timeout
 
+from circuit_lantern.services.features.evidence import measurement_record
 from circuit_lantern.services.features.store import DictionaryStore
 
 _CHUNK_ELEMENTS = 1024**2
+
+
+class DictionaryBusyError(ValueError):
+    pass
+
+
+@contextmanager
+def _available_artifacts(store):
+    try:
+        store.file_lock.acquire(timeout=0)
+    except Timeout as error:
+        raise DictionaryBusyError(
+            "Dictionary artifacts are already in use. Try again when the current operation finishes."
+        ) from error
+    try:
+        yield
+    finally:
+        store.file_lock.release()
 
 
 @torch.inference_mode()
@@ -42,7 +63,7 @@ def dictionary_directions(store: DictionaryStore, identifier: str, feature: int,
         raise ValueError("Choose a nonnegative feature number.")
     if type(limit) is not int or not 1 <= limit <= 32:
         raise ValueError("Choose between one and 32 decoder directions.")
-    with store.file_lock:
+    with _available_artifacts(store):
         path = store._weights_path(identifier)
         with store.connect() as connection:
             row = connection.execute(
@@ -69,6 +90,13 @@ def dictionary_directions(store: DictionaryStore, identifier: str, feature: int,
         required += 32 * 1024**2
         if required > psutil.virtual_memory().available * 0.75:
             raise ValueError("Insufficient available RAM to compare these decoder directions.")
+        metadata = store.get(identifier)
+        count = metadata.get("features") if metadata else None
+        if type(count) is not int or not 1 <= count <= 65536:
+            raise ValueError("The dictionary feature count is invalid.")
+        if feature >= count:
+            raise ValueError("The selected feature is outside this dictionary.")
+        del metadata
         manifest, dictionary = store.load_model(identifier)
         scores = decoder_cosines(dictionary.decoder, feature)
         statistics = {row["index"]: row for row in manifest.get("feature_statistics", [])}
@@ -90,19 +118,10 @@ def dictionary_directions(store: DictionaryStore, identifier: str, feature: int,
             }
 
         return {
-            "format": "circuit-lantern-decoder-directions-v1",
+            **measurement_record("decoder-directions", manifest),
+            "format": "circuit-lantern-decoder-directions-v2",
             "dictionary_id": identifier,
-            "model_id": manifest["model_id"],
-            "revision": manifest["revision"],
-            "execution_id": manifest["execution_id"],
-            "execution_precision": manifest["execution_precision"],
-            "execution_config": manifest["execution_config"],
-            "dictionary_method": manifest["method"],
-            "input_dim": manifest["input_dim"],
-            "layer": manifest["layer"],
-            "capture_point": manifest["capture_point"],
-            "weights_sha256": manifest["weights_sha256"],
-            "manifest_sha256": manifest["manifest_sha256"],
+            "analysis_device": "cpu",
             "feature": feature,
             "compared_features": len(scores),
             "highest": [

@@ -13,7 +13,7 @@ from circuit_lantern.feature_schemas import (
     FeatureLabelRequest,
 )
 from circuit_lantern.services.features.circuits import feature_ablation_graph
-from circuit_lantern.services.features.directions import dictionary_directions
+from circuit_lantern.services.features.directions import DictionaryBusyError, dictionary_directions
 from circuit_lantern.services.features.inference import evaluate_prompt, inspect_prompt
 
 router = APIRouter(prefix="/api/features", tags=["features"])
@@ -90,6 +90,8 @@ def directions(
         return dictionary_directions(request.app.state.features.store, identifier, feature, limit)
     except FileNotFoundError as error:
         raise HTTPException(404, str(error)) from error
+    except DictionaryBusyError as error:
+        raise HTTPException(409, str(error)) from error
 
 
 @router.post("/dictionaries/{identifier}/inspect")

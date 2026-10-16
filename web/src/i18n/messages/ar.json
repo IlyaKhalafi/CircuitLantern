@@ -1580,5 +1580,11 @@
   "Feature comparisons require finite two-column matrices.": "تتطلب مقارنة الميزات مصفوفتين بقيم منتهية وعمودين.",
   "Choose two different features to compare.": "اختر ميزتين مختلفتين للمقارنة.",
   "No eligible token positions in this prompt.": "لا توجد مواضع رموز مؤهلة في هذا الموجّه.",
-  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "تنشط الميزتان معًا في {v0} من أصل {v1} موضعًا مؤهلًا."
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "تنشط الميزتان معًا في {v0} من أصل {v1} موضعًا مؤهلًا.",
+  "Dictionary artifacts are already in use. Try again when the current operation finishes.": "ملفات القاموس قيد الاستخدام. أعد المحاولة بعد انتهاء العملية الحالية.",
+  "Unsaved changes": "تغييرات غير محفوظة",
+  "Training": "تدريب",
+  "Held out": "تحقق",
+  "Cancellation requested": "تم طلب الإلغاء",
+  "Cancel training": "إلغاء التدريب"
 }

@@ -1,4 +1,7 @@
+import asyncio
 import hashlib
+from concurrent.futures import ThreadPoolExecutor
+from datetime import datetime
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -81,9 +84,11 @@ def test_rankings_have_stable_ties_recorded_frequencies_and_immutable_provenance
     }
     assert result["lowest"][0]["cosine"] == -1
     assert result["compared_features"] == 7
-    assert result["weights_sha256"] == before
-    assert result["manifest_sha256"] == store.get(identifier)["manifest_sha256"]
-    assert result["capture_point"] == "residual_post"
+    assert result["dictionary_source"]["weights_sha256"] == before
+    assert (
+        result["dictionary_source"]["manifest_sha256"] == store.get(identifier)["manifest_sha256"]
+    )
+    assert result["dictionary_source"]["capture_point"] == "residual_post"
     assert hashlib.sha256(path.read_bytes()).hexdigest() == before
     torch.testing.assert_close(torch.random.get_rng_state(), random_state, rtol=0, atol=0)
 
@@ -134,3 +139,59 @@ async def test_directions_api_needs_no_runtime_and_validates_bounds(artifact, mo
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
+
+
+def test_out_of_range_feature_is_rejected_before_loading_weights(artifact):
+    store, identifier = artifact
+    with (
+        patch.object(store, "load_model", side_effect=AssertionError("Unexpected weight load")),
+        pytest.raises(ValueError, match="outside this dictionary"),
+    ):
+        dictionary_directions(store, identifier, 8)
+
+
+def test_concurrent_decoder_requests_do_not_queue_behind_artifact_work(artifact):
+    store, identifier = artifact
+    with ThreadPoolExecutor(max_workers=1) as executor, store.file_lock:
+        pending = executor.submit(dictionary_directions, store, identifier, 0)
+        with pytest.raises(ValueError, match="already in use"):
+            pending.result(timeout=1)
+
+
+def test_offline_direction_evidence_identifies_training_source_and_cpu_measurement(artifact):
+    store, identifier = artifact
+    source = store.get(identifier)
+    result = dictionary_directions(store, identifier, 0)
+    assert result["format"] == "circuit-lantern-decoder-directions-v2"
+    assert datetime.fromisoformat(result["captured_at"]).utcoffset().total_seconds() == 0
+    assert result["analysis_device"] == "cpu"
+    assert all(
+        key not in result for key in ("execution_id", "execution_config", "execution_precision")
+    )
+    evidence = result["dictionary_source"]
+    assert evidence["weights_sha256"] == source["weights_sha256"]
+    assert evidence["manifest_sha256"] == source["manifest_sha256"]
+    assert evidence["training_execution"] == {
+        key: source[key] for key in ("execution_id", "execution_precision", "execution_config")
+    }
+    assert evidence["corpus_fingerprint"] == source["corpus"]["fingerprint"]
+
+
+@pytest.mark.anyio
+async def test_busy_decoder_api_returns_retryable_conflict(artifact, monkeypatch):
+    store, identifier = artifact
+    monkeypatch.setattr(app.state, "features", SimpleNamespace(store=store), raising=False)
+    async with httpx.AsyncClient(
+        transport=httpx.ASGITransport(app=app), base_url="http://test"
+    ) as client:
+        with store.file_lock:
+            response = await asyncio.wait_for(
+                client.get("/api/features/dictionaries/" + identifier + "/features/0/directions"),
+                timeout=1,
+            )
+        assert response.status_code == 409
+        assert "already in use" in response.json()["detail"]
+        recovered = await client.get(
+            "/api/features/dictionaries/" + identifier + "/features/0/directions"
+        )
+        assert recovered.status_code == 200

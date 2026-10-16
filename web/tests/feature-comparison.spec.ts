@@ -213,7 +213,26 @@ test("compare two prompt feature streams without confusing geometry with activat
         " of 1 eligible position.",
     );
     await audit("feature-pair-single-position");
-    expect(forwards).toBe(3);
+    await page
+      .getByLabel("Feature prompt", { exact: true })
+      .fill("the capital <eos> France is");
+    const gapResponse = page.waitForResponse(
+      (response) =>
+        response.url().endsWith("/inspect") &&
+        response.request().method() === "POST",
+    );
+    await compare.click();
+    const gap = (await (await gapResponse).json()) as FeatureInspection;
+    expect(gap.eligible_positions).toEqual([1, 3, 4]);
+    expect(gap.feature_comparison!.eligible_position_count).toBe(3);
+    await expect(region.locator(".recharts-line-dot")).toHaveCount(6);
+    for (const path of await region.locator(".recharts-line-curve").all()) {
+      expect(((await path.getAttribute("d")) || "").match(/M/g)).toHaveLength(
+        2,
+      );
+    }
+    await audit("feature-pair-interior-gap");
+    expect(forwards).toBe(4);
     expect(
       (await (await request.get("/api/runtime")).json()).metadata.execution_id,
     ).toBe(runtime.metadata.execution_id);

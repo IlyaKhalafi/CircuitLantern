@@ -1580,5 +1580,11 @@
   "Feature comparisons require finite two-column matrices.": "La comparaison exige des matrices finies à deux colonnes.",
   "Choose two different features to compare.": "Choisissez deux caractéristiques différentes à comparer.",
   "No eligible token positions in this prompt.": "Ce prompt ne contient aucune position de token admissible.",
-  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "Les deux caractéristiques sont actives à {v0} sur {v1, plural, one {# position admissible} other {# positions admissibles}}."
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "Les deux caractéristiques sont actives à {v0} sur {v1, plural, one {# position admissible} other {# positions admissibles}}.",
+  "Dictionary artifacts are already in use. Try again when the current operation finishes.": "Les fichiers du dictionnaire sont déjà utilisés. Réessayez à la fin de l’opération en cours.",
+  "Unsaved changes": "Modifications non enregistrées",
+  "Training": "Entraînement",
+  "Held out": "Validation",
+  "Cancellation requested": "Annulation demandée",
+  "Cancel training": "Annuler l’entraînement"
 }

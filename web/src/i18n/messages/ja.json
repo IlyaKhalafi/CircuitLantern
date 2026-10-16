@@ -1580,5 +1580,11 @@
   "Feature comparisons require finite two-column matrices.": "特徴の比較には、有限値を持つ2列の行列が必要です。",
   "Choose two different features to compare.": "比較する異なる2つの特徴を選択してください。",
   "No eligible token positions in this prompt.": "このプロンプトには対象となるトークン位置がありません。",
-  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "{v1}個の対象位置のうち{v0}個で両方の特徴が活性化します。"
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "{v1}個の対象位置のうち{v0}個で両方の特徴が活性化します。",
+  "Dictionary artifacts are already in use. Try again when the current operation finishes.": "辞書ファイルは使用中です。現在の処理が終了してから再試行してください。",
+  "Unsaved changes": "未保存の変更",
+  "Training": "学習",
+  "Held out": "検証",
+  "Cancellation requested": "キャンセルを要求しました",
+  "Cancel training": "学習をキャンセル"
 }

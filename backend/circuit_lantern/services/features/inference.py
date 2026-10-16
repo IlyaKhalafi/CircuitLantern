@@ -2,7 +2,6 @@
 
 import gc
 from contextlib import ExitStack, contextmanager
-from datetime import UTC, datetime
 from functools import wraps
 
 import torch
@@ -10,6 +9,7 @@ import torch
 from circuit_lantern.services.execution import execution_provenance
 from circuit_lantern.services.features.comparison import feature_pair_statistics
 from circuit_lantern.services.features.corpus import prompt_split
+from circuit_lantern.services.features.evidence import measurement_record
 from circuit_lantern.services.scoring import log_probabilities, target_score
 from circuit_lantern.services.tokens import capture_token_limit
 
@@ -147,37 +147,6 @@ def prediction(tokenizer, log_probs: torch.Tensor) -> list[dict]:
         }
         for value, index in zip(values, indices, strict=True)
     ]
-
-
-def measurement_record(kind: str, manifest: dict) -> dict:
-    source = {
-        key: manifest[key]
-        for key in (
-            "id",
-            "model_id",
-            "revision",
-            "layer",
-            "capture_point",
-            "features",
-            "input_dim",
-            "method",
-            "weights_sha256",
-            "manifest_sha256",
-            "training",
-            "method_record",
-        )
-    }
-    source["corpus_fingerprint"] = manifest["corpus"]["fingerprint"]
-    source["training_execution"] = {
-        "execution_id": manifest["execution_id"],
-        "execution_precision": manifest["execution_precision"],
-        "execution_config": manifest["execution_config"],
-    }
-    return {
-        "format": "circuit-lantern-feature-" + kind + "-v1",
-        "captured_at": datetime.now(UTC).isoformat(),
-        "dictionary_source": source,
-    }
 
 
 @model_operation

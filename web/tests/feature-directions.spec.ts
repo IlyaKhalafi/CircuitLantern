@@ -1,9 +1,51 @@
 import AxeBuilder from "@axe-core/playwright";
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { DecoderDirections } from "../src/lib/features";
 import type { RuntimeState } from "../src/lib/types";
+
+async function trainDictionaries(
+  request: APIRequestContext,
+  layers: number[],
+  name: string,
+) {
+  const starting = await request.post("/api/features/train", {
+    data: {
+      name,
+      layers,
+      documents: [
+        "the capital of France is",
+        "the capital of Poland is",
+        "Poland is the capital of Poland",
+        "France is the capital of France",
+        "the capital is France",
+        "the capital is Poland",
+        "France of the is capital",
+        "Poland of the is capital",
+      ],
+      steps: 16,
+      batch_size: 16,
+      active_features: 4,
+    },
+  });
+  expect(starting.status()).toBe(202);
+  const job = await starting.json();
+  let training: {
+    status: string;
+    result?: { dictionaries: { id: string; name: string }[] };
+  };
+  await expect
+    .poll(
+      async () => {
+        training = await (await request.get("/api/jobs/" + job.id)).json();
+        return training.status;
+      },
+      { timeout: 60000 },
+    )
+    .toBe("ready");
+  return training!.result!.dictionaries;
+}
 
 test("decoder geometry remains available offline and preserves signed rankings and source evidence", async ({
   page,
@@ -17,41 +59,9 @@ test("decoder geometry remains available offline and preserves signed rankings a
   const errors: string[] = [];
   page.on("pageerror", (reason) => errors.push(reason.message));
   try {
-    const starting = await request.post("/api/features/train", {
-      data: {
-        name: "Decoder geometry study",
-        layers: [0],
-        documents: [
-          "the capital of France is",
-          "the capital of Poland is",
-          "Poland is the capital of Poland",
-          "France is the capital of France",
-          "the capital is France",
-          "the capital is Poland",
-          "France of the is capital",
-          "Poland of the is capital",
-        ],
-        steps: 16,
-        batch_size: 16,
-        active_features: 4,
-      },
-    });
-    expect(starting.status()).toBe(202);
-    const job = await starting.json();
-    let training: {
-      status: string;
-      result?: { dictionaries: { id: string }[] };
-    };
-    await expect
-      .poll(
-        async () => {
-          training = await (await request.get("/api/jobs/" + job.id)).json();
-          return training.status;
-        },
-        { timeout: 60000 },
-      )
-      .toBe("ready");
-    dictionaryId = training!.result!.dictionaries[0].id;
+    dictionaryId = (
+      await trainDictionaries(request, [0], "Decoder geometry study")
+    )[0].id;
     expect((await request.delete("/api/runtime")).status()).toBe(204);
     await page.goto("/features");
     await page
@@ -69,13 +79,15 @@ test("decoder geometry remains available offline and preserves signed rankings a
       "**/api/features/dictionaries/" + dictionaryId + "/features/*/directions";
     await page.route(directionsPath, async (route) => {
       geometryRequests++;
-      if (geometryRequests === 1)
+      if (geometryRequests <= 2)
         await route.fulfill({
-          status: 400,
+          status: geometryRequests === 1 ? 400 : 409,
           contentType: "application/json",
           body: JSON.stringify({
             detail:
-              "The dictionary weights have changed since they were recorded.",
+              geometryRequests === 1
+                ? "The dictionary weights have changed since they were recorded."
+                : "Dictionary artifacts are already in use. Try again when the current operation finishes.",
           }),
         });
       else await route.continue();
@@ -88,6 +100,13 @@ test("decoder geometry remains available offline and preserves signed rankings a
     await expect(
       page.getByText(
         "The dictionary weights have changed since they were recorded.",
+        { exact: true },
+      ),
+    ).toBeVisible();
+    await page.getByRole("button", { name: "Try again", exact: true }).click();
+    await expect(
+      page.getByText(
+        "Dictionary artifacts are already in use. Try again when the current operation finishes.",
         { exact: true },
       ),
     ).toBeVisible();
@@ -108,8 +127,15 @@ test("decoder geometry remains available offline and preserves signed rankings a
       Buffer.concat(chunks).toString(),
     ) as DecoderDirections;
     expect(result.dictionary_id).toBe(dictionaryId);
-    expect(result.weights_sha256).toMatch(/^[a-f0-9]{64}$/);
-    expect(result.manifest_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.format).toBe("circuit-lantern-decoder-directions-v2");
+    expect(result.analysis_device).toBe("cpu");
+    expect(new Date(result.captured_at).toISOString()).toMatch(/^\d{4}-/);
+    expect(result.dictionary_source.training_execution.execution_id).toBe(
+      before.metadata!.execution_id,
+    );
+    expect(result).not.toHaveProperty("execution_id");
+    expect(result.dictionary_source.weights_sha256).toMatch(/^[a-f0-9]{64}$/);
+    expect(result.dictionary_source.manifest_sha256).toMatch(/^[a-f0-9]{64}$/);
     expect(result.highest.every((row) => row.feature !== result.feature)).toBe(
       true,
     );
@@ -151,8 +177,14 @@ test("decoder geometry remains available offline and preserves signed rankings a
     }
     const next = result.lowest[0].feature;
     await page
+      .getByLabel("Feature annotation", { exact: true })
+      .fill("Unsaved source label");
+    await page
       .getByLabel("Research notes", { exact: true })
       .fill("Unsaved source feature notes");
+    await expect(
+      page.getByText("Unsaved changes", { exact: true }),
+    ).toBeVisible();
     await region
       .getByRole("button", { name: "Feature " + next, exact: true })
       .click();
@@ -163,6 +195,33 @@ test("decoder geometry remains available offline and preserves signed rankings a
     await expect(
       page.getByLabel("Research notes", { exact: true }),
     ).toHaveValue("");
+    await page
+      .getByLabel("Research notes", { exact: true })
+      .fill("Second feature draft");
+    await page
+      .getByLabel("Find a feature", { exact: true })
+      .fill(String(result.feature));
+    await page
+      .locator(".feature-list .feature-row")
+      .filter({
+        has: page.getByText("Feature " + result.feature, { exact: true }),
+      })
+      .click();
+    await expect(
+      page.getByLabel("Feature annotation", { exact: true }),
+    ).toHaveValue("Unsaved source label");
+    await expect(
+      page.getByLabel("Research notes", { exact: true }),
+    ).toHaveValue("Unsaved source feature notes");
+    await page.getByLabel("Find a feature", { exact: true }).fill(String(next));
+    await page
+      .locator(".feature-list .feature-row")
+      .filter({ has: page.getByText("Feature " + next, { exact: true }) })
+      .click();
+    await expect(
+      page.getByLabel("Research notes", { exact: true }),
+    ).toHaveValue("Second feature draft");
+    await page.getByLabel("Find a feature", { exact: true }).fill("");
     expect(inference).toBe(0);
     expect((await (await request.get("/api/runtime")).json()).loaded).toBe(
       false,
@@ -227,3 +286,116 @@ test("decoder geometry remains available offline and preserves signed rankings a
     }
   }
 });
+
+for (const operation of ["save", "failed refresh", "delete"] as const) {
+  test(
+    "a delayed " +
+      operation +
+      " cannot replace another dictionary or its draft",
+    async ({ page, request }) => {
+      let release = () => {};
+      const dictionaries = await trainDictionaries(
+        request,
+        [0, 1],
+        "Pending annotation " + operation,
+      );
+      const [source, destination] = dictionaries;
+      try {
+        await page.goto("/features");
+        await page
+          .getByRole("tab", { name: "Explore features", exact: true })
+          .click();
+        const picker = page.getByLabel("Choose a dictionary", { exact: true });
+        const heading = page.locator(".feature-dictionary-heading h2");
+        await picker.selectOption(source.id);
+        await expect(heading).toHaveText(source.name);
+        const gate = new Promise<void>((resolve) => {
+          release = resolve;
+        });
+        let started = () => {};
+        const pending = new Promise<void>((resolve) => {
+          started = resolve;
+        });
+        const method = operation === "delete" ? "DELETE" : "PATCH";
+        const sourcePath = "/api/features/dictionaries/" + source.id;
+        await page.route("**" + sourcePath + "**", async (route) => {
+          if (route.request().method() === method) {
+            const response = await route.fetch();
+            started();
+            await gate;
+            await route.fulfill({ response });
+          } else if (
+            operation === "failed refresh" &&
+            route.request().method() === "GET"
+          ) {
+            await route.fulfill({
+              status: 503,
+              json: { detail: "Source annotation refresh failed" },
+            });
+          } else await route.continue();
+        });
+        if (operation === "delete") {
+          await page
+            .getByRole("button", { name: "Delete dictionary", exact: true })
+            .click();
+          await page
+            .getByRole("button", {
+              name: "Permanently delete dictionary",
+              exact: true,
+            })
+            .click();
+        } else {
+          await page
+            .getByLabel("Research notes", { exact: true })
+            .fill("Source save held in flight");
+          await page
+            .getByRole("button", { name: "Save annotation", exact: true })
+            .click();
+        }
+        await pending;
+        await picker.selectOption(destination.id);
+        await expect(heading).toHaveText(destination.name);
+        await page
+          .getByLabel("Research notes", { exact: true })
+          .fill("Destination dictionary draft");
+        const finished = page.waitForResponse(
+          (response) =>
+            response.request().method() === "GET" &&
+            response
+              .url()
+              .endsWith(
+                operation === "delete"
+                  ? "/api/features/dictionaries"
+                  : sourcePath,
+              ),
+        );
+        release();
+        await (await finished).finished();
+        await page.evaluate(
+          () =>
+            new Promise<void>((resolve) =>
+              requestAnimationFrame(() =>
+                requestAnimationFrame(() => resolve()),
+              ),
+            ),
+        );
+        await expect(picker).toHaveValue(destination.id);
+        await expect(heading).toHaveText(destination.name);
+        await expect(
+          page.getByLabel("Research notes", { exact: true }),
+        ).toHaveValue("Destination dictionary draft");
+        await expect(
+          page.getByText("Source annotation refresh failed", { exact: true }),
+        ).toHaveCount(0);
+      } finally {
+        release();
+        for (const dictionary of dictionaries) {
+          const deleting = await request.delete(
+            "/api/features/dictionaries/" + dictionary.id,
+          );
+          expect([204, 404]).toContain(deleting.status());
+        }
+      }
+    },
+  );
+}

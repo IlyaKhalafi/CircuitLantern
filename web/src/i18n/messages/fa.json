@@ -1580,5 +1580,11 @@
   "Feature comparisons require finite two-column matrices.": "مقایسه ویژگی‌ها به ماتریس‌های متناهی با دو ستون نیاز دارد.",
   "Choose two different features to compare.": "دو ویژگی متفاوت برای مقایسه انتخاب کنید.",
   "No eligible token positions in this prompt.": "در این پرسش هیچ جایگاه مجاز برای توکن‌ها وجود ندارد.",
-  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "هر دو ویژگی در {v0} جایگاه از {v1} جایگاه مجاز فعال‌اند."
+  "Both features activate at {v0} of {v1, plural, one {# eligible position} other {# eligible positions}}.": "هر دو ویژگی در {v0} جایگاه از {v1} جایگاه مجاز فعال‌اند.",
+  "Dictionary artifacts are already in use. Try again when the current operation finishes.": "فایل‌های واژه‌نامه در حال استفاده هستند. پس از پایان عملیات جاری دوباره تلاش کنید.",
+  "Unsaved changes": "تغییرات ذخیره نشده",
+  "Training": "آموزش",
+  "Held out": "اعتبارسنجی",
+  "Cancellation requested": "درخواست توقف ثبت شد",
+  "Cancel training": "توقف آموزش"
 }

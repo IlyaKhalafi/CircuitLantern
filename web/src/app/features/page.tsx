@@ -93,15 +93,15 @@ export default function FeaturesPage() {
       sequence.current++;
     };
   }, [selected]);
-  async function updated() {
+  async function updated(identifier: string) {
     const id = sequence.current;
-    try {
-      const value = await api<DictionaryManifest>(
-        "/features/dictionaries/" + selected,
+    const value = await api<DictionaryManifest>(
+      "/features/dictionaries/" + identifier,
+    );
+    if (id === sequence.current) {
+      setDictionary((current) =>
+        current?.id === identifier && value.id === identifier ? value : current,
       );
-      if (id === sequence.current) setDictionary(value);
-    } catch (reason) {
-      if (id === sequence.current) setError((reason as Error).message);
     }
   }
   const executionId = capabilities?.execution?.execution_id;
@@ -238,9 +238,13 @@ export default function FeaturesPage() {
               feature={feature}
               onSelect={setFeature}
               onUpdated={updated}
-              onDeleted={() => {
-                setDictionary(null);
-                setSelected("");
+              onDeleted={(identifier) => {
+                setDictionary((current) =>
+                  current?.id === identifier ? null : current,
+                );
+                setSelected((current) =>
+                  current === identifier ? "" : current,
+                );
                 void refresh();
               }}
             />
