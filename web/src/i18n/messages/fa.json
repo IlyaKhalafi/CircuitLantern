@@ -1562,5 +1562,6 @@
   "The dictionary weight file exceeds its size limit.": "اندازه فایل وزن‌های فرهنگ از حد مجاز بیشتر است.",
   "Insufficient available RAM to compare these decoder directions.": "حافظه RAM آزاد برای مقایسه این جهت‌های رمزگشا کافی نیست.",
   "Export feature inspection": "خروجی گرفتن از بررسی ویژگی",
-  "Export reconstruction": "خروجی گرفتن از بازسازی"
+  "Export reconstruction": "خروجی گرفتن از بازسازی",
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "برای بررسی خانه‌ها از کلیدهای جهت‌نما استفاده کنید. در صفحه لمسی روی یک خانه بزنید."
 }

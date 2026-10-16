@@ -1,7 +1,7 @@
 "use client";
 import { useTheme } from "@/components/theme-provider";
 import { useI18n } from "@/i18n/provider";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { number } from "@/lib/api";
 import {
   Area,
@@ -204,17 +204,20 @@ export function Heatmap({
   const { t } = useI18n();
   const { theme } = useTheme();
   const canvas = useRef<HTMLCanvasElement>(null);
-  const maximum =
-    maxAbs ??
-    data.reduce<number>(
-      (maximum, row) =>
-        row.reduce<number>(
-          (maximum, value) =>
-            value === null ? maximum : Math.max(maximum, Math.abs(value)),
-          maximum,
-        ),
-      0,
-    );
+  const maximum = useMemo(
+    () =>
+      maxAbs ??
+      data.reduce<number>(
+        (maximum, row) =>
+          row.reduce<number>(
+            (maximum, value) =>
+              value === null ? maximum : Math.max(maximum, Math.abs(value)),
+            maximum,
+          ),
+        0,
+      ),
+    [data, maxAbs],
+  );
   useEffect(() => {
     const context = canvas.current?.getContext("2d");
     if (!context) return;
@@ -272,7 +275,44 @@ export function Heatmap({
       }),
     );
   }, [data, maximum, sequential, logarithmic, theme]);
-  const [hover, setHover] = useState<{ x: number; y: number } | null>(null);
+  const [cell, setHover] = useState<{ x: number; y: number } | null>(null);
+  const [keyboard, setKeyboard] = useState(false);
+  const helpId = useId();
+  const rows = data.length;
+  const columns = data[0]?.length || 0;
+  const hover =
+    cell && rows && columns
+      ? { x: Math.min(cell.x, columns - 1), y: Math.min(cell.y, rows - 1) }
+      : null;
+  function inspectAt(
+    clientX: number,
+    clientY: number,
+    target: HTMLCanvasElement,
+  ) {
+    if (!rows || !columns) return;
+    const bounds = target.getBoundingClientRect();
+    if (!bounds.width || !bounds.height) return;
+    setKeyboard(false);
+    const next = {
+      x: Math.max(
+        0,
+        Math.min(
+          columns - 1,
+          Math.floor(((clientX - bounds.left) / bounds.width) * columns),
+        ),
+      ),
+      y: Math.max(
+        0,
+        Math.min(
+          rows - 1,
+          Math.floor(((clientY - bounds.top) / bounds.height) * rows),
+        ),
+      ),
+    };
+    setHover((current) =>
+      current?.x === next.x && current.y === next.y ? current : next,
+    );
+  }
   const hovered = hover && data[hover.y]?.[hover.x];
   const hoverText =
     hover && hovered !== undefined
@@ -280,31 +320,88 @@ export function Heatmap({
       : "";
   return (
     <div className="heatmap-wrapper">
-      <canvas
-        ref={canvas}
-        className="heatmap"
-        style={height === undefined ? undefined : { height }}
-        role="img"
-        aria-label={t(label)}
-        onMouseMove={(event) => {
-          if (!data[0]?.length) return;
-          const bounds = event.currentTarget.getBoundingClientRect();
-          const x = Math.min(
-            data[0].length - 1,
-            Math.floor(
-              ((event.clientX - bounds.left) / bounds.width) * data[0].length,
-            ),
-          );
-          const y = Math.min(
-            data.length - 1,
-            Math.floor(
-              ((event.clientY - bounds.top) / bounds.height) * data.length,
-            ),
-          );
-          setHover({ x, y });
-        }}
-        onMouseLeave={() => setHover(null)}
-      />
+      <div className="heatmap-surface">
+        <canvas
+          ref={canvas}
+          className="heatmap"
+          style={height === undefined ? undefined : { height }}
+          role="img"
+          aria-label={t(label)}
+          aria-describedby={helpId}
+          aria-keyshortcuts="ArrowUp ArrowDown ArrowLeft ArrowRight Home End"
+          tabIndex={columns && rows ? 0 : -1}
+          onFocus={() => {
+            if (columns && rows) {
+              setKeyboard(true);
+              setHover((current) => current || { x: 0, y: 0 });
+            }
+          }}
+          onBlur={() => {
+            setHover(null);
+            setKeyboard(false);
+          }}
+          onKeyDown={(event) => {
+            if (!columns || !rows) return;
+            const next = { ...(hover || { x: 0, y: 0 }) };
+            switch (event.key) {
+              case "ArrowLeft":
+                next.x--;
+                break;
+              case "ArrowRight":
+                next.x++;
+                break;
+              case "ArrowUp":
+                next.y--;
+                break;
+              case "ArrowDown":
+                next.y++;
+                break;
+              case "Home":
+                next.x = 0;
+                if (event.ctrlKey || event.metaKey) next.y = 0;
+                break;
+              case "End":
+                next.x = columns - 1;
+                if (event.ctrlKey || event.metaKey) next.y = rows - 1;
+                break;
+              case "Escape":
+                event.currentTarget.blur();
+                return;
+              default:
+                return;
+            }
+            event.preventDefault();
+            setKeyboard(true);
+            setHover({
+              x: Math.max(0, Math.min(columns - 1, next.x)),
+              y: Math.max(0, Math.min(rows - 1, next.y)),
+            });
+          }}
+          onPointerDown={(event) => {
+            event.currentTarget.focus({ preventScroll: true });
+            inspectAt(event.clientX, event.clientY, event.currentTarget);
+          }}
+          onPointerMove={(event) => {
+            if (event.pointerType !== "touch")
+              inspectAt(event.clientX, event.clientY, event.currentTarget);
+          }}
+          onPointerLeave={() => {
+            if (document.activeElement !== canvas.current) setHover(null);
+          }}
+        />
+        {hover && hovered !== undefined && columns > 0 && rows > 0 && (
+          <span
+            className="heatmap-cursor"
+            aria-hidden="true"
+            style={{
+              left: (hover.x / columns) * 100 + "%",
+              top: (hover.y / rows) * 100 + "%",
+              width: 100 / columns + "%",
+              height: 100 / rows + "%",
+            }}
+          />
+        )}
+      </div>
       <div
         className={`heatmap-key ${logarithmic && sequential ? "logarithmic" : ""}`}
       >
@@ -329,7 +426,12 @@ export function Heatmap({
         </div>
         <span>{maximum.toPrecision(2)}</span>
       </div>
-      <p>{hoverText || t(label)}</p>
+      <p role="status" aria-live={keyboard ? "polite" : "off"}>
+        {hoverText || t(label)}
+      </p>
+      <small className="heatmap-help" id={helpId}>
+        {t("Use arrow keys to inspect cells. Tap a cell on touch screens.")}
+      </small>
     </div>
   );
 }

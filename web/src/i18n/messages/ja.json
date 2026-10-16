@@ -1562,5 +1562,6 @@
   "The dictionary weight file exceeds its size limit.": "辞書の重みファイルがサイズ制限を超えています。",
   "Insufficient available RAM to compare these decoder directions.": "これらのデコーダー方向を比較するための空きRAMが不足しています。",
   "Export feature inspection": "特徴の検査をエクスポート",
-  "Export reconstruction": "再構成をエクスポート"
+  "Export reconstruction": "再構成をエクスポート",
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "矢印キーでセルを調べます。タッチ画面ではセルをタップしてください。"
 }

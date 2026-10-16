@@ -1562,5 +1562,6 @@
   "The dictionary weight file exceeds its size limit.": "Le fichier de poids du dictionnaire dépasse la taille autorisée.",
   "Insufficient available RAM to compare these decoder directions.": "La RAM disponible est insuffisante pour comparer ces directions du décodeur.",
   "Export feature inspection": "Exporter l’inspection des caractéristiques",
-  "Export reconstruction": "Exporter la reconstruction"
+  "Export reconstruction": "Exporter la reconstruction",
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "Utilisez les touches fléchées pour inspecter les cellules. Sur écran tactile, touchez une cellule."
 }

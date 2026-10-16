@@ -1562,5 +1562,6 @@
   "The dictionary weight file exceeds its size limit.": "The dictionary weight file exceeds its size limit.",
   "Insufficient available RAM to compare these decoder directions.": "Insufficient available RAM to compare these decoder directions.",
   "Export feature inspection": "Export feature inspection",
-  "Export reconstruction": "Export reconstruction"
+  "Export reconstruction": "Export reconstruction",
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "Use arrow keys to inspect cells. Tap a cell on touch screens."
 }

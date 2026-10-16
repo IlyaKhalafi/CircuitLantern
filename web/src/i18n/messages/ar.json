@@ -1562,5 +1562,6 @@
   "The dictionary weight file exceeds its size limit.": "يتجاوز ملف أوزان القاموس الحد المسموح لحجمه.",
   "Insufficient available RAM to compare these decoder directions.": "ذاكرة RAM المتاحة غير كافية لمقارنة اتجاهات مفكك الترميز هذه.",
   "Export feature inspection": "تصدير فحص الميزات",
-  "Export reconstruction": "تصدير إعادة البناء"
+  "Export reconstruction": "تصدير إعادة البناء",
+  "Use arrow keys to inspect cells. Tap a cell on touch screens.": "استخدم مفاتيح الأسهم لفحص الخلايا. اضغط على خلية في الشاشات اللمسية."
 }
