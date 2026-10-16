@@ -1,4 +1,5 @@
 import math
+from itertools import chain
 
 import torch
 
@@ -64,3 +65,22 @@ def model_weight_inventory(model) -> tuple[list[dict], int]:
     return [item for item in descriptions if len(item["shape"]) == 2], sum(
         item["elements"] for item in descriptions
     )
+
+
+def resident_tensor_bytes(model) -> dict[str, int]:
+    """Count unique parameter and buffer storage by device, including packed storage."""
+    if model is None:
+        return {}
+    seen = set()
+    totals = {}
+    for tensor in chain(model.parameters(), model.buffers()):
+        if tensor.device.type == "meta":
+            continue
+        storage = tensor.untyped_storage()
+        device = str(tensor.device)
+        key = (device, storage.data_ptr())
+        if key in seen:
+            continue
+        seen.add(key)
+        totals[device] = totals.get(device, 0) + storage.nbytes()
+    return totals

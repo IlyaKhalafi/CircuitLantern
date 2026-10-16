@@ -155,9 +155,21 @@ def assess_compatibility(
     )
     download_bytes = cache["download_bytes"] if cache is not None else disk_bytes
     cached_bytes = cache["cached_bytes"] if cache is not None else 0
+    resident = hardware.get("reclaimable_tensor_bytes") or {}
+    # Host available RAM may already include reclaimable mmap checkpoint pages.
+    # Only CUDA storage can be credited without counting those pages twice.
+    reclaimable = 0
     available_bytes = hardware["ram_available_bytes"]
     if request.device == "cuda":
-        available_bytes = execution_gpu["free_bytes"] if execution_gpu else 0
+        reclaimable = resident.get("cuda:0", 0) if execution_gpu else 0
+        available_bytes = (
+            min(
+                execution_gpu["free_bytes"] + reclaimable,
+                execution_gpu.get("total_bytes", execution_gpu["free_bytes"] + reclaimable),
+            )
+            if execution_gpu
+            else 0
+        )
         staging_bytes = parameters * (4 if precision in PACKED_PRECISIONS else element_bytes)
         if staging_bytes * 1.15 > hardware["ram_available_bytes"] * 0.85:
             blockers.append(
@@ -192,6 +204,10 @@ def assess_compatibility(
     warnings.append(
         "Fit is an estimate for one visible execution device. Other running jobs can change available memory before loading."
     )
+    if reclaimable:
+        warnings.append(
+            "The replacement budget includes only CUDA parameter and buffer storage owned by the active model. These tensors are released before loading the replacement. Other workloads are not credited."
+        )
     if hardware.get("ram_scope") == "cgroup":
         warnings.append(
             "System memory reflects the process or container memory limit, current usage and reclaimable inactive file cache."
@@ -220,6 +236,7 @@ def assess_compatibility(
         "overhead_bytes": int(overhead_bytes),
         "required_bytes": int(required_bytes),
         "available_bytes": int(available_bytes * 0.85),
+        "reclaimable_bytes": int(reclaimable),
         "source_bytes": int(disk_bytes),
         "cached_bytes": int(cached_bytes),
         "download_bytes": int(download_bytes),

@@ -504,7 +504,11 @@ export default function LibraryPage() {
                   value={bytes(report.required_bytes)}
                 />
                 <Metric
-                  label="Available budget"
+                  label={
+                    report.reclaimable_bytes
+                      ? "Replacement budget"
+                      : "Available budget"
+                  }
                   value={bytes(report.available_bytes)}
                 />
                 <Metric
@@ -527,6 +531,12 @@ export default function LibraryPage() {
                 </span>
                 <span>{report.device.toUpperCase()}</span>
               </div>
+              {!!report.reclaimable_bytes && (
+                <p className="inline-note">
+                  Includes {bytes(report.reclaimable_bytes)} released by
+                  replacing the active model.
+                </p>
+              )}
               {!!report.cached_bytes && (
                 <p className="inline-note">
                   {report.download_bytes === 0

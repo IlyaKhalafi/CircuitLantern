@@ -276,3 +276,52 @@ def test_cached_checkpoint_uses_remaining_download_for_disk_fit():
         cache={"cached_bytes": 500_000_000, "download_bytes": 0},
     )
     assert any("configured download limit" in b for b in limited["blockers"])
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_replacement_can_fit_using_only_the_active_model_storage(device):
+    machine = hardware(memory=128 * 1024**2)
+    machine["ram_available_bytes"] = 4 * 1024**3 if device == "cuda" else 128 * 1024**2
+    request = CompatibilityRequest(model_id="model", context_length=128, device=device)
+    assert not assess_compatibility(metadata(), machine, request)["compatible"]
+    machine["reclaimable_tensor_bytes"] = {
+        "cpu" if device == "cpu" else "cuda:0": 2 * 1024**3,
+        "cuda:1": 100 * 1024**3,
+    }
+    result = assess_compatibility(metadata(), machine, request)
+    if device == "cuda":
+        assert result["compatible"]
+        assert result["reclaimable_bytes"] == 2 * 1024**3
+        assert result["available_bytes"] == int((128 * 1024**2 + 2 * 1024**3) * 0.85)
+    else:
+        assert not result["compatible"]
+        assert result["reclaimable_bytes"] == 0
+
+
+def test_gpu_replacement_budget_cannot_exceed_device_capacity():
+    machine = hardware(memory=128 * 1024**2)
+    machine["ram_available_bytes"] = 4 * 1024**3
+    machine["gpus"][0]["total_bytes"] = 2 * 1024**3
+    machine["reclaimable_tensor_bytes"] = {"cuda:0": 3 * 1024**3}
+    result = assess_compatibility(
+        metadata(),
+        machine,
+        CompatibilityRequest(model_id="model", context_length=128, device="cuda"),
+    )
+    assert result["available_bytes"] == int(2 * 1024**3 * 0.85)
+
+
+def test_host_memory_is_not_credited_for_cuda_staging_or_unreadable_cgroup_usage():
+    machine = hardware()
+    machine["ram_available_bytes"] = 0
+    machine["ram_constraints"] = [{"used_bytes": None}]
+    machine["reclaimable_tensor_bytes"] = {"cpu": 2 * 1024**3, "cuda:1": 8 * 1024**3}
+    result = assess_compatibility(
+        metadata(),
+        machine,
+        CompatibilityRequest(model_id="model", context_length=128, device="cuda"),
+    )
+    assert not result["compatible"]
+    assert any("host RAM" in b for b in result["blockers"])
+    assert result["reclaimable_bytes"] == 0
+    assert result["available_bytes"] == int(20 * 1024**3 * 0.85)

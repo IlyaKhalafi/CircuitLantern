@@ -19,9 +19,14 @@ from circuit_lantern.services.execution import (
     prepare_model_execution,
 )
 from circuit_lantern.services.geometry import ResidualGeometry
+from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
-from circuit_lantern.services.weights import logical_weight, model_weight_inventory
+from circuit_lantern.services.weights import (
+    logical_weight,
+    model_weight_inventory,
+    resident_tensor_bytes,
+)
 
 
 class RuntimeBusyError(ValueError):
@@ -47,6 +52,13 @@ class ModelRuntime:
 
     def state(self) -> dict:
         return dict(self._state, max_prompt_tokens=self.settings.max_prompt_tokens)
+
+    def fit_snapshot(self) -> dict:
+        # Keep free memory and owned storage consistent while a model may be replaced.
+        with self.operation():
+            snapshot = hardware_snapshot(self.settings.data_dir)
+            snapshot["reclaimable_tensor_bytes"] = resident_tensor_bytes(self.model)
+            return snapshot
 
     def load(
         self, metadata: dict, device: str, precision: str = "auto", context_length: int = 128

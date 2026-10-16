@@ -69,6 +69,7 @@ export interface Hardware {
   };
 }
 export interface Compatibility {
+  reclaimable_bytes?: number;
   source_bytes?: number;
   cached_bytes?: number;
   context_length?: number;

@@ -80,23 +80,23 @@ def metadata(request: ModelRequest):
     return model_metadata(request.model_id, request.revision)
 
 
-def check(request: CompatibilityRequest):
+def check(request: CompatibilityRequest, runtime: ModelRuntime):
     settings = get_settings()
-    snapshot = hardware_snapshot(settings.data_dir)
+    metadata = model_metadata(request.model_id, request.revision)
+    snapshot = runtime.fit_snapshot()
     snapshot["max_model_bytes"] = settings.max_model_bytes
     snapshot["max_prompt_tokens"] = settings.max_prompt_tokens
-    metadata = model_metadata(request.model_id, request.revision)
     return assess_compatibility(metadata, snapshot, request, cache=checkpoint_cache(metadata))
 
 
 @app.post("/api/models/compatibility")
-def compatibility(request: CompatibilityRequest):
-    return check(request)
+def compatibility(payload: CompatibilityRequest, request: Request):
+    return check(payload, request.app.state.runtime)
 
 
 @app.post("/api/models/load", status_code=202)
 def load_model(payload: LoadRequest, request: Request):
-    report = check(CompatibilityRequest(**payload.model_dump()))
+    report = check(CompatibilityRequest(**payload.model_dump()), request.app.state.runtime)
     if not report["compatible"]:
         raise HTTPException(409, detail=" ".join(report["blockers"]))
     return request.app.state.runtime.load(
