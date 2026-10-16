@@ -228,7 +228,9 @@ export interface Trace extends ExecutionProvenance {
   generated_tokens?: string[];
   generated_pieces?: string[];
   capture_attention?: boolean;
-  generation_settings?: {
+  generation_performed?: boolean;
+  requested_max_new_tokens?: number;
+  generation_settings?: null | {
     max_new_tokens: number;
     do_sample: boolean;
     token_healing: boolean;

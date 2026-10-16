@@ -103,6 +103,8 @@ test("saved traces without generation metadata retain their original rendering",
       "generated_tokens",
       "generated_pieces",
       "generation_settings",
+      "generation_performed",
+      "requested_max_new_tokens",
       "capture_attention",
     ])
       delete trace[field];
@@ -123,4 +125,85 @@ test("saved traces without generation metadata retain their original rendering",
   await expect(
     page.getByText("Generated token IDs", { exact: true }),
   ).toHaveCount(0);
+});
+
+test("capture only preserves prompt analysis and durable exports without a continuation", async ({
+  page,
+}) => {
+  await page.goto("/playground");
+  await page
+    .getByLabel("Prompt", { exact: true })
+    .fill("the capital of France");
+  await page.getByLabel("Generated tokens").selectOption("0");
+  await expect(
+    page.getByText(/Capture the prompt without generating a continuation/),
+  ).toBeVisible();
+  const response = page.waitForResponse(
+    (response) => response.url().endsWith("/api/trace") && response.ok(),
+  );
+  await page.getByRole("button", { name: "Run & trace" }).click();
+  const trace = await (await response).json();
+  expect(trace.generation_performed).toBe(false);
+  expect(trace.requested_max_new_tokens).toBe(0);
+  expect(trace.generation_settings).toBeNull();
+  expect(trace.generated_token_ids).toEqual([]);
+  expect(trace.continuation_text).toBe("");
+  expect(trace.predictions.length).toBeGreaterThan(0);
+  await expect(page.getByLabel("Captured prompt")).toHaveText(
+    "the capital of France",
+  );
+  await expect(
+    page.getByText("Prompt capture only.", { exact: false }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Generated token IDs", { exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("tab", { name: "Next token logits" }).click();
+  await expect(
+    page.getByRole("heading", { name: "Next token distribution" }),
+  ).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export trace" }).click();
+  const stream = await (await download).createReadStream();
+  const chunks = [];
+  for await (const chunk of stream!) chunks.push(chunk);
+  const exported = JSON.parse(Buffer.concat(chunks).toString());
+  expect(exported.generation_performed).toBe(false);
+  expect(exported.generation_settings).toBeNull();
+  expect(exported.token_ids).toEqual(trace.token_ids);
+  await page.getByRole("tab", { name: "Residual stream" }).click();
+  await page.getByLabel("Experiment name").fill("Prompt-only capture");
+  await page
+    .getByRole("button", { name: "Save experiment", exact: true })
+    .click();
+  await expect(
+    page.getByRole("button", { name: "Saved to experiments" }),
+  ).toBeVisible();
+  await capturePage(page, {
+    path: "../artifacts/screenshots/capture-only.png",
+  });
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await page.goto("/experiments");
+  await page.getByRole("button", { name: /Prompt-only capture/ }).click();
+  await expect(page.getByLabel("Captured prompt")).toHaveText(
+    "the capital of France",
+  );
+  await expect(
+    page.getByText("Generated token IDs", { exact: true }),
+  ).toHaveCount(0);
+  await page.setViewportSize({ width: 390, height: 844 });
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= innerWidth,
+    ),
+  ).toBe(true);
+  await capturePage(page, {
+    path: "../artifacts/screenshots/capture-only-notebook-mobile.png",
+  });
 });

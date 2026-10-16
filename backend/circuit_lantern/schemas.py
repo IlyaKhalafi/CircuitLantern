@@ -39,7 +39,7 @@ class HeadAblation(BaseModel):
 
 class TraceRequest(BoundExecutionRequest):
     prompt: str = Field(min_length=1, max_length=8000)
-    max_new_tokens: int = Field(default=16, ge=1, le=64)
+    max_new_tokens: int = Field(default=16, ge=0, le=64)
     capture_attention: bool = True
     ablate_layer: int | None = Field(default=None, ge=0)
     ablate_head: HeadAblation | None = None

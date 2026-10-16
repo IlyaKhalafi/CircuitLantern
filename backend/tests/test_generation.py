@@ -105,3 +105,75 @@ def test_trace_records_early_eos_and_requested_generation_allowance(runtime):
     assert result["generated_token_ids"] == [runtime.tokenizer.eos_token_id]
     assert result["continuation_text"] == ""
     assert result["capture_attention"] is True
+
+
+@pytest.mark.parametrize(
+    ("layer", "head"),
+    [(None, None), (1, None), (None, {"layer": 0, "head": 0})],
+)
+def test_prompt_capture_skips_generation_and_retains_predictions_and_interventions(
+    runtime, layer, head
+):
+    with (
+        patch.object(
+            runtime.model, "generate", side_effect=AssertionError("Generation ran")
+        ) as generate,
+        patch.object(runtime.model, "forward", wraps=runtime.model.forward) as forward,
+    ):
+        result = runtime.trace("the capital", 0, True, layer, head)
+    generate.assert_not_called()
+    assert forward.call_count == 1
+    assert result["generation_settings"] is None
+    assert result["generation_performed"] is False
+    assert result["requested_max_new_tokens"] == 0
+    assert (
+        result["generated_token_ids"]
+        == result["generated_tokens"]
+        == result["generated_pieces"]
+        == []
+    )
+    assert result["generated_text"] == result["decoded_prompt"] == "the capital"
+    assert result["continuation_text"] == result["continuation"] == ""
+    assert result["predictions"] and result["layers"][-1]["predictions"]
+    assert len(result["attention"]) == 2
+    assert len(result["geometry"]["labels"]) == 3
+    if layer is not None:
+        assert result["layers"][layer + 1]["update_norm"] == 0
+    if head is not None:
+        assert result["ablate_head"]["scope"] == "all_prompt_tokens"
+    assert all(not module._forward_pre_hooks for module in runtime.model.modules())
+    assert all(not block._forward_hooks for block in runtime._blocks())
+
+
+def test_capture_only_uses_the_full_prompt_allowance_and_matches_token_preview(runtime):
+    runtime.metadata["execution_context_length"] = 16
+    prompt = "the " * 16
+    preview = runtime.tokenize([prompt], 0)
+    result = runtime.trace(prompt, 0, False, None)
+    assert preview["token_limit"] == 16
+    assert preview["prompts"][0]["fits"]
+    assert preview["prompts"][0]["token_ids"] == result["token_ids"]
+    assert len(result["tokens"]) == 16
+    with pytest.raises(ValueError, match="at most 15 tokens"):
+        runtime.trace(prompt, 1, False, None)
+    with pytest.raises(ValueError, match="at most 16 tokens"):
+        runtime.trace(prompt + "the", 0, False, None)
+
+
+def test_failed_prompt_capture_removes_intervention_and_capture_hooks(runtime):
+    with (
+        patch.object(runtime.model, "forward", side_effect=RuntimeError("capture failed")),
+        pytest.raises(RuntimeError, match="capture failed"),
+    ):
+        runtime.trace("the capital", 0, True, None, {"layer": 0, "head": 0})
+    assert all(not module._forward_pre_hooks for module in runtime.model.modules())
+    assert all(not block._forward_hooks for block in runtime._blocks())
+
+
+def test_capture_only_request_is_valid_and_generation_bounds_remain_enforced():
+    from circuit_lantern.schemas import TraceRequest
+
+    assert TraceRequest(prompt="the capital", max_new_tokens=0).max_new_tokens == 0
+    for count in (-1, 65):
+        with pytest.raises(ValueError):
+            TraceRequest(prompt="the capital", max_new_tokens=count)

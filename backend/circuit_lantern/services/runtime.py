@@ -429,8 +429,8 @@ class ModelRuntime:
         with self.operation():
             self._require_model()
             self._verify_execution(expected_execution_id)
-            if not 1 <= max_new_tokens <= 64:
-                raise ValueError("Generate between 1 and 64 tokens per interactive trace.")
+            if not 0 <= max_new_tokens <= 64:
+                raise ValueError("Choose between 0 and 64 generated tokens per interactive trace.")
             started = time.perf_counter()
             encoded = self.tokenizer(prompt, return_tensors="pt", add_special_tokens=True)
             token_count = encoded.input_ids.shape[1]
@@ -460,6 +460,8 @@ class ModelRuntime:
                 target = HeadAblation.model_validate(ablate_head)
                 handle, head_intervention = install_head_ablation(blocks, target.layer, target.head)
                 handles.append(handle)
+                if not max_new_tokens:
+                    head_intervention = dict(head_intervention, scope="all_prompt_tokens")
             if ablate_layer is not None:
                 if blocks is None or not 0 <= ablate_layer < len(blocks):
                     raise ValueError("The selected layer cannot be bypassed in this architecture.")
@@ -550,8 +552,14 @@ class ModelRuntime:
                         if tensor is None:
                             continue
                         attention.append({"layer": index, **attention_summary(tensor)})
-                settings = generation_settings(self.tokenizer, max_new_tokens)
-                generated = self.model.generate(**inputs, **settings)
+                settings = (
+                    generation_settings(self.tokenizer, max_new_tokens) if max_new_tokens else None
+                )
+                generated = (
+                    self.model.generate(**inputs, **settings)
+                    if settings is not None
+                    else inputs["input_ids"]
+                )
                 decoded = decode_generation(
                     self.tokenizer,
                     inputs["input_ids"][0].cpu().tolist(),
@@ -568,6 +576,8 @@ class ModelRuntime:
                     "token_ids": inputs["input_ids"][0].cpu().tolist(),
                     **decoded,
                     "generation_settings": settings,
+                    "generation_performed": settings is not None,
+                    "requested_max_new_tokens": max_new_tokens,
                     "capture_attention": capture_attention,
                     "layers": layers,
                     "attention": attention,

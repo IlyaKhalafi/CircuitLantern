@@ -53,8 +53,12 @@ export function TraceResults({
       </div>
       {trace.ablate_head && (
         <div className="notice info">
-          This trace zeros one attention head output at every prompt and
-          generated token before the attention output projection.
+          This trace zeros one attention head output at every prompt
+          {trace.ablate_head.scope === "all_prompt_tokens" ||
+          trace.generation_performed === false
+            ? ""
+            : " and generated"}{" "}
+          token before the attention output projection.
         </div>
       )}
       <Panel

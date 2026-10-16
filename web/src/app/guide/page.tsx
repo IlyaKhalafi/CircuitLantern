@@ -96,9 +96,10 @@ export default function GuidePage() {
           <h2>Trace a prediction</h2>
           <p>
             The activation lab captures a deterministic forward pass, then
-            generates a short greedy continuation. Prompt tokens, residual
-            norms, intermediate predictions and attention patterns come from the
-            loaded checkpoint.
+            optionally generates a short greedy continuation. Choose Capture
+            only to inspect the prompt without extra generation. Prompt tokens,
+            residual norms, intermediate predictions and attention patterns come
+            from the loaded checkpoint.
           </p>
           <p>
             The logit lens applies final normalization and the model unembedding

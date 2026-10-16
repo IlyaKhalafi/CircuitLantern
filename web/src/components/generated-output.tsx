@@ -2,9 +2,13 @@ import type { Trace } from "@/lib/types";
 
 export function GeneratedOutput({ trace }: { trace: Trace }) {
   const contextual = typeof trace.continuation_text === "string";
+  const captureOnly = trace.generation_performed === false;
   return (
     <>
-      <div className="trace-output" aria-label="Decoded generation">
+      <div
+        className="trace-output"
+        aria-label={captureOnly ? "Captured prompt" : "Decoded generation"}
+      >
         {contextual ? (
           <>
             <span>{trace.decoded_prompt}</span>
@@ -19,7 +23,13 @@ export function GeneratedOutput({ trace }: { trace: Trace }) {
           </>
         )}
       </div>
-      {trace.generated_token_ids && (
+      {captureOnly && (
+        <p className="inline-note">
+          Prompt capture only. No continuation was generated. Activations,
+          attention and next token predictions describe the prompt forward pass.
+        </p>
+      )}
+      {trace.generated_token_ids && trace.generated_token_ids.length > 0 && (
         <details className="generated-token-details">
           <summary>Generated token IDs</summary>
           <p className="inline-note">

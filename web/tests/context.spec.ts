@@ -46,6 +46,22 @@ test("selected context allowance survives loading and bounds capture with genera
   await capturePage(page, {
     path: "../artifacts/screenshots/context-bound-capture.png",
   });
+  await page.getByLabel("Generated tokens").selectOption("0");
+  await page
+    .getByLabel("Prompt", { exact: true })
+    .fill("the ".repeat(16).trim());
+  await expect(
+    page.getByText("Prompt 16 / 16 tokens", { exact: true }),
+  ).toBeVisible();
+  await expect(page.getByRole("button", { name: "Run & trace" })).toBeEnabled();
+  await page.getByRole("button", { name: "Run & trace" }).click();
+  await expect(page.getByLabel("Captured prompt")).toBeVisible();
+  await expect(
+    page.getByText("Prompt capture only.", { exact: false }),
+  ).toBeVisible();
+  await capturePage(page, {
+    path: "../artifacts/screenshots/context-capture-only.png",
+  });
 });
 
 test("load validation preserves a model when the requested context exceeds its window", async ({

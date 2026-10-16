@@ -78,7 +78,7 @@ export default function PlaygroundPage() {
     setTokens((current) =>
       current < allowance
         ? current
-        : [64, 32, 16, 8, 4, 1].find((n) => n < allowance) || 1,
+        : ([64, 32, 16, 8, 4, 1, 0].find((n) => n < allowance) ?? 0),
     );
   }, [runtime]);
   async function run(event: React.FormEvent) {
@@ -202,7 +202,11 @@ export default function PlaygroundPage() {
         <>
           <Panel
             title="Prompt your model"
-            subtitle={`Deterministic generation with bounded activation capture. Up to ${promptLimit} prompt tokens with this generation length.`}
+            subtitle={
+              tokens === 0
+                ? `Capture the prompt without generating a continuation. Up to ${promptLimit} prompt tokens.`
+                : `Deterministic generation with bounded activation capture. Up to ${promptLimit} prompt tokens with this generation length.`
+            }
           >
             <form className="prompt-box" onSubmit={run}>
               <label htmlFor="prompt" className="sr-only">
@@ -235,14 +239,15 @@ export default function PlaygroundPage() {
                     Generate
                     <select
                       aria-label="Generated tokens"
+                      disabled={busy}
                       value={tokens}
                       onChange={(e) => setTokens(+e.target.value)}
                     >
-                      {[1, 4, 8, 16, 32, 64]
+                      {[0, 1, 4, 8, 16, 32, 64]
                         .filter((n) => n < contextLimit)
                         .map((n) => (
                           <option key={n} value={n}>
-                            {n} tokens
+                            {n === 0 ? "Capture only" : `${n} tokens`}
                           </option>
                         ))}
                     </select>
@@ -341,7 +346,13 @@ export default function PlaygroundPage() {
             </div>
           )}
           {busy && (
-            <Loading label="Running the forward pass, capturing states and generating a continuation" />
+            <Loading
+              label={
+                tokens === 0
+                  ? "Running the forward pass and capturing prompt states"
+                  : "Running the forward pass, capturing states and generating a continuation"
+              }
+            />
           )}
           {trace && !busy && (
             <>

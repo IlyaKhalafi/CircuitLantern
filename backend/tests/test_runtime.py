@@ -47,8 +47,8 @@ def test_failed_download_preserves_active_model(runtime):
 def test_invalid_interventions_are_rejected(runtime):
     with pytest.raises(ValueError, match="cannot be bypassed"):
         runtime.trace("the capital", 1, False, -1)
-    with pytest.raises(ValueError, match="between 1 and 64"):
-        runtime.trace("the capital", 0, False, None)
+    with pytest.raises(ValueError, match="between 0 and 64"):
+        runtime.trace("the capital", -1, False, None)
 
 
 def test_model_context_reserves_generated_tokens(runtime):
