@@ -344,9 +344,9 @@ export default function CausalPage() {
           {result.position === null && (
             <div className="notice info">
               All position restoration is a sanity check. Later layers receive
-              the complete clean residual stream, so recovery near one is
-              expected at every block. Use a single token position to
-              investigate localization.
+              the complete clean residual stream. When the clean to corrupted
+              gap permits normalized recovery, values near one are expected. Use
+              a single token position to investigate localization.
             </div>
           )}
           {result.recovery_warning && (
@@ -364,9 +364,15 @@ export default function CausalPage() {
               title={
                 result.position === null
                   ? "All position restoration check"
-                  : "Recovery by transformer block"
+                  : result.recovery_defined
+                    ? "Recovery by transformer block"
+                    : "Target log probability change"
               }
-              subtitle="One is clean baseline recovery. Zero is no change from the corrupted baseline."
+              subtitle={
+                result.recovery_defined
+                  ? "One is clean baseline recovery. Zero is no change from the corrupted baseline."
+                  : "Change from the corrupted baseline in nats. Zero means no change."
+              }
             >
               <SeriesChart
                 data={result.layers.map((l) => ({
@@ -384,7 +390,11 @@ export default function CausalPage() {
                   },
                 ]}
               />
-              <p className="inline-note">{result.method}</p>
+              <p className="inline-note">
+                {result.recovery_defined
+                  ? result.method
+                  : "Each point is the patched target log probability minus the corrupted baseline. Negative values mean the patch reduced the target probability. These values are not divided by the clean to corrupted score gap."}
+              </p>
             </Panel>
             <Panel
               title="Token alignment"

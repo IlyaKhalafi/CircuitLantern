@@ -41,15 +41,6 @@ export default function GuidePage() {
             Check the CPU or CUDA target, inspect the compatibility report, then
             download and open it.
           </p>
-          <p>
-            The <Link href="/causal/heads">head ablation workspace</Link> tests
-            query heads independently across one layer or the model. It reports
-            target log probability changes and divergence from the baseline next
-            token distribution. Zero ablation can move activations outside their
-            usual distribution. Results describe the tested prompt and execution
-            precision. Cancel between forwards and export completed heads,
-            including partial results.
-          </p>
         </article>
         <article className="panel guide-card">
           <div className="model-icon green">
