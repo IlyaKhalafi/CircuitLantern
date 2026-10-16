@@ -54,8 +54,16 @@ def block_dataflow(model, blocks, matrices: list[dict]) -> list[dict]:
                 }
             )
 
-        def edge(source, target, label="", *, residual=False, edges=edges):
-            edges.append({"source": source, "target": target, "label": label, "residual": residual})
+        def edge(source, target, label="", *, residual=False, branch=False, edges=edges):
+            edges.append(
+                {
+                    "source": source,
+                    "target": target,
+                    "label": label,
+                    "residual": residual,
+                    "branch": branch,
+                }
+            )
 
         parallel = kind == "GPTNeoXLayer" and block.use_parallel_residual
         if kind == "GPT2Block":
@@ -119,7 +127,7 @@ def block_dataflow(model, blocks, matrices: list[dict]) -> list[dict]:
         if parallel:
             # NeoX feeds both normalized branches from the same incoming residual.
             node("norm-mlp", norm2, 740, 85)
-            edge("input", "norm-mlp", "parallel branch", residual=True)
+            edge("input", "norm-mlp", "parallel branch", branch=True)
             mlp_x = 740
             mlp_y = 185
             source = "norm-mlp"

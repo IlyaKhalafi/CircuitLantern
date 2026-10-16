@@ -10,18 +10,20 @@ test("page titles follow client navigation through the workbench", async ({
   page,
 }) => {
   await page.goto("/");
-  for (const title of [
-    "Model explorer",
-    "Activation lab",
-    "Causal tracing",
-    "Experiments",
-    "Server & runtime",
-    "Model library",
-  ]) {
+  const main = page.getByRole("navigation", { name: "Main navigation" });
+  await main.getByRole("link", { name: "Model explorer", exact: true }).click();
+  await expect(page).toHaveTitle("Model explorer · Circuit Lantern");
+  await main.getByRole("link", { name: "Research lab", exact: true }).click();
+  await expect(page).toHaveTitle("Activation lab · Circuit Lantern");
+  for (const title of ["Causal tracing", "Feature lab", "Activation lab"]) {
     await page
-      .getByRole("navigation", { name: "Main navigation" })
+      .getByRole("navigation", { name: "Research workflow" })
       .getByRole("link", { name: title, exact: true })
       .click();
+    await expect(page).toHaveTitle(title + " · Circuit Lantern");
+  }
+  for (const title of ["Experiments", "Server & runtime", "Model library"]) {
+    await main.getByRole("link", { name: title, exact: true }).click();
     await expect(page).toHaveTitle(title + " · Circuit Lantern");
   }
   await page.getByRole("link", { name: "Documentation", exact: true }).click();

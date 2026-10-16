@@ -107,6 +107,33 @@ test("block dataflow exposes attention branches and opens actual matrices", asyn
         .analyze()
     ).violations,
   ).toEqual([]);
+  async function expectNodeInside(id: string) {
+    await expect
+      .poll(async () => {
+        const box = await flow
+          .locator('.react-flow__node[data-id="' + id + '"]')
+          .boundingBox();
+        const area = await flow.boundingBox();
+        return (
+          !!box &&
+          !!area &&
+          box.y >= area.y &&
+          box.y + box.height <= area.y + area.height &&
+          box.x >= area.x &&
+          box.x + box.width <= area.x + area.width
+        );
+      })
+      .toBe(true);
+  }
+  await page.getByLabel("Diagram focus", { exact: true }).selectOption("mlp");
+  await expectNodeInside("down");
+  await page.getByLabel("Diagram focus", { exact: true }).selectOption("all");
+  await expectNodeInside("input");
+  await expectNodeInside("output");
+  await page
+    .getByLabel("Diagram focus", { exact: true })
+    .selectOption("attention");
+  await expectNodeInside("qkv");
   await capturePage(page, {
     path: "../artifacts/screenshots/block-dataflow-light.png",
     fullPage: true,

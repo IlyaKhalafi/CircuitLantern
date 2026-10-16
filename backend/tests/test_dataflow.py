@@ -71,6 +71,13 @@ def test_neox_parallel_configuration_controls_mlp_input_and_residuals(parallel):
     edges = connections(flow)
     assert (("input", "norm-mlp") in edges) is parallel
     assert (("add-attn", "norm-mlp") in edges) is not parallel
+    if parallel:
+        branch = next(
+            edge
+            for edge in flow["edges"]
+            if edge["source"] == "input" and edge["target"] == "norm-mlp"
+        )
+        assert branch["branch"] and not branch["residual"]
 
 
 @pytest.mark.parametrize("family", ["mistral", "qwen2", "qwen3"])

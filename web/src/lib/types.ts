@@ -152,7 +152,13 @@ export interface BlockFlow {
     weight: string | null;
     detail: string;
   }[];
-  edges: { source: string; target: string; label: string; residual: boolean }[];
+  edges: {
+    source: string;
+    target: string;
+    label: string;
+    residual: boolean;
+    branch?: boolean;
+  }[];
   scope?: string;
 }
 export interface ModelGraph {

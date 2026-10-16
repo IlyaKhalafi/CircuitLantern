@@ -164,6 +164,9 @@ export function ModelGraphView({
 }) {
   const { t, rich } = useI18n();
   const [mode, setMode] = useState("overview");
+  useEffect(() => {
+    if (selectedLayer === null && mode === "flow") setMode("overview");
+  }, [selectedLayer, mode]);
   const { nodes: plannedNodes, edges } = useMemo(() => {
     const embedding = graph.matrices.filter((w) =>
       /(?:wte|embed_tokens|embed_in)\.weight$/.test(w.name),

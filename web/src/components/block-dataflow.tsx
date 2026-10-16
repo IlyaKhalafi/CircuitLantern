@@ -2,16 +2,17 @@
 import { useEffect, useMemo, useState } from "react";
 import {
   Background,
+  BaseEdge,
   Controls,
   Handle,
   MarkerType,
   Position,
   ReactFlow,
   useReactFlow,
-  useNodesInitialized,
   useStore,
   type Node,
   type NodeProps,
+  type EdgeProps,
 } from "@xyflow/react";
 import { useI18n } from "@/i18n/provider";
 import type { BlockFlow } from "@/lib/types";
@@ -52,10 +53,40 @@ function Operation({ data }: NodeProps<FlowNode>) {
       )}
       <Handle type="source" position={Position.Bottom} id="bottom" />
       <Handle type="source" position={Position.Left} id="side-out" />
+      <Handle type="source" position={Position.Right} id="branch-out" />
     </div>
   );
 }
 const nodeTypes = { operation: Operation };
+function ResidualEdge({
+  id,
+  sourceX,
+  sourceY,
+  targetX,
+  targetY,
+  markerEnd,
+  style,
+  label,
+}: EdgeProps) {
+  const lane = -55,
+    bend = Math.min(12, Math.abs(targetY - sourceY) / 3);
+  const path = `M ${sourceX},${sourceY} L ${lane + bend},${sourceY} Q ${lane},${sourceY} ${lane},${sourceY + bend} L ${lane},${targetY - bend} Q ${lane},${targetY} ${lane + bend},${targetY} L ${targetX},${targetY}`;
+  return (
+    <BaseEdge
+      id={id}
+      path={path}
+      markerEnd={markerEnd}
+      style={style}
+      label={label}
+      labelX={lane}
+      labelY={(sourceY + targetY) / 2}
+      labelStyle={{ fill: "var(--ink)", fontSize: 10 }}
+      labelBgStyle={{ fill: "var(--panel)" }}
+      labelBgPadding={[5, 3]}
+    />
+  );
+}
+const edgeTypes = { residual: ResidualEdge };
 function FitComputation({
   flow,
   section,
@@ -63,12 +94,11 @@ function FitComputation({
   flow: BlockFlow;
   section: string;
 }) {
-  const initialized = useNodesInitialized();
-  const { fitView } = useReactFlow();
+  const { fitBounds, getNode, viewportInitialized } = useReactFlow();
   const width = useStore((state) => state.width),
     height = useStore((state) => state.height);
   useEffect(() => {
-    if (!initialized || !width || !height) return;
+    if (!viewportInitialized || !width || !height) return;
     const mlp = new Set([
       "norm-mlp",
       "up",
@@ -87,13 +117,19 @@ function FitComputation({
               : mlp.has(node.id) ||
                 node.id === (flow.parallel_residual ? "input" : "add-attn"),
           );
-    fitView({
-      nodes: selected.map((node) => ({ id: node.id })),
-      padding: 0.14,
-      maxZoom: 1.2,
-      duration: 0,
-    });
-  }, [flow, section, initialized, width, height, fitView]);
+    const left = Math.min(-90, ...selected.map((node) => node.x));
+    const right = Math.max(...selected.map((node) => node.x + 170));
+    const top = Math.min(...selected.map((node) => node.y));
+    const bottom = Math.max(
+      ...selected.map(
+        (node) => node.y + (getNode(node.id)?.measured?.height || 80),
+      ),
+    );
+    fitBounds(
+      { x: left, y: top, width: right - left, height: bottom - top },
+      { padding: 0.13, duration: 0 },
+    );
+  }, [flow, section, viewportInitialized, width, height, fitBounds, getNode]);
   return null;
 }
 export function BlockDataflow({
@@ -123,9 +159,13 @@ export function BlockDataflow({
         source: edge.source,
         target: edge.target,
         label: t(edge.label),
-        sourceHandle: edge.residual ? "side-out" : "bottom",
+        sourceHandle: edge.branch
+          ? "branch-out"
+          : edge.residual
+            ? "side-out"
+            : "bottom",
         targetHandle: edge.residual ? "side-in" : "top",
-        type: "smoothstep",
+        type: edge.residual ? "residual" : "smoothstep",
         style: {
           stroke: edge.residual ? "var(--accent)" : "var(--blue)",
           strokeWidth: edge.residual ? 2 : 1.5,
@@ -186,6 +226,7 @@ export function BlockDataflow({
           nodes={nodes}
           edges={edges}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
           minZoom={0.2}
           maxZoom={2}
           onNodeClick={(_, node) => {
