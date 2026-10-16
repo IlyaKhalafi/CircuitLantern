@@ -56,6 +56,11 @@ def test_default_weights_exclude_duplicate_variants_and_include_assets(checkpoin
     )
     assert result["weight_files"] == ["model.safetensors"]
     assert result["download_bytes"] == 1300
+    assert result["download_file_sizes"] == {
+        "model.safetensors": 1000,
+        "config.json": 100,
+        "tokenizer.json": 200,
+    }
     assert result["parameters"] != 123
     assert result["quantizable_parameters"] > 0
     assert result["architecture_supported"]

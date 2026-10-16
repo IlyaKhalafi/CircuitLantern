@@ -18,7 +18,9 @@ PRECISION_BYTES = {
 }
 
 
-def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityRequest) -> dict:
+def assess_compatibility(
+    metadata: dict, hardware: dict, request: CompatibilityRequest, cache: dict | None = None
+) -> dict:
     blockers, warnings = [], []
     native = checkpoint_precision(metadata)
     precision = execution_precision(metadata, request.precision)
@@ -151,6 +153,8 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
     disk_bytes = (
         metadata.get("download_bytes") or metadata.get("weight_bytes") or parameters * native_bytes
     )
+    download_bytes = cache["download_bytes"] if cache is not None else disk_bytes
+    cached_bytes = cache["cached_bytes"] if cache is not None else 0
     available_bytes = hardware["ram_available_bytes"]
     if request.device == "cuda":
         available_bytes = execution_gpu["free_bytes"] if execution_gpu else 0
@@ -163,7 +167,7 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         blockers.append(
             "Insufficient available memory after reserving 15 percent for the operating system and other workloads."
         )
-    if disk_bytes * 1.1 > hardware["disk_free_bytes"]:
+    if download_bytes * 1.1 > hardware["disk_free_bytes"]:
         blockers.append("Insufficient free disk space for the checkpoint and download overhead.")
     if disk_bytes > hardware.get("max_model_bytes", 20 * GIB):
         blockers.append(
@@ -216,7 +220,9 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         "overhead_bytes": int(overhead_bytes),
         "required_bytes": int(required_bytes),
         "available_bytes": int(available_bytes * 0.85),
-        "download_bytes": int(disk_bytes),
+        "source_bytes": int(disk_bytes),
+        "cached_bytes": int(cached_bytes),
+        "download_bytes": int(download_bytes),
         "blockers": blockers,
         "warnings": warnings,
         "metadata": metadata,

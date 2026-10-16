@@ -169,6 +169,7 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
         "has_safetensors": bool(weight_names),
         "weight_files": weight_names,
         "download_files": download_files,
+        "download_file_sizes": {name: siblings[name].size for name in download_files},
         "download_bytes": download_bytes,
         "hidden_size": hidden,
         "num_layers": layers,

@@ -242,3 +242,37 @@ def test_cpu_fit_does_not_require_a_physical_gpu_inventory():
         metadata(), machine, CompatibilityRequest(model_id="model", context_length=128)
     )
     assert result["compatible"]
+
+
+def test_cached_checkpoint_uses_remaining_download_for_disk_fit():
+    machine = hardware()
+    machine["disk_free_bytes"] = 20_000_000
+    model = metadata()
+    request = CompatibilityRequest(model_id="model", context_length=128)
+    assert not assess_compatibility(model, machine, request)["compatible"]
+    report = assess_compatibility(
+        model,
+        machine,
+        request,
+        cache={"cached_bytes": 490_000_000, "download_bytes": 10_000_000},
+    )
+    assert report["compatible"]
+    assert report["source_bytes"] == 500_000_000
+    assert report["download_bytes"] == 10_000_000
+    assert report["cached_bytes"] == 490_000_000
+    machine["disk_free_bytes"] = 0
+    full = assess_compatibility(
+        model,
+        machine,
+        request,
+        cache={"cached_bytes": 500_000_000, "download_bytes": 0},
+    )
+    assert full["compatible"]
+    machine["max_model_bytes"] = 400_000_000
+    limited = assess_compatibility(
+        model,
+        machine,
+        request,
+        cache={"cached_bytes": 500_000_000, "download_bytes": 0},
+    )
+    assert any("configured download limit" in b for b in limited["blockers"])

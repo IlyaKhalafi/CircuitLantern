@@ -69,6 +69,8 @@ export interface Hardware {
   };
 }
 export interface Compatibility {
+  source_bytes?: number;
+  cached_bytes?: number;
   context_length?: number;
   compatible: boolean;
   status: string;

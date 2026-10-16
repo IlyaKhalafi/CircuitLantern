@@ -508,7 +508,9 @@ export default function LibraryPage() {
                   value={bytes(report.available_bytes)}
                 />
                 <Metric
-                  label="Download size"
+                  label={
+                    report.cached_bytes ? "Remaining download" : "Download size"
+                  }
                   value={bytes(report.download_bytes)}
                 />
               </div>
@@ -525,6 +527,13 @@ export default function LibraryPage() {
                 </span>
                 <span>{report.device.toUpperCase()}</span>
               </div>
+              {!!report.cached_bytes && (
+                <p className="inline-note">
+                  {report.download_bytes === 0
+                    ? "All checkpoint files are cached locally."
+                    : `Reusing ${bytes(report.cached_bytes)} of checkpoint files from the local Hub cache.`}
+                </p>
+              )}
               {report.blockers.map((b, i) => (
                 <div className="check-message blocked" key={i}>
                   <Info size={15} />
@@ -536,6 +545,8 @@ export default function LibraryPage() {
                   How this estimate works <ChevronRight size={14} />
                 </summary>
                 <p>
+                  Source checkpoint{" "}
+                  {bytes(report.source_bytes ?? report.download_bytes)}.{" "}
                   Execution format {report.runtime_precision}. Resident weights{" "}
                   {bytes(report.weight_bytes)}. Matrix workspace{" "}
                   {bytes(report.analysis_workspace_bytes || 0)}. Logit buffers{" "}
@@ -586,7 +597,11 @@ export default function LibraryPage() {
               disabled={!report?.compatible || busy}
             >
               <Download size={16} />
-              {isDownloading ? "Preparing model" : "Download & explore"}
+              {isDownloading
+                ? "Preparing model"
+                : report?.cached_bytes && report.download_bytes === 0
+                  ? "Load & explore"
+                  : "Download & explore"}
               <ArrowRight size={16} />
             </button>
           </div>
