@@ -23,6 +23,8 @@ flowchart LR
 
 `runtime.py` owns one model and tokenizer. Its operation lock serializes loading, unloading, matrix analysis and activation capture. Download workers update bounded in memory job records. Weight statistics use a small cache that is cleared whenever the model changes.
 
+`tracing.py` converts captured residual states, logit lens projections and attention tensors into portable measurements. The runtime releases capture buffers before continuation generation while keeping any intervention hooks active through generation.
+
 `head_sweep.py` runs bounded independent attention head interventions using the verified output layouts in `interventions.py`. `scoring.py` shares finite logit checks, single token target resolution and float64 log probability scoring across research sweeps.
 
 `metrics.py` holds numerical calculations and declares the difference between exact statistics and randomized full matrix spectral estimates. `store.py` uses short SQLite transactions with a connection per operation. A versioned migration adds artifact kinds and source job identity while preserving legacy trace JSON. Saved job IDs have a unique index so concurrent or retried saves return one record without overwriting notes. Current databases reopen without a write transaction. The save endpoint copies only a published research job result and uses its captured identity independently of the active model.

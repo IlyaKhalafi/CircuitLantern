@@ -11,7 +11,6 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
 from circuit_lantern.schemas import CompatibilityRequest, HeadAblation
-from circuit_lantern.services.attention import attention_summary
 from circuit_lantern.services.cache import checkpoint_cache
 from circuit_lantern.services.causal import activation_patch_sweep
 from circuit_lantern.services.compatibility import assess_compatibility
@@ -23,13 +22,13 @@ from circuit_lantern.services.execution import (
     prepare_model_execution,
 )
 from circuit_lantern.services.generation import decode_generation, generation_settings
-from circuit_lantern.services.geometry import ResidualGeometry
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.head_sweep import MAX_SWEEP_HEADS, head_ablation_sweep
 from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
 from circuit_lantern.services.tokens import capture_token_limit, preview_tokens
+from circuit_lantern.services.tracing import summarize_trace
 from circuit_lantern.services.weights import (
     logical_weight,
     model_weight_inventory,
@@ -452,6 +451,7 @@ class ModelRuntime:
             blocks = self._blocks()
             head_intervention = None
             bypassed_hidden = []
+            capturing = True
             if ablate_head is not None:
                 if ablate_layer is not None:
                     raise ValueError(
@@ -468,7 +468,8 @@ class ModelRuntime:
 
                 def bypass(module, args, kwargs, output):
                     hidden = args[0] if args else kwargs["hidden_states"]
-                    bypassed_hidden[:] = [hidden]
+                    if capturing:
+                        bypassed_hidden[:] = [hidden]
                     return (hidden, *output[1:]) if isinstance(output, tuple) else hidden
 
                 handles.append(blocks[ablate_layer].register_forward_hook(bypass, with_kwargs=True))
@@ -487,71 +488,22 @@ class ModelRuntime:
                     output_attentions=capture_attention,
                     use_cache=False,
                 )
+                capturing = False
                 for handle in capture_handles:
                     handle.remove()
-                if not torch.isfinite(outputs.logits).all():
-                    raise ValueError(
-                        "The model produced non finite logits. Try BF16 or FP32 execution."
-                    )
-                final_norm = self._final_norm()
-                unembed = self.model.get_output_embeddings()
                 tokens = [self.tokenizer.decode([i]) for i in inputs["input_ids"][0].tolist()]
-                layers = []
-                geometry = ResidualGeometry()
-                for index, hidden in enumerate(outputs.hidden_states):
-                    # Some Transformers recorders run inside forward before our bypass hook.
-                    # Keep their final normalized state, but replace a bypassed block capture.
-                    is_final = index == len(outputs.hidden_states) - 1
-                    if bypassed_hidden and index == ablate_layer + 1 and not is_final:
-                        hidden = bypassed_hidden[0]
-                    # The final hidden state is already normalized by Transformers.
-                    projected = (
-                        final_norm(hidden)
-                        if final_norm is not None and index < len(outputs.hidden_states) - 1
-                        else hidden
-                    )
-                    logits = unembed(projected).float()
-                    if not torch.isfinite(logits).all():
-                        raise ValueError(
-                            "The logit lens produced non finite values. Try BF16 or FP32 execution."
-                        )
-                    probabilities = torch.softmax(logits[0, -1], dim=-1)
-                    values, indices = probabilities.topk(min(5, probabilities.numel()))
-                    raw_hidden = raw_final[0] if is_final and raw_final else hidden
-                    vector = raw_hidden[0].float()
-                    label = "Embedding" if index == 0 else f"Layer {index - 1}"
-                    update = geometry.observe(vector, label)
-                    layers.append(
-                        {
-                            "layer": index - 1,
-                            "label": label,
-                            **update,
-                            "capture_point": "residual_post"
-                            if not is_final or raw_final
-                            else "final_normalized",
-                            "entropy": float(
-                                -(probabilities * probabilities.clamp_min(1e-30).log()).sum()
-                            ),
-                            "predictions": [
-                                {
-                                    "token": self.tokenizer.decode([int(i)]),
-                                    "probability": float(v),
-                                    "token_id": int(i),
-                                }
-                                for i, v in zip(indices, values)
-                            ],
-                            "token_predictions": [
-                                self.tokenizer.decode([i])
-                                for i in logits[0].argmax(-1).cpu().tolist()
-                            ],
-                        }
-                    )
-                attention = []
-                if outputs.attentions is not None:
-                    for index, tensor in enumerate(outputs.attentions):
-                        if tensor is None:
-                            continue
-                        attention.append({"layer": index, **attention_summary(tensor)})
+                summary = summarize_trace(
+                    outputs,
+                    self.tokenizer,
+                    self._final_norm(),
+                    self.model.get_output_embeddings(),
+                    raw_final=raw_final,
+                    bypassed_hidden=bypassed_hidden,
+                    ablate_layer=ablate_layer,
+                )
+                raw_final.clear()
+                bypassed_hidden.clear()
+                del outputs
                 settings = (
                     generation_settings(self.tokenizer, max_new_tokens) if max_new_tokens else None
                 )
@@ -565,12 +517,9 @@ class ModelRuntime:
                     inputs["input_ids"][0].cpu().tolist(),
                     generated[0].cpu().tolist(),
                 )
-                final_probabilities = torch.softmax(outputs.logits[0, -1].float(), -1)
-                top_values, top_indices = final_probabilities.topk(
-                    min(10, final_probabilities.numel())
-                )
                 return {
                     **execution_provenance(self.metadata),
+                    **summary,
                     "prompt": prompt,
                     "tokens": tokens,
                     "token_ids": inputs["input_ids"][0].cpu().tolist(),
@@ -579,24 +528,10 @@ class ModelRuntime:
                     "generation_performed": settings is not None,
                     "requested_max_new_tokens": max_new_tokens,
                     "capture_attention": capture_attention,
-                    "layers": layers,
-                    "attention": attention,
-                    "geometry": geometry.finish(),
-                    "predictions": [
-                        {
-                            "token": self.tokenizer.decode([int(i)]),
-                            "probability": float(v),
-                            "token_id": int(i),
-                            "logit": float(outputs.logits[0, -1, i]),
-                        }
-                        for i, v in zip(top_indices, top_values)
-                    ],
                     "duration_ms": round((time.perf_counter() - started) * 1000),
                     "device": self.device,
                     "ablate_layer": ablate_layer,
                     "ablate_head": head_intervention,
-                    "method": f"Logit lens {'with the model final normalization' if final_norm is not None else 'without final normalization for this architecture'}. Intermediate predictions are diagnostic projections, not calibrated probabilities.",
-                    "final_state_normalized": not bool(raw_final),
                 }
             finally:
                 for handle in handles + capture_handles:
