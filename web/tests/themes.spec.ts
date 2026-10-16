@@ -35,6 +35,30 @@ test("light is the default and theme changes preserve research drafts", async ({
   expect(errors).toEqual([]);
 });
 
+test("theme changes never interpolate text and background colors", async ({
+  page,
+}) => {
+  await page.goto("/playground");
+  for (const theme of ["Dark theme", "Light theme"]) {
+    const transitions = await page
+      .getByRole("button", { name: theme, exact: true })
+      .evaluate((button) => {
+        (button as HTMLButtonElement).click();
+        return document
+          .getAnimations()
+          .filter(
+            (animation) =>
+              animation instanceof CSSTransition &&
+              ["color", "background-color"].includes(
+                animation.transitionProperty,
+              ),
+          )
+          .map((animation) => (animation as CSSTransition).transitionProperty);
+      });
+    expect(transitions).toEqual([]);
+  }
+});
+
 for (const value of ["light", "dark", "invalid"]) {
   test(
     "server renders a valid theme before hydration for " + value,
