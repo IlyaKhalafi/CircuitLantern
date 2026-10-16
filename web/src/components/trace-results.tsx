@@ -14,9 +14,13 @@ import type { Trace } from "@/lib/types";
 export function TraceResults({
   trace,
   comparison,
+  comparisonLabel = "Baseline",
+  traceLabel = "Current trace",
 }: {
   trace: Trace;
   comparison?: Trace | null;
+  comparisonLabel?: string;
+  traceLabel?: string;
 }) {
   const [tab, setTab] = useState("residual");
   const [attentionLayer, setAttentionLayer] = useState(0);
@@ -30,6 +34,7 @@ export function TraceResults({
     rms: layer.rms,
     entropy: layer.entropy,
     baseline: comparison?.layers[i]?.norm ?? null,
+    referenceEntropy: comparison?.layers[i]?.entropy ?? null,
   }));
   return (
     <>
@@ -113,9 +118,15 @@ export function TraceResults({
               <SeriesChart
                 data={residual}
                 series={[
-                  { key: "norm", label: "Current trace", color: "#b85b28" },
+                  { key: "norm", label: traceLabel, color: "#b85b28" },
                   ...(comparison
-                    ? [{ key: "baseline", label: "Baseline", color: "#557ca0" }]
+                    ? [
+                        {
+                          key: "baseline",
+                          label: comparisonLabel,
+                          color: "#557ca0",
+                        },
+                      ]
                     : []),
                 ]}
                 area={!comparison}
@@ -134,11 +145,20 @@ export function TraceResults({
                 series={[
                   {
                     key: "entropy",
-                    label: "Entropy in nats",
-                    color: "#809cbb",
+                    label: comparison ? traceLabel : "Entropy in nats",
+                    color: comparison ? "#b85b28" : "#809cbb",
                   },
+                  ...(comparison
+                    ? [
+                        {
+                          key: "referenceEntropy",
+                          label: comparisonLabel,
+                          color: "#557ca0",
+                        },
+                      ]
+                    : []),
                 ]}
-                area
+                area={!comparison}
               />
             </Panel>
           </div>

@@ -33,6 +33,8 @@ flowchart LR
 
 The App Router separates the library, architecture explorer, activation lab, experiments, server and field guide. Shared components cover the shell, panels, charts, heatmaps and trace results. API types and formatting utilities live in `src/lib`.
 
+Saved activation trace comparisons use the original notebook records. Compatibility checks align checkpoint revisions, prompt token IDs, execution profiles and capture conventions before plotting or exporting differences. Reference requests abort when the selection changes. Comparison never starts model execution.
+
 The frontend calls a same origin API path. A Next.js route handler forwards requests to the Python service so browser requests do not need a separate backend origin. It reads the backend address at runtime, allowing the same production build to target a different server without rebuilding.
 
 Residual patching and head ablation sweeps run in the same serialized executor as model loading. A sweep captures clean block outputs once, then runs one restored block per corrupted forward pass. The model revision is checked before execution and cannot be replaced by another background load during the sweep. Head sweeps perform one unchanged baseline and one forward per selected query head, with at most 512 heads per job. Model session identity is checked alongside the checkpoint revision. Cancellation is cooperative between forwards, preserving completed results. Head failures retain earlier successful heads and publish a failed terminal state. Cancellation during a final successful forward does not relabel a complete result as partial. Browser job polling survives navigation and detects expired job IDs after a server restart.
@@ -42,7 +44,7 @@ Fonts are bundled with the frontend so rendering does not depend on third party 
 ## Current limits
 
 - One model and one execution device per backend process
-- FP32, FP16, BF16, bitsandbytes NF4 and LLM.int8 execution
+- FP32, FP16, BF16, bitsandbytes NF4, native bitsandbytes FP4 and LLM.int8 execution
 - Float32 statistics on loaded or dequantized logical matrices
 - Native FP8 and NVFP4 adapters remain pending
 - No execution of custom repository code

@@ -1,9 +1,21 @@
 import { CausalResults } from "@/components/causal-results";
 import { HeadSweepResults } from "@/components/head-sweep-results";
-import { TraceResults } from "@/components/trace-results";
+import { SavedTraceComparison } from "@/components/saved-trace-comparison";
 import type { Experiment } from "@/lib/types";
 
-export function ExperimentResult({ experiment }: { experiment: Experiment }) {
+export function ExperimentResult({
+  experiment,
+  experiments,
+  libraryLoading,
+  libraryError,
+  onRetryLibrary,
+}: {
+  experiment: Experiment;
+  experiments: Experiment[];
+  libraryLoading: boolean;
+  libraryError: string | null;
+  onRetryLibrary: () => void;
+}) {
   if (experiment.kind === "causal")
     return experiment.result ? (
       <CausalResults result={experiment.result} />
@@ -12,5 +24,14 @@ export function ExperimentResult({ experiment }: { experiment: Experiment }) {
     return experiment.result ? (
       <HeadSweepResults result={experiment.result} />
     ) : null;
-  return experiment.trace ? <TraceResults trace={experiment.trace} /> : null;
+  return experiment.trace ? (
+    <SavedTraceComparison
+      experiment={experiment}
+      trace={experiment.trace}
+      experiments={experiments}
+      libraryLoading={libraryLoading}
+      libraryError={libraryError}
+      onRetryLibrary={onRetryLibrary}
+    />
+  ) : null;
 }

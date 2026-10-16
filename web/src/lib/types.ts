@@ -214,6 +214,7 @@ export interface TraceGeometry {
   method: string;
 }
 export interface Trace extends ExecutionProvenance {
+  final_state_normalized?: boolean;
   geometry?: TraceGeometry;
   model_id: string;
   revision: string;

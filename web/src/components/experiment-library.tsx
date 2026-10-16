@@ -94,6 +94,7 @@ export function ExperimentLibrary({
                 className="panel experiment-card"
                 href={notebookHref(params, {
                   experiment: experiment.id,
+                  compare: null,
                   q: search || null,
                 })}
                 prefetch={false}

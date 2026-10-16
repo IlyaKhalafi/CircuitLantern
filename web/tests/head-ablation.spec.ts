@@ -27,7 +27,7 @@ test("head zero ablation compares a baseline, explains routing and persists prov
     page
       .locator(".recharts-legend-wrapper")
       .getByText("Baseline", { exact: true }),
-  ).toBeVisible();
+  ).toHaveCount(2);
   await expect(
     page.getByText(
       /every prompt and generated token before the attention output projection/,

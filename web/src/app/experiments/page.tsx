@@ -126,7 +126,8 @@ function ExperimentNotebook() {
         items.filter((item) => item.id !== selected.id),
       );
       setLoadAttempt((attempt) => attempt + 1);
-      if (isCurrent(selected.id)) navigate({ experiment: null }, true);
+      if (isCurrent(selected.id))
+        navigate({ experiment: null, compare: null }, true);
       setConfirmDelete(false);
     } catch (e) {
       if (isCurrent(selected.id)) setError((e as Error).message);
@@ -179,7 +180,10 @@ function ExperimentNotebook() {
         <Link
           className="button secondary"
           style={{ marginBottom: 20 }}
-          href={notebookHref(params.toString(), { experiment: null })}
+          href={notebookHref(params.toString(), {
+            experiment: null,
+            compare: null,
+          })}
         >
           <ArrowLeft size={14} /> All experiments
         </Link>
@@ -258,7 +262,14 @@ function ExperimentNotebook() {
               </div>
             </div>
           </Panel>
-          <ExperimentResult key={selected.id} experiment={selected} />
+          <ExperimentResult
+            key={selected.id}
+            experiment={selected}
+            experiments={experiments}
+            libraryLoading={loading}
+            libraryError={listError}
+            onRetryLibrary={() => setLoadAttempt((attempt) => attempt + 1)}
+          />
         </>
       ) : loading ? (
         <Loading label="Opening experiment notebook" />

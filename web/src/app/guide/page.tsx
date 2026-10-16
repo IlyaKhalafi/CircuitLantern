@@ -156,7 +156,10 @@ export default function GuidePage() {
             Experiments are stored in local SQLite and can be reopened without
             keeping the model loaded. Retrying a sweep save returns its existing
             record and preserves edited notes. Keep prompts and settings fixed
-            when comparing interventions.
+            when comparing interventions. Search names, models and observations
+            to find saved evidence. Open an activation trace and choose a
+            reference to compare prompt measurements from matching checkpoints
+            and execution settings.
           </p>
         </article>
       </div>

@@ -2715,3 +2715,42 @@ a.experiment-card {
 .experiment-card p {
   overflow-wrap: anywhere;
 }
+
+.trace-comparison {
+  margin: 24px 0;
+}
+.comparison-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 14px;
+  padding: 18px 20px;
+}
+.comparison-controls label {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 8px;
+  min-width: min(240px, 100%);
+  color: var(--muted);
+  font-size: 12px;
+}
+.comparison-controls select {
+  width: 100%;
+}
+.comparison-source {
+  padding: 12px 20px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.comparison-source p {
+  color: var(--muted);
+  margin-top: 6px;
+}
+.comparison-values summary {
+  padding: 14px 20px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 600;
+  border-top: 1px solid var(--line);
+}
