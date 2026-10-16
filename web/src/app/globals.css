@@ -3166,3 +3166,87 @@ html[lang="ja"] :is(.page-header h1, .welcome-banner h2) {
     display: none;
   }
 }
+
+/* Discovery keeps optional filters separate from the model selection task. */
+.discovery-controls {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+  margin: 16px 0 24px;
+}
+.discovery-controls > label {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.discovery-controls select,
+.discovery-filter-fields select {
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 9px 12px;
+  max-width: 100%;
+}
+.discovery-filters summary {
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 12px;
+  padding: 9px;
+}
+.discovery-filters[open] {
+  flex-basis: 100%;
+  order: 3;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+}
+.discovery-filter-fields {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 14px;
+  padding: 10px;
+}
+.discovery-filter-fields label {
+  display: grid;
+  gap: 7px;
+  font-size: 12px;
+  flex: 1 1 160px;
+}
+.discovery-count {
+  margin-inline-start: auto;
+  font-size: 12px;
+  color: var(--muted);
+}
+.model-popularity {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--muted);
+  margin: 12px 0;
+}
+.model-popularity span {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.model-popularity time {
+  margin-inline-start: auto;
+}
+@media (max-width: 600px) {
+  .discovery-count {
+    margin-inline-start: 0;
+  }
+  .discovery-controls {
+    gap: 8px;
+  }
+}
+

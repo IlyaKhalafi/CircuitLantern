@@ -1,11 +1,11 @@
 "use client";
 import { useI18n } from "@/i18n/provider";
 import { Modal } from "@/components/modal";
+import { ModelDiscovery } from "@/components/model-discovery";
 import Image from "next/image";
 import {
   ArrowRight,
   ArrowUpRight,
-  Box,
   Check,
   CheckCircle2,
   ChevronRight,
@@ -15,9 +15,7 @@ import {
   HardDrive,
   Info,
   LoaderCircle,
-  Search,
   ShieldCheck,
-  SlidersHorizontal,
   Sparkles,
   X,
 } from "lucide-react";
@@ -29,18 +27,15 @@ import {
   executionLabel,
   fourBitFormat,
 } from "@/lib/execution";
-import type { Compatibility, Hardware, Job, ModelCard } from "@/lib/types";
+import type { Compatibility, Hardware, Job } from "@/lib/types";
 import { ErrorNotice, Loading, Metric, PageHeader } from "@/components/ui";
 export default function LibraryPage() {
   const { t, rich } = useI18n();
   const router = useRouter();
-  const [models, setModels] = useState<ModelCard[]>([]);
   const [hardware, setHardware] = useState<Hardware | null>(null);
-  const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string | null>(null);
   const [report, setReport] = useState<Compatibility | null>(null);
   const [busy, setBusy] = useState(false);
-  const [searching, setSearching] = useState(true);
   const [error, setError] = useState<string | readonly string[] | null>(null);
   const [job, setJob] = useState<Job | null>(null);
   const [device, setDevice] = useState("cpu");
@@ -51,10 +46,6 @@ export default function LibraryPage() {
   const requestId = useRef(0);
   const checkQueue = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
-    api<ModelCard[]>("/models")
-      .then(setModels)
-      .catch((e) => setError(e.message))
-      .finally(() => setSearching(false));
     api<Hardware>("/hardware")
       .then(setHardware)
       .catch(() => {});
@@ -63,20 +54,6 @@ export default function LibraryPage() {
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
-  async function search(event: React.FormEvent) {
-    event.preventDefault();
-    setSearching(true);
-    setError(null);
-    try {
-      setModels(
-        await api<ModelCard[]>(`/models?q=${encodeURIComponent(query)}`),
-      );
-    } catch (e) {
-      setError((e as Error).message);
-    } finally {
-      setSearching(false);
-    }
-  }
   async function check(
     modelId: string,
     targetDevice = device,
@@ -118,7 +95,12 @@ export default function LibraryPage() {
       const result = await api<Job>(`/jobs/${id}`);
       setJob(result);
       if (result.status === "ready") {
-        router.push("/workspace");
+        router.push(
+          new URLSearchParams(window.location.search).get("return") ===
+            "compare"
+            ? "/workspace?view=compare"
+            : "/workspace",
+        );
         return;
       }
       if (result.status === "failed") {
@@ -239,77 +221,8 @@ export default function LibraryPage() {
           {t("Compatibility checked before download")}
         </div>
       </div>
-      <form className="search-row" onSubmit={search}>
-        <div className="search-input">
-          <Search size={18} />
-          <input
-            dir="auto"
-            aria-label={t("Search Hugging Face models")}
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder={t(
-              "Search Hugging Face models or enter a repository ID\u2026",
-            )}
-          />
-          <kbd>↵</kbd>
-        </div>
-        <button className="button secondary" disabled={searching}>
-          <SlidersHorizontal size={16} />
-          {searching ? t("Searching") : t("Search Hub")}
-        </button>
-        {query.includes("/") && (
-          <button
-            type="button"
-            className="button primary"
-            onClick={() => check(query)}
-          >
-            {t("Check model")}
-            <ArrowRight size={16} />
-          </button>
-        )}
-      </form>
+      <ModelDiscovery onChoose={check} />
       {!selected && <ErrorNotice message={error} />}
-      {searching ? (
-        <Loading label={t("Finding models")} />
-      ) : (
-        <div className="model-grid">
-          {models.map((model) => (
-            <button
-              className={`model-card ${selected === model.id ? "selected" : ""}`}
-              key={model.id}
-              onClick={() => check(model.id)}
-            >
-              <div className="model-card-top">
-                <span className={`model-icon ${model.color}`}>
-                  <Box size={23} />
-                </span>
-                <span
-                  className={`pill ${model.tag === "Recommended" ? "orange" : "subtle"}`}
-                >
-                  {t(model.tag)}
-                </span>
-              </div>
-              <h3>{model.name}</h3>
-              <span className="model-owner">{model.id.split("/")[0]}</span>
-              <p>{t(model.description)}</p>
-              <div className="model-card-footer">
-                <div>
-                  <span>{t(model.parameters)}</span>
-                  <span>{model.family}</span>
-                </div>
-                <ArrowUpRight size={17} />
-              </div>
-            </button>
-          ))}
-        </div>
-      )}
-      {!searching && !error && models.length === 0 && (
-        <div className="empty-inline">
-          {t(
-            "No models found. Try a shorter search or enter a full repository ID.",
-          )}
-        </div>
-      )}
       <div className="library-bottom">
         <div>
           <Cpu size={21} />

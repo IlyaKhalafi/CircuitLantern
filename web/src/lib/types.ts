@@ -5,6 +5,10 @@ export interface ExecutionProvenance {
   execution_config?: Record<string, unknown> | null;
 }
 export interface ModelCard {
+  downloads?: number | null;
+  likes?: number | null;
+  updated_at?: string | null;
+  created_at?: string | null;
   id: string;
   name: string;
   family: string;
@@ -136,7 +140,23 @@ export interface Weight {
   elements: number;
   dtype: string;
 }
+export interface BlockFlow {
+  layer: number;
+  supported: boolean;
+  parallel_residual?: boolean;
+  nodes: {
+    id: string;
+    label: string;
+    x: number;
+    y: number;
+    weight: string | null;
+    detail: string;
+  }[];
+  edges: { source: string; target: string; label: string; residual: boolean }[];
+  scope?: string;
+}
 export interface ModelGraph {
+  dataflow?: BlockFlow[];
   metadata: ModelMetadata;
   matrices: Weight[];
   total_parameters: number;
