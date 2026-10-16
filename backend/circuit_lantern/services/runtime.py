@@ -15,6 +15,7 @@ from circuit_lantern.schemas import CompatibilityRequest, HeadAblation
 from circuit_lantern.services.cache import checkpoint_cache
 from circuit_lantern.services.causal import activation_patch_sweep
 from circuit_lantern.services.compatibility import assess_compatibility
+from circuit_lantern.services.dataflow import block_dataflow
 from circuit_lantern.services.execution import (
     PACKED_PRECISIONS,
     describe_execution,
@@ -387,6 +388,7 @@ class ModelRuntime:
             return {
                 "metadata": self.metadata,
                 "matrices": weights,
+                "dataflow": block_dataflow(self.model, self._blocks(), weights),
                 "total_parameters": total_parameters,
             }
 
