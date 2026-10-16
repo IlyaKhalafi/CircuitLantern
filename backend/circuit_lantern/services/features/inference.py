@@ -2,6 +2,7 @@
 
 import gc
 from contextlib import ExitStack, contextmanager
+from datetime import UTC, datetime
 from functools import wraps
 
 import torch
@@ -147,6 +148,37 @@ def prediction(tokenizer, log_probs: torch.Tensor) -> list[dict]:
     ]
 
 
+def measurement_record(kind: str, manifest: dict) -> dict:
+    source = {
+        key: manifest[key]
+        for key in (
+            "id",
+            "model_id",
+            "revision",
+            "layer",
+            "capture_point",
+            "features",
+            "input_dim",
+            "method",
+            "weights_sha256",
+            "manifest_sha256",
+            "training",
+            "method_record",
+        )
+    }
+    source["corpus_fingerprint"] = manifest["corpus"]["fingerprint"]
+    source["training_execution"] = {
+        "execution_id": manifest["execution_id"],
+        "execution_precision": manifest["execution_precision"],
+        "execution_config": manifest["execution_config"],
+    }
+    return {
+        "format": "circuit-lantern-feature-" + kind + "-v1",
+        "captured_at": datetime.now(UTC).isoformat(),
+        "dictionary_source": source,
+    }
+
+
 @model_operation
 def inspect_prompt(lab, identifier: str, request) -> dict:
     runtime = lab.runtime
@@ -183,6 +215,7 @@ def inspect_prompt(lab, identifier: str, request) -> dict:
         raise ValueError("The target token ID is outside the loaded vocabulary.")
     response = {
         **execution_provenance(runtime.metadata),
+        **measurement_record("inspection", manifest),
         "dictionary_id": identifier,
         "prompt": request.prompt,
         "tokens": tokens,
@@ -268,6 +301,7 @@ def evaluate_prompt(lab, identifier: str, request) -> dict:
     gap = ablated_loss - original_loss if original_loss is not None else None
     return {
         **execution_provenance(runtime.metadata),
+        **measurement_record("evaluation", manifest),
         "dictionary_id": identifier,
         "prompt": request.prompt,
         "tokens": tokens,

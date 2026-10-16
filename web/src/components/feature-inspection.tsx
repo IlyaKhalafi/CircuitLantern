@@ -1,10 +1,10 @@
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { Play } from "lucide-react";
+import { Download, Play } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
 import { Heatmap } from "@/components/charts";
-import { number, post } from "@/lib/api";
+import { downloadJSON, number, post } from "@/lib/api";
 import type {
   DictionaryEvaluation,
   DictionaryManifest,
@@ -177,7 +177,21 @@ export function FeatureInspectionPanel({
         </p>
         {result && (
           <div className="feature-inspection-result">
-            <h3>{t("Captured prompt")}</h3>
+            <div className="feature-toolbar">
+              <h3>{t("Captured prompt")}</h3>
+              <button
+                className="button secondary"
+                onClick={() =>
+                  downloadJSON(
+                    result,
+                    "feature-inspection-" + result.dictionary_id + ".json",
+                  )
+                }
+              >
+                <Download size={14} />
+                {t("Export feature inspection")}
+              </button>
+            </div>
             <p className="inline-note">
               {t(
                 result.prompt_split === "train"
@@ -221,6 +235,17 @@ export function FeatureInspectionPanel({
               {result.intervention && (
                 <div>
                   <h3>{t("Intervened predictions")}</h3>
+                  <p className="inline-note feature-intervention-evidence">
+                    {t("Feature {v0}", { v0: result.intervention.feature })}
+                    {" · ×"}
+                    {result.intervention.multiplier}
+                    {" · "}
+                    {result.intervention.position === null
+                      ? t("All eligible tokens")
+                      : t("Token position") +
+                        " " +
+                        result.intervention.position}
+                  </p>
                   <p dir="auto">{result.intervention.target_token}</p>
                   <Predictions rows={result.intervention.predictions} />
                 </div>
@@ -245,7 +270,23 @@ export function FeatureInspectionPanel({
         )}
         {evaluation && (
           <div className="feature-evaluation">
-            <h3>{t("Reconstruction faithfulness")}</h3>
+            <div className="feature-toolbar">
+              <h3>{t("Reconstruction faithfulness")}</h3>
+              <button
+                className="button secondary"
+                onClick={() =>
+                  downloadJSON(
+                    evaluation,
+                    "feature-reconstruction-" +
+                      evaluation.dictionary_id +
+                      ".json",
+                  )
+                }
+              >
+                <Download size={14} />
+                {t("Export reconstruction")}
+              </button>
+            </div>
             <p className="inline-note">
               {t(
                 evaluation.prompt_split === "train"

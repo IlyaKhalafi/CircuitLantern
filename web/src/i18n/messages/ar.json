@@ -1560,5 +1560,7 @@
   "Choose between one and 32 decoder directions.": "اختر من اتجاه واحد إلى 32 اتجاهًا لمفكك الترميز.",
   "The dictionary weight file is missing or unreadable.": "ملف أوزان القاموس مفقود أو غير قابل للقراءة.",
   "The dictionary weight file exceeds its size limit.": "يتجاوز ملف أوزان القاموس الحد المسموح لحجمه.",
-  "Insufficient available RAM to compare these decoder directions.": "ذاكرة RAM المتاحة غير كافية لمقارنة اتجاهات مفكك الترميز هذه."
+  "Insufficient available RAM to compare these decoder directions.": "ذاكرة RAM المتاحة غير كافية لمقارنة اتجاهات مفكك الترميز هذه.",
+  "Export feature inspection": "تصدير فحص الميزات",
+  "Export reconstruction": "تصدير إعادة البناء"
 }

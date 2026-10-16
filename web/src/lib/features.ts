@@ -1,3 +1,5 @@
+import type { ExecutionProvenance } from "@/lib/types";
+
 export interface FeatureMetrics {
   samples: number;
   mse: number;
@@ -101,8 +103,27 @@ export interface FeaturePrediction {
   token_id: number;
   probability: number;
 }
-export interface FeatureInspection {
+export interface FeatureDictionarySource extends Pick<
+  DictionarySummary,
+  "id" | "model_id" | "revision" | "layer" | "features" | "input_dim" | "method"
+> {
+  capture_point: string;
+  weights_sha256: string;
+  manifest_sha256: string;
+  training: Record<string, unknown>;
+  method_record: Record<string, unknown>;
+  corpus_fingerprint: string;
+  training_execution: ExecutionProvenance;
+}
+export interface FeatureMeasurement extends ExecutionProvenance {
+  format: string;
+  captured_at: string;
+  model_id: string;
+  revision: string;
   dictionary_id: string;
+  dictionary_source: FeatureDictionarySource;
+}
+export interface FeatureInspection extends FeatureMeasurement {
   prompt: string;
   tokens: string[];
   token_ids: number[];
@@ -123,7 +144,7 @@ export interface FeatureInspection {
     predictions: FeaturePrediction[];
   };
 }
-export interface DictionaryEvaluation {
+export interface DictionaryEvaluation extends FeatureMeasurement {
   prompt: string;
   scored_tokens: number;
   prompt_split: "train" | "validation" | "unseen";

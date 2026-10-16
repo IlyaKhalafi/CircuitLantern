@@ -1560,5 +1560,7 @@
   "Choose between one and 32 decoder directions.": "デコーダー方向を1個から32個の範囲で選択してください。",
   "The dictionary weight file is missing or unreadable.": "辞書の重みファイルが見つからないか、読み取れません。",
   "The dictionary weight file exceeds its size limit.": "辞書の重みファイルがサイズ制限を超えています。",
-  "Insufficient available RAM to compare these decoder directions.": "これらのデコーダー方向を比較するための空きRAMが不足しています。"
+  "Insufficient available RAM to compare these decoder directions.": "これらのデコーダー方向を比較するための空きRAMが不足しています。",
+  "Export feature inspection": "特徴の検査をエクスポート",
+  "Export reconstruction": "再構成をエクスポート"
 }

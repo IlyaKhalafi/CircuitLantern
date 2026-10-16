@@ -1560,5 +1560,7 @@
   "Choose between one and 32 decoder directions.": "Choisissez entre une et 32 directions du décodeur.",
   "The dictionary weight file is missing or unreadable.": "Le fichier de poids du dictionnaire est manquant ou illisible.",
   "The dictionary weight file exceeds its size limit.": "Le fichier de poids du dictionnaire dépasse la taille autorisée.",
-  "Insufficient available RAM to compare these decoder directions.": "La RAM disponible est insuffisante pour comparer ces directions du décodeur."
+  "Insufficient available RAM to compare these decoder directions.": "La RAM disponible est insuffisante pour comparer ces directions du décodeur.",
+  "Export feature inspection": "Exporter l’inspection des caractéristiques",
+  "Export reconstruction": "Exporter la reconstruction"
 }

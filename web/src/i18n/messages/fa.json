@@ -1560,5 +1560,7 @@
   "Choose between one and 32 decoder directions.": "بین یک تا 32 جهت رمزگشا انتخاب کنید.",
   "The dictionary weight file is missing or unreadable.": "فایل وزن‌های فرهنگ موجود نیست یا قابل خواندن نیست.",
   "The dictionary weight file exceeds its size limit.": "اندازه فایل وزن‌های فرهنگ از حد مجاز بیشتر است.",
-  "Insufficient available RAM to compare these decoder directions.": "حافظه RAM آزاد برای مقایسه این جهت‌های رمزگشا کافی نیست."
+  "Insufficient available RAM to compare these decoder directions.": "حافظه RAM آزاد برای مقایسه این جهت‌های رمزگشا کافی نیست.",
+  "Export feature inspection": "خروجی گرفتن از بررسی ویژگی",
+  "Export reconstruction": "خروجی گرفتن از بازسازی"
 }

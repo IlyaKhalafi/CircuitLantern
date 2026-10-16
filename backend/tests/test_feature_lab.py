@@ -296,7 +296,21 @@ async def test_inference_excludes_untrained_positions_and_marks_prompt_split(cli
         for document in manifest["corpus"]["documents"]
         if document["split"] == "train"
     )
+    # A compatible reload receives a new execution identity. Evidence must keep
+    # current inference and original dictionary training identities separate.
+    lab.runtime.metadata["execution_id"] = uuid.uuid4().hex
     inspected = (await client.post(path + "/inspect", json={"prompt": training_text})).json()
+    assert inspected["format"] == "circuit-lantern-feature-inspection-v1"
+    assert inspected["execution_id"] != manifest["execution_id"]
+    assert (
+        inspected["dictionary_source"]["training_execution"]["execution_id"]
+        == manifest["execution_id"]
+    )
+    assert inspected["dictionary_source"]["weights_sha256"] == manifest["weights_sha256"]
+    assert inspected["dictionary_source"]["manifest_sha256"] == manifest["manifest_sha256"]
+    assert inspected["dictionary_source"]["corpus_fingerprint"] == manifest["corpus"]["fingerprint"]
+    assert inspected["dictionary_source"]["training"] == manifest["training"]
+    assert inspected["dictionary_source"]["capture_point"] == "residual_post"
     assert inspected["prompt_split"] == "train"
     assert 0 not in inspected["eligible_positions"]
     assert inspected["active_features_per_token"][0] is None
@@ -328,6 +342,12 @@ async def test_inference_excludes_untrained_positions_and_marks_prompt_split(cli
         evaluated = await client.post(path + "/evaluate", json={"prompt": training_text})
     assert evaluated.status_code == 200
     assert evaluated.json()["prompt_split"] == "train"
+    assert evaluated.json()["format"] == "circuit-lantern-feature-evaluation-v1"
+    assert evaluated.json()["dictionary_source"] == inspected["dictionary_source"]
+    from datetime import datetime
+
+    for result in (inspected, evaluated.json()):
+        assert datetime.fromisoformat(result["captured_at"]).tzinfo is not None
     assert len(splices) == 2
 
 

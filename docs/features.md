@@ -52,6 +52,8 @@ Prediction effects compare a fixed target token against the unmodified baseline.
 
 Reconstruction evaluation replaces one eligible residual stream with its SAE reconstruction or the training mean, then measures next-token cross entropy on the prompt. Loss recovery can be negative or exceed one. It is undefined for a zero baseline gap or a prompt without an observed next token. The result records whether the document group belonged to training, validation or neither.
 
+Use **Export feature inspection** to retain the captured coefficients, tokens, predictions and any intervention effect. **Export reconstruction** saves the loss measurements and scoring scope. Both exports include a UTC capture time, the current inference execution identity, and a separate dictionary source with weight and manifest checksums, training settings, corpus fingerprint and original training execution identity. Exporting uses the captured result without another model forward and remains available after unloading the model while the page stays open. Save the JSON before leaving or reloading the page.
+
 ## Measure feature circuits
 
 Select one dictionary per layer and a prompt. The lab chooses the most active features in each selected layer, ablates each separately, and measures changes in later features and the final prediction. The current interactive graph supports up to eight dictionaries and four candidate features per layer.

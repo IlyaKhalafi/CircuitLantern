@@ -2,6 +2,7 @@ import AxeBuilder from "@axe-core/playwright";
 import { expect, test } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { RuntimeState } from "../src/lib/types";
 
 const documents = [
   "the capital of France is",
@@ -16,6 +17,7 @@ const documents = [
 
 test("train, inspect, annotate and measure sparse feature circuits without code", async ({
   page,
+  request,
 }) => {
   test.setTimeout(180000);
   const errors: string[] = [];
@@ -24,7 +26,15 @@ test("train, inspect, annotate and measure sparse feature circuits without code"
   const screenshots = join(process.cwd(), "../artifacts/screenshots");
   mkdirSync(screenshots, { recursive: true });
   async function audit(name: string) {
-    if (name.includes("inspection")) {
+    if (name.includes("reconstruction")) {
+      await page.locator(".feature-evaluation").evaluate((element) =>
+        window.scrollTo({
+          top: element.getBoundingClientRect().top + scrollY - 24,
+          left: 0,
+          behavior: "instant",
+        }),
+      );
+    } else if (name.includes("inspection")) {
       await page
         .getByRole("heading", {
           name: "Test features on a prompt",
@@ -145,12 +155,23 @@ test("train, inspect, annotate and measure sparse feature circuits without code"
   await expect(
     page.getByRole("heading", { name: "Baseline predictions", exact: true }),
   ).toBeVisible();
+  const inspectedResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/inspect") &&
+      response.request().method() === "POST",
+  );
   await page
     .getByRole("button", { name: "Ablate feature", exact: true })
     .click();
   await expect(
     page.getByRole("heading", { name: "Intervened predictions", exact: true }),
   ).toBeVisible();
+  const inspected = await (await inspectedResponse).json();
+  const evaluatedResponse = page.waitForResponse(
+    (response) =>
+      response.url().endsWith("/evaluate") &&
+      response.request().method() === "POST",
+  );
   await page
     .getByRole("button", { name: "Evaluate reconstruction", exact: true })
     .click();
@@ -160,14 +181,17 @@ test("train, inspect, annotate and measure sparse feature circuits without code"
       exact: true,
     }),
   ).toBeVisible();
+  const evaluated = await (await evaluatedResponse).json();
   await page
     .getByRole("heading", { name: "Test features on a prompt", exact: true })
     .evaluate((element) =>
       window.scrollTo(0, element.getBoundingClientRect().top + scrollY - 30),
     );
   await audit("features-inspection-light");
+  await audit("features-reconstruction-light");
   await page.getByRole("button", { name: "Dark theme", exact: true }).click();
   await audit("features-inspection-dark");
+  await audit("features-reconstruction-dark");
   await page.getByRole("button", { name: "Light theme", exact: true }).click();
   await page
     .getByRole("tab", { name: "Feature circuits", exact: true })
@@ -196,12 +220,84 @@ test("train, inspect, annotate and measure sparse feature circuits without code"
   await page.getByRole("button", { name: "Dark theme", exact: true }).click();
   await audit("features-circuit-dark");
   await page.getByRole("button", { name: "Light theme", exact: true }).click();
+  const before = (await (
+    await request.get("/api/runtime")
+  ).json()) as RuntimeState;
+  expect((await request.delete("/api/runtime")).status()).toBe(204);
+  try {
+    await page
+      .getByRole("tab", { name: "Explore features", exact: true })
+      .click();
+    await page.locator('.feature-row[aria-pressed="false"]').first().click();
+    await expect(page.locator(".feature-intervention-evidence")).toContainText(
+      "Feature " + inspected.intervention.feature,
+    );
+    let forwards = 0;
+    page.on("request", (req) => {
+      if (req.method() === "POST" && /\/(inspect|evaluate)$/.test(req.url()))
+        forwards++;
+    });
+    for (const [name, expected] of [
+      ["Export feature inspection", inspected],
+      ["Export reconstruction", evaluated],
+    ] as const) {
+      const pending = page.waitForEvent("download");
+      await page.getByRole("button", { name, exact: true }).click();
+      const download = await pending;
+      const stream = await download.createReadStream();
+      const chunks = [];
+      for await (const chunk of stream!) chunks.push(chunk);
+      const exported = JSON.parse(Buffer.concat(chunks).toString());
+      expect(exported).toEqual(expected);
+      expect(exported.dictionary_source.weights_sha256).toMatch(
+        /^[a-f0-9]{64}$/,
+      );
+      expect(exported.dictionary_source.manifest_sha256).toMatch(
+        /^[a-f0-9]{64}$/,
+      );
+      expect(exported.dictionary_source.training_execution.execution_id).toBe(
+        before.metadata!.execution_id,
+      );
+      expect(exported.captured_at).toMatch(/T.*\+00:00$/);
+      expect(download.suggestedFilename()).toMatch(
+        /^feature-(inspection|reconstruction)-[a-f0-9]{32}\.json$/,
+      );
+    }
+    expect(forwards).toBe(0);
+    expect((await (await request.get("/api/runtime")).json()).loaded).toBe(
+      false,
+    );
+  } finally {
+    if (before.loaded) {
+      const loading = await request.post("/api/models/load", {
+        data: {
+          model_id: before.metadata!.id,
+          revision: before.metadata!.revision,
+          device: before.device,
+          precision: before.precision,
+          context_length: before.context_length,
+        },
+      });
+      expect(loading.status()).toBe(202);
+      const job = await loading.json();
+      await expect
+        .poll(
+          async () =>
+            (await (await request.get("/api/jobs/" + job.id)).json()).status,
+          { timeout: 60000 },
+        )
+        .toBe("ready");
+    }
+  }
+  await page.getByRole("button", { name: "Refresh", exact: true }).click();
   await page.setViewportSize({ width: 390, height: 844 });
   for (const locale of ["fa", "ar", "ja", "fr", "en"]) {
     await page.locator(".language-select select").selectOption(locale);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
     await page.locator(".feature-tabs button").nth(0).click();
     await audit("features-training-" + locale + "-mobile");
+    await page.locator(".feature-tabs button").nth(1).click();
+    await audit("features-reconstruction-" + locale + "-mobile");
   }
   await page.reload();
   await page
