@@ -3250,3 +3250,332 @@ html[lang="ja"] :is(.page-header h1, .welcome-banner h2) {
   }
 }
 
+.flow-view-switch {
+  display: flex;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 3px;
+  gap: 3px;
+}
+.flow-view-switch button {
+  border: 0;
+  border-radius: 5px;
+  background: transparent;
+  padding: 7px 10px;
+  color: var(--muted);
+  font-size: 11px;
+  cursor: pointer;
+}
+.flow-view-switch button.active {
+  color: var(--ink);
+  background: var(--blue-tint);
+}
+.flow-intro {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.7;
+  padding: 0 18px;
+}
+.flow-intro span {
+  display: block;
+  color: var(--accent);
+  font-size: 11px;
+}
+.block-dataflow {
+  height: 780px;
+}
+.flow-operation {
+  width: 170px;
+  min-height: 60px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  text-align: center;
+  display: grid;
+  align-content: center;
+  gap: 5px;
+}
+.flow-operation strong {
+  font-size: 12px;
+  font-weight: 600;
+}
+.flow-operation small {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.flow-operation button {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  width: 100%;
+  display: grid;
+  gap: 6px;
+}
+.flow-weight {
+  border-color: var(--blue-border);
+  background: var(--blue-tint);
+  box-shadow: 0 3px 12px color-mix(in srgb, var(--blue) 8%, transparent);
+}
+.flow-operation .react-flow__handle {
+  background: var(--blue);
+  border-color: var(--panel);
+  width: 5px;
+  height: 5px;
+}
+.flow-description {
+  padding: 16px 20px;
+  font-size: 12px;
+  line-height: 1.8;
+  color: var(--muted);
+  border-top: 1px solid var(--line);
+}
+.flow-description summary {
+  cursor: pointer;
+  color: var(--ink);
+}
+.flow-description li {
+  margin: 8px 0;
+}
+.flow-description li > * {
+  display: block;
+  overflow-wrap: anywhere;
+}
+.flow-description li strong {
+  color: var(--ink);
+}
+
+.checkpoint-steps {
+  display: flex;
+  list-style: none;
+  padding: 20px;
+  margin: 0;
+  gap: 20px;
+  background: var(--panel-raised);
+  border-bottom: 1px solid var(--line);
+}
+.checkpoint-steps li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  flex: 1;
+}
+.checkpoint-steps li span {
+  display: grid;
+  place-items: center;
+  width: 25px;
+  height: 25px;
+  flex-shrink: 0;
+  border: 1px solid var(--accent-border);
+  border-radius: 50%;
+  color: var(--accent);
+  background: var(--accent-tint);
+}
+.checkpoint-form {
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+}
+.checkpoint-form label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+  min-width: 0;
+}
+.checkpoint-form select {
+  width: 100%;
+  min-width: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 11px;
+  color: var(--ink);
+  text-overflow: ellipsis;
+}
+.checkpoint-form textarea {
+  min-height: 95px;
+  padding: 12px;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  width: 100%;
+  resize: vertical;
+}
+.checkpoint-form .button {
+  justify-self: start;
+}
+.checkpoint-reference {
+  border: 1px solid var(--line);
+  border-inline-start: 3px solid var(--accent);
+  border-radius: 8px;
+  padding: 16px;
+  overflow-wrap: anywhere;
+}
+.checkpoint-reference strong {
+  font-size: 12px;
+}
+.checkpoint-reference p {
+  font-size: 13px;
+  margin: 10px 0;
+}
+.checkpoint-reference small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.checkpoint-extra {
+  font-size: 12px;
+  color: var(--muted);
+  line-height: 1.8;
+}
+.checkpoint-extra summary {
+  cursor: pointer;
+  color: var(--ink);
+  padding: 8px 0;
+}
+.checkpoint-matrix-options {
+  max-height: 220px;
+  overflow: auto;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+}
+.checkpoint-matrix-options label {
+  display: flex;
+  flex-direction: row;
+  align-items: start;
+  gap: 8px;
+  overflow-wrap: anywhere;
+}
+.checkpoint-matrix-options small {
+  display: block;
+  font-size: 10px;
+}
+.checkpoint-matrix-options input {
+  margin-top: 5px;
+}
+.checkpoint-workflow > .panel,
+.checkpoint-report > .panel {
+  margin-bottom: 20px;
+}
+.report-details {
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  margin-bottom: 18px;
+}
+.report-details dd {
+  overflow-wrap: anywhere;
+  margin: 4px 0 14px;
+  font-family: var(--mono);
+  font-size: 11px;
+}
+@media (max-width: 600px) {
+  .checkpoint-steps {
+    flex-direction: column;
+    gap: 10px;
+  }
+  .checkpoint-form {
+    padding: 16px;
+  }
+}
+
+.research-navigation a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+}
+.research-navigation {
+  margin-bottom: 20px;
+}
+
+.flow-focus {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  flex-wrap: wrap;
+  padding: 8px 18px 16px;
+}
+.flow-focus label {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: var(--muted);
+}
+.flow-focus select {
+  padding: 7px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: var(--panel);
+  color: var(--ink);
+}
+.flow-focus > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.checkpoint-setup {
+  margin-bottom: 20px;
+}
+.checkpoint-setup > summary {
+  cursor: pointer;
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 12px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.checkpoint-setup[open] > summary {
+  margin-bottom: 12px;
+}
+
+.welcome-banner.library-intro {
+  min-height: 0;
+  padding: 20px 26px;
+  gap: 20px;
+}
+.library-intro > div:first-child {
+  flex: 1;
+  width: auto;
+  padding-inline-end: 0;
+}
+.library-intro .lantern-illustration {
+  width: 144px;
+  height: 144px;
+}
+.library-intro p {
+  margin-top: 12px;
+  font-size: 12px;
+}
+.library-intro .banner-points {
+  margin-top: 12px;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+@media (max-width: 600px) {
+  .welcome-banner.library-intro {
+    padding: 18px;
+    gap: 8px;
+  }
+  .library-intro .lantern-illustration {
+    width: 82px;
+    height: 100px;
+  }
+  .library-intro .banner-points {
+    display: none;
+  }
+  .library-intro p {
+    font-size: 11px;
+  }
+}

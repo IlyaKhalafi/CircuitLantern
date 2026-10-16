@@ -14,7 +14,8 @@ import {
   useReactFlow,
   useStore,
 } from "@xyflow/react";
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { BlockDataflow } from "@/components/block-dataflow";
 import type { ModelGraph, Weight } from "@/lib/types";
 import "@xyflow/react/dist/style.css";
 type LayerNode = Node<
@@ -162,6 +163,7 @@ export function ModelGraphView({
   onInspect: (name: string) => void;
 }) {
   const { t, rich } = useI18n();
+  const [mode, setMode] = useState("overview");
   const { nodes: plannedNodes, edges } = useMemo(() => {
     const embedding = graph.matrices.filter((w) =>
       /(?:wte|embed_tokens|embed_in)\.weight$/.test(w.name),
@@ -267,7 +269,9 @@ export function ModelGraphView({
               )
             }
           >
-            <option value="all">{t("Full model overview")}</option>
+            {mode === "overview" && (
+              <option value="all">{t("Full model overview")}</option>
+            )}
             {Array.from({ length: graph.metadata.num_layers }, (_, i) => (
               <option key={i} value={i}>
                 {rich("Transformer block {v0}", {
@@ -277,44 +281,75 @@ export function ModelGraphView({
             ))}
           </select>
         </label>
-        <span>{t("Select a matrix to inspect its weights")}</span>
-      </div>
-      <div className="graph-container">
-        <ReactFlow<LayerNode>
-          nodes={nodes}
-          onNodesChange={onNodesChange}
-          deleteKeyCode={null}
-          edges={edges}
-          nodeTypes={nodeTypes}
-          onNodeClick={(_, node) =>
-            onSelect(/^\d+$/.test(node.id) ? +node.id : null)
-          }
-          minZoom={0.05}
-          maxZoom={2}
-          nodesDraggable={false}
-          nodesConnectable={false}
-          elementsSelectable={false}
-          aria-label={t("Interactive model architecture")}
+        <div
+          className="flow-view-switch"
+          role="group"
+          aria-label={t("Architecture detail")}
         >
-          <FitGraphViewport
-            layoutReady={layoutReady}
-            selectedLayer={selectedLayer}
-            modelKey={
-              graph.metadata.execution_id ??
-              `${graph.metadata.id}@${graph.metadata.revision}`
-            }
-          />
-          <Background color="var(--line)" gap={20} size={1} />
-          <Controls showInteractive={false} />
-          <MiniMap
-            nodeColor={(node) =>
-              node.data.selected ? "var(--accent)" : "var(--blue)"
-            }
-            maskColor="var(--graph-mask)"
-            style={{ width: 90, height: 110 }}
-          />
-        </ReactFlow>
+          <button
+            className={mode === "overview" ? "active" : ""}
+            aria-pressed={mode === "overview"}
+            onClick={() => setMode("overview")}
+          >
+            {t("Overview")}
+          </button>
+          <button
+            className={mode === "flow" ? "active" : ""}
+            aria-pressed={mode === "flow"}
+            onClick={() => {
+              if (selectedLayer === null) onSelect(0);
+              setMode("flow");
+            }}
+          >
+            {t("Block dataflow")}
+          </button>
+        </div>
       </div>
+      {mode === "flow" ? (
+        <BlockDataflow
+          flow={graph.dataflow?.find(
+            (item) => item.layer === (selectedLayer ?? 0),
+          )}
+          onInspect={onInspect}
+        />
+      ) : (
+        <div className="graph-container">
+          <ReactFlow<LayerNode>
+            nodes={nodes}
+            onNodesChange={onNodesChange}
+            deleteKeyCode={null}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            onNodeClick={(_, node) =>
+              onSelect(/^\d+$/.test(node.id) ? +node.id : null)
+            }
+            minZoom={0.05}
+            maxZoom={2}
+            nodesDraggable={false}
+            nodesConnectable={false}
+            elementsSelectable={false}
+            aria-label={t("Interactive model architecture")}
+          >
+            <FitGraphViewport
+              layoutReady={layoutReady}
+              selectedLayer={selectedLayer}
+              modelKey={
+                graph.metadata.execution_id ??
+                `${graph.metadata.id}@${graph.metadata.revision}`
+              }
+            />
+            <Background color="var(--line)" gap={20} size={1} />
+            <Controls showInteractive={false} />
+            <MiniMap
+              nodeColor={(node) =>
+                node.data.selected ? "var(--accent)" : "var(--blue)"
+              }
+              maskColor="var(--graph-mask)"
+              style={{ width: 90, height: 110 }}
+            />
+          </ReactFlow>
+        </div>
+      )}
     </>
   );
 }
