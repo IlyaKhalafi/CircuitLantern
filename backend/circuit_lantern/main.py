@@ -10,6 +10,7 @@ from circuit_lantern.schemas import (
     CausalRequest,
     CompatibilityRequest,
     ExecutionId,
+    ExperimentFromJobRequest,
     ExperimentRequest,
     ExperimentUpdate,
     HeadSweepRequest,
@@ -105,7 +106,9 @@ def load_model(payload: LoadRequest, request: Request):
 def job(job_id: str, request: Request):
     result = request.app.state.runtime.job(job_id)
     if result is None:
-        raise HTTPException(404, "Download job not found.")
+        raise HTTPException(
+            404, "Job not found. It may have expired or the server may have restarted."
+        )
     return dict(result)
 
 
@@ -171,6 +174,30 @@ def experiments(request: Request):
 @app.post("/api/experiments", status_code=201)
 def create_experiment(payload: ExperimentRequest, request: Request):
     return request.app.state.store.create(**payload.model_dump())
+
+
+@app.post("/api/experiments/from-job", status_code=201)
+def save_job_experiment(payload: ExperimentFromJobRequest, request: Request):
+    store = request.app.state.store
+    existing = store.find_job(payload.job_id)
+    if existing is not None:
+        return existing
+    job = request.app.state.runtime.job(payload.job_id)
+    if job is None:
+        raise HTTPException(404, "The sweep job was not found. Its result may have expired.")
+    if job.get("kind") not in ("causal", "head_sweep"):
+        raise HTTPException(400, "Only research sweeps can be saved from a job.")
+    result = job.get("result")
+    if job["status"] not in ("ready", "cancelled", "failed") or not isinstance(result, dict):
+        raise HTTPException(409, "The sweep has not published a result to save yet.")
+    if any(
+        not isinstance(result.get(key), str) or not result[key].strip()
+        for key in ("model_id", "revision")
+    ):
+        raise HTTPException(409, "The captured result has no checkpoint identity to preserve.")
+    return store.create_artifact(
+        payload.name, payload.notes, job["kind"], result, source_job_id=payload.job_id
+    )
 
 
 @app.get("/api/experiments/{experiment_id}")

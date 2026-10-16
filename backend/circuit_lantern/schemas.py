@@ -51,10 +51,17 @@ class TraceRequest(BoundExecutionRequest):
         return self
 
 
-class ExperimentRequest(BaseModel):
+class ExperimentMetadata(BaseModel):
     name: str = Field(min_length=1, max_length=100)
     notes: str = Field(default="", max_length=10000)
+
+
+class ExperimentRequest(ExperimentMetadata):
     trace: dict
+
+
+class ExperimentFromJobRequest(ExperimentMetadata):
+    job_id: str = Field(min_length=32, max_length=32, pattern=r"^[a-f0-9]{32}$")
 
 
 class ExperimentUpdate(BaseModel):
