@@ -113,6 +113,12 @@ export default function GuidePage() {
             magnitude is measured before final normalization for supported block
             layouts.
           </p>
+          <p>
+            Optionally track chosen target tokens before capturing. In the logit
+            lens, select a prompt position and compare their log probabilities
+            and logit difference across layers. Leading spaces matter when
+            resolving a target to its vocabulary ID.
+          </p>
         </article>
         <article className="panel guide-card">
           <div className="model-icon orange">

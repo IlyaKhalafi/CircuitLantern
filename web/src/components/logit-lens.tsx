@@ -1,6 +1,7 @@
 "use client";
 
 import { Panel } from "@/components/ui";
+import { TargetTrajectories } from "@/components/target-trajectories";
 import { number } from "@/lib/api";
 import type { LayerTrace, Trace } from "@/lib/types";
 
@@ -84,6 +85,7 @@ export function LogitLens({
           ? "Predictions describe the next token after the prompt."
           : "Predictions use the causal prefix ending at this token."}
       </p>
+      <TargetTrajectories trace={trace} position={selected} />
       {!perPosition && (
         <p className="inline-note">
           This older capture stores confidence and entropy for the final prompt
@@ -96,7 +98,12 @@ export function LogitLens({
           Some measurements at this position are unavailable in this capture.
         </p>
       )}
-      <div className="table-wrap">
+      <div
+        className="table-wrap"
+        role="region"
+        aria-label="Logit lens predictions"
+        tabIndex={0}
+      >
         <table
           className={perPosition ? "position-lens-table" : "legacy-lens-table"}
         >
@@ -191,7 +198,12 @@ export function LogitLens({
               These transitions always describe the final prompt token,
               including when another position is selected above.
             </p>
-            <div className="table-wrap">
+            <div
+              className="table-wrap"
+              role="region"
+              aria-label="Final token transitions"
+              tabIndex={0}
+            >
               <table className="lens-transitions-table">
                 <caption className="sr-only">
                   Final prompt token residual transitions between captured

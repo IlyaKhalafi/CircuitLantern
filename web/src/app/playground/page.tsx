@@ -17,6 +17,7 @@ import {
   Panel,
 } from "@/components/ui";
 import { TraceResults } from "@/components/trace-results";
+import { TrackedTokenInputs } from "@/components/tracked-token-inputs";
 import { SaveExperiment } from "@/components/save-experiment";
 import {
   HeadInspectionNotice,
@@ -41,6 +42,7 @@ export default function PlaygroundPage() {
   const [prompt, setPrompt] = useState("The capital of France is");
   const [tokens, setTokens] = useState(16);
   const [captureAttention, setCaptureAttention] = useState(true);
+  const [trackedTokens, setTrackedTokens] = useState<string[]>([]);
   const [attentionQuery, setAttentionQuery] = useState(-1);
   const [ablate, setAblate] = useState("");
   const [headLayer, setHeadLayer] = useState(0);
@@ -106,6 +108,7 @@ export default function PlaygroundPage() {
         max_new_tokens: tokens,
         capture_attention: captureAttention,
         attention_query_position: attentionQuery,
+        tracked_tokens: trackedTokens.filter((token) => token.length > 0),
         ablate_layer: ablate === "" || ablate === "head" ? null : +ablate,
         ablate_head: ablate === "head" ? { layer: headLayer, head } : null,
       });
@@ -396,6 +399,11 @@ export default function PlaygroundPage() {
                   </p>
                 </details>
               )}
+              <TrackedTokenInputs
+                tokens={trackedTokens}
+                onChange={setTrackedTokens}
+                disabled={busy || inspection.pending}
+              />
             </form>
           </Panel>
           {ablate !== "" && ablate !== "head" && (
