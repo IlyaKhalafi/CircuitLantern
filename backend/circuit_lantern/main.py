@@ -17,6 +17,7 @@ from circuit_lantern.schemas import (
     HeadSweepRequest,
     LoadRequest,
     ModelRequest,
+    TargetPreviewRequest,
     TokenizeRequest,
     TraceRequest,
 )
@@ -159,6 +160,13 @@ def matrix(
 def tokenize(payload: TokenizeRequest, request: Request):
     return request.app.state.runtime.tokenize(
         payload.prompts, payload.reserved_tokens, payload.expected_execution_id
+    )
+
+
+@app.post("/api/targets/preview")
+def preview_targets(payload: TargetPreviewRequest, request: Request):
+    return request.app.state.runtime.preview_targets(
+        payload.tracked_tokens, payload.expected_execution_id
     )
 
 

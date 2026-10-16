@@ -10,6 +10,7 @@ from huggingface_hub import snapshot_download
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
+from circuit_lantern.limits import MAX_TARGET_CHARACTERS, MAX_TRACKED_TARGETS
 from circuit_lantern.schemas import CompatibilityRequest, HeadAblation
 from circuit_lantern.services.cache import checkpoint_cache
 from circuit_lantern.services.causal import activation_patch_sweep
@@ -27,7 +28,7 @@ from circuit_lantern.services.head_sweep import MAX_SWEEP_HEADS, head_ablation_s
 from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
-from circuit_lantern.services.scoring import resolve_tracked_targets
+from circuit_lantern.services.targets import preview_target_tokens, resolve_tracked_targets
 from circuit_lantern.services.tokens import capture_token_limit, preview_tokens
 from circuit_lantern.services.tracing import summarize_trace
 from circuit_lantern.services.weights import (
@@ -431,6 +432,23 @@ class ModelRuntime:
                 self.settings.max_prompt_tokens,
                 reserved_tokens,
             )
+
+    def preview_targets(
+        self, tracked_tokens: list[str], expected_execution_id: str | None = None
+    ) -> dict:
+        with self.operation():
+            self._require_model()
+            self._verify_execution(expected_execution_id)
+            targets = preview_target_tokens(
+                self.tokenizer, tracked_tokens, self.model.config.vocab_size
+            )
+            return {
+                **execution_provenance(self.metadata),
+                "targets": targets,
+                "valid": all(target["valid"] for target in targets),
+                "max_targets": MAX_TRACKED_TARGETS,
+                "max_target_characters": MAX_TARGET_CHARACTERS,
+            }
 
     @torch.inference_mode()
     def trace(

@@ -34,6 +34,12 @@ class TokenizeRequest(BoundExecutionRequest):
     reserved_tokens: int = Field(default=0, ge=0, le=64)
 
 
+class TargetPreviewRequest(BoundExecutionRequest):
+    tracked_tokens: list[Annotated[str, Field(max_length=MAX_TARGET_CHARACTERS)]] = Field(
+        min_length=1, max_length=MAX_TRACKED_TARGETS
+    )
+
+
 class HeadAblation(BaseModel):
     layer: int = Field(ge=0)
     head: int = Field(ge=0)
