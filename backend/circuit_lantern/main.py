@@ -11,6 +11,7 @@ from circuit_lantern.schemas import (
     CompatibilityRequest,
     ExecutionId,
     ExperimentFromJobRequest,
+    ExperimentFromMatrixRequest,
     ExperimentRequest,
     ExperimentUpdate,
     HeadSweepRequest,
@@ -174,6 +175,20 @@ def experiments(request: Request):
 @app.post("/api/experiments", status_code=201)
 def create_experiment(payload: ExperimentRequest, request: Request):
     return request.app.state.store.create(**payload.model_dump())
+
+
+@app.post("/api/experiments/from-matrix", status_code=201)
+def save_matrix(payload: ExperimentFromMatrixRequest, request: Request):
+    store = request.app.state.store
+    existing = store.find_analysis(payload.analysis_id)
+    if existing is not None:
+        return existing
+    result = request.app.state.runtime.matrix_snapshot(
+        payload.analysis_id, payload.expected_execution_id
+    )
+    return store.create_artifact(
+        payload.name, payload.notes, "matrix", result, source_analysis_id=payload.analysis_id
+    )
 
 
 @app.post("/api/experiments/from-job", status_code=201)

@@ -5,48 +5,24 @@ from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-SCHEMA_VERSION = 1
-EXPERIMENT_KINDS = frozenset(("trace", "causal", "head_sweep"))
-SUMMARY_COLUMNS = "id, name, notes, created_at, model_id, kind, source_job_id"
-SOURCE_JOB_INDEX = "experiments_source_job"
+from circuit_lantern.services.store_schema import COLUMNS, EXPERIMENT_KINDS, initialize_schema
+
+SUMMARY_COLUMNS = ", ".join(column for column in COLUMNS if column != "payload")
+
+
+def _record(row: sqlite3.Row) -> dict:
+    result = dict(row)
+    # Preserve existing exports without adding an empty matrix source field.
+    if result.get("source_analysis_id") is None:
+        result.pop("source_analysis_id", None)
+    return result
 
 
 class ExperimentStore:
     def __init__(self, path: Path):
         self.path = path
         with self.connect() as connection:
-            columns = {row["name"] for row in connection.execute("PRAGMA table_info(experiments)")}
-            indexes = connection.execute("PRAGMA index_list(experiments)").fetchall()
-            version = connection.execute("PRAGMA user_version").fetchone()[0]
-            if (
-                {"kind", "source_job_id"} <= columns
-                and any(row["name"] == SOURCE_JOB_INDEX and row["unique"] for row in indexes)
-                and version >= SCHEMA_VERSION
-            ):
-                return
-            # Recheck under the write lock so concurrent starts cannot race a migration.
-            connection.execute("BEGIN IMMEDIATE")
-            connection.execute("""CREATE TABLE IF NOT EXISTS experiments (
-                id TEXT PRIMARY KEY, name TEXT NOT NULL, notes TEXT NOT NULL,
-                created_at TEXT NOT NULL, model_id TEXT NOT NULL, payload TEXT NOT NULL,
-                kind TEXT NOT NULL DEFAULT 'trace'
-                    CHECK (kind IN ('trace', 'causal', 'head_sweep')),
-                source_job_id TEXT
-            )""")
-            columns = {row["name"] for row in connection.execute("PRAGMA table_info(experiments)")}
-            if "kind" not in columns:
-                connection.execute(
-                    "ALTER TABLE experiments ADD COLUMN kind TEXT NOT NULL DEFAULT 'trace' "
-                    "CHECK (kind IN ('trace', 'causal', 'head_sweep'))"
-                )
-            if "source_job_id" not in columns:
-                connection.execute("ALTER TABLE experiments ADD COLUMN source_job_id TEXT")
-            connection.execute(
-                f"CREATE UNIQUE INDEX IF NOT EXISTS {SOURCE_JOB_INDEX} "
-                "ON experiments(source_job_id)"
-            )
-            if connection.execute("PRAGMA user_version").fetchone()[0] < SCHEMA_VERSION:
-                connection.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
+            initialize_schema(connection)
 
     @contextmanager
     def connect(self):
@@ -63,20 +39,35 @@ class ExperimentStore:
             rows = connection.execute(
                 f"SELECT {SUMMARY_COLUMNS} FROM experiments ORDER BY created_at DESC"
             ).fetchall()
-        return [dict(row) for row in rows]
+        return [_record(row) for row in rows]
 
     def find_job(self, job_id: str) -> dict | None:
         with self.connect() as connection:
             row = connection.execute(
                 f"SELECT {SUMMARY_COLUMNS} FROM experiments WHERE source_job_id = ?", (job_id,)
             ).fetchone()
-        return dict(row) if row is not None else None
+        return _record(row) if row is not None else None
+
+    def find_analysis(self, analysis_id: str) -> dict | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                f"SELECT {SUMMARY_COLUMNS} FROM experiments WHERE source_analysis_id = ?",
+                (analysis_id,),
+            ).fetchone()
+        return _record(row) if row is not None else None
 
     def create(self, name: str, notes: str, trace: dict) -> dict:
         return self.create_artifact(name, notes, "trace", trace)
 
     def create_artifact(
-        self, name: str, notes: str, kind: str, payload: dict, *, source_job_id: str | None = None
+        self,
+        name: str,
+        notes: str,
+        kind: str,
+        payload: dict,
+        *,
+        source_job_id: str | None = None,
+        source_analysis_id: str | None = None,
     ) -> dict:
         if kind not in EXPERIMENT_KINDS:
             raise ValueError("This experiment type is not supported.")
@@ -90,11 +81,15 @@ class ExperimentStore:
             "kind": kind,
             "source_job_id": source_job_id,
         }
+        if source_analysis_id is not None:
+            record["source_analysis_id"] = source_analysis_id
+        source_field = "source_analysis_id" if source_analysis_id is not None else "source_job_id"
+        source_value = source_analysis_id if source_analysis_id is not None else source_job_id
         with self.connect() as connection:
             cursor = connection.execute(
                 "INSERT INTO experiments "
-                "(id, name, notes, created_at, model_id, kind, source_job_id, payload) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(source_job_id) DO NOTHING",
+                "(id, name, notes, created_at, model_id, kind, source_job_id, source_analysis_id, payload) "
+                f"VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT({source_field}) DO NOTHING",
                 (
                     record["id"],
                     name,
@@ -103,14 +98,15 @@ class ExperimentStore:
                     record["model_id"],
                     kind,
                     source_job_id,
+                    source_analysis_id,
                     encoded,
                 ),
             )
             if cursor.rowcount == 0:
-                return dict(
+                return _record(
                     connection.execute(
-                        f"SELECT {SUMMARY_COLUMNS} FROM experiments WHERE source_job_id = ?",
-                        (source_job_id,),
+                        f"SELECT {SUMMARY_COLUMNS} FROM experiments WHERE {source_field} = ?",
+                        (source_value,),
                     ).fetchone()
                 )
         return record
@@ -122,7 +118,7 @@ class ExperimentStore:
             ).fetchone()
         if row is None:
             return None
-        result = dict(row)
+        result = _record(row)
         payload = json.loads(result.pop("payload"))
         result["trace" if result["kind"] == "trace" else "result"] = payload
         return result

@@ -39,7 +39,9 @@ function ExperimentNotebook() {
   const recordId = params.get("experiment");
   const query = params.get("q") ?? "";
   const requestedKind = params.get("kind");
-  const kind = ["trace", "causal", "head_sweep"].includes(requestedKind ?? "")
+  const kind = ["trace", "causal", "head_sweep", "matrix"].includes(
+    requestedKind ?? "",
+  )
     ? requestedKind!
     : "all";
   const {
@@ -144,7 +146,7 @@ function ExperimentNotebook() {
         description={
           selected
             ? `${selected.model_id} · saved ${new Date(selected.created_at).toLocaleString()}`
-            : "Save traces and sweeps, record observations, and return to the experiments that matter."
+            : "Save traces, weight analyses and sweeps, then record what you observe."
         }
         actions={
           selected ? (
@@ -288,8 +290,9 @@ function ExperimentNotebook() {
           href="/playground"
           action="Run your first trace"
         >
-          Save an activation trace, residual patch sweep or head ablation sweep
-          to keep its measurements and your observations together.
+          Save an activation trace, matrix analysis, residual patch sweep or
+          head ablation sweep to keep its measurements and your observations
+          together.
         </EmptyState>
       )}
     </>

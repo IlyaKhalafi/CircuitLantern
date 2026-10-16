@@ -1,3 +1,4 @@
+import { MatrixResults } from "@/components/matrix-results";
 import { CausalResults } from "@/components/causal-results";
 import { HeadSweepResults } from "@/components/head-sweep-results";
 import { SavedTraceComparison } from "@/components/saved-trace-comparison";
@@ -16,6 +17,10 @@ export function ExperimentResult({
   libraryError: string | null;
   onRetryLibrary: () => void;
 }) {
+  if (experiment.kind === "matrix")
+    return experiment.result ? (
+      <MatrixResults metrics={experiment.result} />
+    ) : null;
   if (experiment.kind === "causal")
     return experiment.result ? (
       <CausalResults result={experiment.result} />

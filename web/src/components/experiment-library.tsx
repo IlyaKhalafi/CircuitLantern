@@ -69,6 +69,7 @@ export function ExperimentLibrary({
             <option value="trace">Activation traces</option>
             <option value="causal">Residual patching</option>
             <option value="head_sweep">Head ablation</option>
+            <option value="matrix">Matrix analyses</option>
           </select>
         </label>
         <p className="notebook-count" role="status">

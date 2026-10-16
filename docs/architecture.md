@@ -27,7 +27,7 @@ flowchart LR
 
 `head_sweep.py` runs bounded independent attention head interventions using the verified output layouts in `interventions.py`. `scoring.py` shares finite logit checks, single token target resolution and float64 log probability scoring across research sweeps.
 
-`metrics.py` holds numerical calculations and declares the difference between exact statistics and randomized full matrix spectral estimates. `store.py` uses short SQLite transactions with a connection per operation. A versioned migration adds artifact kinds and source job identity while preserving legacy trace JSON. Saved job IDs have a unique index so concurrent or retried saves return one record without overwriting notes. Current databases reopen without a write transaction. The save endpoint copies only a published research job result and uses its captured identity independently of the active model.
+`metrics.py` holds numerical calculations and declares the difference between exact statistics and randomized full matrix spectral estimates. `store.py` uses short SQLite transactions with a connection per operation. Versioned migrations add artifact kinds and source identity while preserving original payload text. Matrix notebook upgrades rebuild the kind constraint in one SQLite transaction and retain existing IDs, notes and measurements. Saved job and matrix analysis IDs have separate unique indexes so concurrent or retried saves return one record without overwriting notes. Current databases reopen without a write transaction. Sweep saves copy a published research job result and its captured identity. Matrix saves read a published cached measurement by its analysis ID under the runtime lock. Saving never recomputes weights. Persisted source lookup makes retries independent of the active model.
 
 ## Frontend boundaries
 
@@ -49,7 +49,7 @@ Fonts are bundled with the frontend so rendering does not depend on third party 
 - Native FP8 and NVFP4 adapters remain pending
 - No execution of custom repository code
 - Model download jobs are ephemeral and do not survive a backend restart
-- Saved traces and research sweeps are durable in SQLite
+- Saved traces, matrix analyses and research sweeps are durable in SQLite
 - GPU eligibility does not imply packed quantization inspection support
 - No authentication or multi tenant isolation
 

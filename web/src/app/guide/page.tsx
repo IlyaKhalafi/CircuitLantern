@@ -149,10 +149,10 @@ export default function GuidePage() {
           </div>
           <h2>Keep reproducible evidence</h2>
           <p>
-            Save a trace or completed sweep as an experiment, add observations
-            and export the result as JSON. Available partial sweep results can
-            be saved too. Records preserve the captured checkpoint and execution
-            settings alongside their measurements.
+            Save a trace, matrix analysis or completed sweep as an experiment,
+            add observations and export the result as JSON. Available partial
+            sweep results can be saved too. Records preserve the captured
+            checkpoint and execution settings alongside their measurements.
           </p>
           <p>
             Experiments are stored in local SQLite and can be reopened without
@@ -161,7 +161,8 @@ export default function GuidePage() {
             when comparing interventions. Search names, models and observations
             to find saved evidence. Open an activation trace and choose a
             reference to compare prompt measurements from matching checkpoints
-            and execution settings.
+            and execution settings. Saved weight analyses retain their captured
+            matrix properties and charts after the checkpoint is unloaded.
           </p>
         </article>
       </div>

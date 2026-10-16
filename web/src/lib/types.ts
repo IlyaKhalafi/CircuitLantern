@@ -137,6 +137,8 @@ export interface ModelGraph {
   total_parameters: number;
 }
 export interface MatrixMetrics extends ExecutionProvenance {
+  analysis_id?: string;
+  device?: string;
   model_id?: string;
   revision?: string;
   operator_1_norm?: number;
@@ -256,6 +258,7 @@ export interface Trace extends ExecutionProvenance {
   method: string;
 }
 interface ExperimentBase {
+  source_analysis_id?: string;
   source_job_id?: string | null;
   id: string;
   name: string;
@@ -266,7 +269,8 @@ interface ExperimentBase {
 export type Experiment =
   | (ExperimentBase & { kind?: "trace"; trace?: Trace })
   | (ExperimentBase & { kind: "causal"; result?: CausalResult })
-  | (ExperimentBase & { kind: "head_sweep"; result?: HeadSweepResult });
+  | (ExperimentBase & { kind: "head_sweep"; result?: HeadSweepResult })
+  | (ExperimentBase & { kind: "matrix"; result?: MatrixMetrics });
 
 export interface CausalLayer {
   layer: number;

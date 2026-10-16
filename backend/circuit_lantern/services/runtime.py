@@ -365,6 +365,8 @@ class ModelRuntime:
             tensor, description = logical_weight(self.model, name)
             result = dict(
                 name=name,
+                analysis_id=uuid.uuid4().hex,
+                device=self.device,
                 **matrix_metrics(tensor, self.settings.max_analysis_elements),
                 source_format=description["dtype"],
                 quantized=description["quantized"],
@@ -378,6 +380,20 @@ class ModelRuntime:
                 self.metrics_cache.pop(next(iter(self.metrics_cache)))
             self.metrics_cache[name] = result
             return result
+
+    def matrix_snapshot(self, analysis_id: str, expected_execution_id: str | None = None) -> dict:
+        with self.operation():
+            if self.model is None:
+                raise ModelChangedError(
+                    "This matrix analysis is no longer cached. Reopen the matrix before saving it."
+                )
+            self._verify_execution(expected_execution_id)
+            for result in self.metrics_cache.values():
+                if result.get("analysis_id") == analysis_id:
+                    return dict(result)
+            raise ModelChangedError(
+                "This matrix analysis is no longer cached. Reopen the matrix before saving it."
+            )
 
     def _blocks(self):
         for root_name, block_name in (

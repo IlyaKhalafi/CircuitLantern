@@ -5,6 +5,7 @@ from concurrent.futures import ThreadPoolExecutor
 import pytest
 
 from circuit_lantern.services.store import ExperimentStore
+from circuit_lantern.services.store_schema import SCHEMA_VERSION
 
 
 def legacy_database(path):
@@ -54,7 +55,7 @@ def test_simultaneous_initialization_cannot_race_the_legacy_migration(tmp_path):
     assert all(store.get("legacy")["trace"]["revision"] == "pinned" for store in stores)
 
 
-@pytest.mark.parametrize("kind", ["trace", "causal", "head_sweep"])
+@pytest.mark.parametrize("kind", ["trace", "causal", "head_sweep", "matrix"])
 def test_artifact_kind_and_payload_are_durable(tmp_path, kind):
     path = tmp_path / "artifacts.db"
     store = ExperimentStore(path)
@@ -102,4 +103,4 @@ def test_current_schema_reopens_without_taking_a_write_lock(tmp_path):
         reopened = ExperimentStore(path)
         assert reopened.list() == []
     with sqlite3.connect(path) as connection:
-        assert connection.execute("PRAGMA user_version").fetchone()[0] == 1
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION

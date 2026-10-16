@@ -1,20 +1,51 @@
 "use client";
 
 import { Download } from "lucide-react";
+import type { ReactNode } from "react";
 import { Heatmap, Histogram, SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
 import { downloadJSON, number } from "@/lib/api";
+import { executionLabel } from "@/lib/execution";
 import type { MatrixMetrics } from "@/lib/types";
 
 export function MatrixResults({
   metrics,
   model,
+  footer,
 }: {
   metrics: MatrixMetrics;
   model?: { id: string; revision: string };
+  footer?: ReactNode;
 }) {
+  const modelId = metrics.model_id ?? model?.id;
+  const revision = metrics.revision ?? model?.revision;
+  const device =
+    metrics.device ??
+    (typeof metrics.execution_config?.device === "string"
+      ? metrics.execution_config.device
+      : undefined);
   return (
     <>
+      <div className="trace-meta">
+        <span className="pill subtle">Matrix analysis</span>
+        {modelId && (
+          <span className="trace-source" title={modelId}>
+            {modelId}
+          </span>
+        )}
+        {revision && (
+          <span title={revision}>revision {revision.slice(0, 10)}</span>
+        )}
+        {metrics.execution_precision && (
+          <span>
+            {executionLabel(
+              metrics.execution_precision,
+              metrics.execution_config,
+            )}
+          </span>
+        )}
+        {device && <span>{device.toUpperCase()}</span>}
+      </div>
       <div className="detail-header">
         <div>
           <div className="eyebrow">MATRIX INSPECTOR</div>
@@ -31,8 +62,8 @@ export function MatrixResults({
             downloadJSON(
               {
                 ...metrics,
-                model_id: metrics.model_id ?? model?.id,
-                revision: metrics.revision ?? model?.revision,
+                model_id: modelId,
+                revision,
               },
               "matrix-analysis.json",
             )
@@ -43,8 +74,8 @@ export function MatrixResults({
       </div>
       {metrics.quantized && (
         <div className="notice info">
-          {metrics.analysis_note} The graph shows logical matrix dimensions.
-          Packed storage bytes are not treated as matrix values.
+          {metrics.analysis_note} Dimensions describe the logical weight
+          operator.
         </div>
       )}
       {!metrics.spectrum_exact && (
@@ -179,6 +210,7 @@ export function MatrixResults({
           />
         </Panel>
       </div>
+      {footer}
     </>
   );
 }

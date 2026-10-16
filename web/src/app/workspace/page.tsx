@@ -12,6 +12,7 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { MatrixResults } from "@/components/matrix-results";
+import { SaveExperiment } from "@/components/save-experiment";
 import { getLayer, ModelGraphView } from "@/components/model-graph";
 import {
   EmptyState,
@@ -314,7 +315,23 @@ export default function WorkspacePage() {
               <Loading label={`Computing properties of ${selected}`} />
             )}
             {metrics && (
-              <MatrixResults metrics={metrics} model={graph.metadata} />
+              <MatrixResults
+                metrics={metrics}
+                model={graph.metadata}
+                footer={
+                  metrics.analysis_id && (
+                    <SaveExperiment
+                      key={metrics.analysis_id}
+                      source={{
+                        kind: "matrix",
+                        id: metrics.analysis_id,
+                        executionId: metrics.execution_id ?? undefined,
+                      }}
+                      defaultName={metrics.name}
+                    />
+                  )
+                }
+              />
             )}
           </div>
         </>
