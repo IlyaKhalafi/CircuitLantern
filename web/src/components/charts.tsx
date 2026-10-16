@@ -58,6 +58,7 @@ export function SeriesChart({
             />
           )}
           <Tooltip
+            itemStyle={{ color: "var(--ink)" }}
             formatter={(value) =>
               typeof value === "number" ? value.toPrecision(5) : String(value)
             }
@@ -116,6 +117,7 @@ export function Histogram({
           />
           <YAxis tickLine={false} axisLine={false} />
           <Tooltip
+            itemStyle={{ color: "var(--ink)" }}
             labelFormatter={(v) => `Weight ${Number(v).toPrecision(4)}`}
           />
           <Bar

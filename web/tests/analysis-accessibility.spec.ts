@@ -72,7 +72,20 @@ test("activation results expose readable charts and attention controls", async (
   await expect(
     page.getByText("Capture complete", { exact: true }),
   ).toBeVisible();
+  const uncertainty = page.locator(".panel").filter({
+    has: page.getByRole("heading", {
+      name: "Prediction uncertainty",
+      exact: true,
+    }),
+  });
+  await uncertainty
+    .locator(".recharts-surface")
+    .hover({ position: { x: 120, y: 100 } });
+  await expect(uncertainty.locator(".recharts-default-tooltip")).toBeVisible();
   await expectAccessible(page);
+  await capturePage(page, {
+    path: "../artifacts/screenshots/activation-tooltip-accessible.png",
+  });
   await page.getByRole("main").focus();
   await page.evaluate(() => window.scrollTo(0, 0));
   await capturePage(page, {
