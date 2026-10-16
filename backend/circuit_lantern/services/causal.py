@@ -51,6 +51,8 @@ def activation_patch_sweep(
         raise ValueError("Patch position is outside the tokenized prompt.")
     if blocks is None:
         raise ValueError("Activation patching is not supported for this architecture yet.")
+    clean_tokens = [tokenizer.decode([i]) for i in clean.input_ids[0].tolist()]
+    corrupted_tokens = [tokenizer.decode([i]) for i in corrupted.input_ids[0].tolist()]
     clean = {k: v.to(device) for k, v in clean.items()}
     corrupted = {k: v.to(device) for k, v in corrupted.items()}
     cache, handles = {}, []
@@ -74,6 +76,8 @@ def activation_patch_sweep(
     denominator = clean_score["log_probability"] - corrupted_score["log_probability"]
     recovery_defined = denominator > MIN_RECOVERY_GAP
     results = []
+    failure = None
+    failed_layer = None
     for index, block in enumerate(blocks):
         if job.get("cancel_requested"):
             job.update(message="Cancellation requested. Publishing completed layers.")
@@ -88,12 +92,18 @@ def activation_patch_sweep(
                 patched[:, position] = cache[layer][:, position]
             return replace_hidden(output, patched)
 
-        handle = block.register_forward_hook(restore)
+        handle = None
         try:
+            handle = block.register_forward_hook(restore)
             logits = model(**corrupted, use_cache=False).logits[0, -1].float().clone()
+            patched = target_score(log_probabilities(logits), target_id)
+        except Exception as error:  # noqa: BLE001 - retain completed research on failed forwards
+            failure = str(error)[:1000] or type(error).__name__
+            failed_layer = index
+            break
         finally:
-            handle.remove()
-        patched = target_score(log_probabilities(logits), target_id)
+            if handle is not None:
+                handle.remove()
         delta = patched["log_probability"] - corrupted_score["log_probability"]
         results.append(
             {
@@ -116,8 +126,8 @@ def activation_patch_sweep(
         "device": device,
         "clean_prompt": clean_prompt,
         "corrupted_prompt": corrupted_prompt,
-        "tokens": [tokenizer.decode([i]) for i in clean["input_ids"][0].tolist()],
-        "corrupted_tokens": [tokenizer.decode([i]) for i in corrupted["input_ids"][0].tolist()],
+        "tokens": clean_tokens,
+        "corrupted_tokens": corrupted_tokens,
         "target_token": tokenizer.decode([target_id]),
         "requested_target": target,
         "target_token_id": target_id,
@@ -134,5 +144,7 @@ def activation_patch_sweep(
         else None,
         "total_layers": len(blocks),
         "complete": len(results) == len(blocks),
+        "error": failure,
+        "failed_layer": failed_layer,
         "method": "Clean residual output is restored in the corrupted forward pass at one transformer block per run. Recovery is normalized target log probability change. It may be negative or exceed one.",
     }

@@ -121,7 +121,9 @@ export default function CausalPage() {
         }
       />
       <CausalNavigation />
-      <ErrorNotice message={runtimeError || error} />
+      <ErrorNotice
+        message={runtimeError || (error === result?.error ? null : error)}
+      />
       {result?.execution_id &&
         runtime?.metadata?.execution_id &&
         result.execution_id !== runtime.metadata.execution_id && (

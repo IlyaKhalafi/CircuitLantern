@@ -50,7 +50,7 @@ Use clean and corrupted prompts with the same number of tokens. A read-only prev
 
 The report includes baseline probabilities, token alignment, per block target log probabilities and normalized recovery. Recovery divides the change from the corrupted log probability by the clean to corrupted difference. Values may be negative or exceed one. Recovery is undefined when corruption does not lower the target log probability by more than 0.001 nats. Small positive score gaps are flagged for cautious interpretation. Restoring all positions is a sanity check rather than a localization measurement. It should recover the clean computation for the supported decoder architectures when masks and token positions match.
 
-Sweeps run in the background with per layer progress and cancellation. Page refreshes and navigation reconnect to the latest sweep in the same browser session, including completed results and their original inputs. Export results as JSON before restarting the backend. Current sweep jobs are ephemeral.
+Sweeps run in the background with per layer progress and cancellation. A failed patch forward preserves completed blocks and baseline scores, including the failure reason and block index. Partial results can be inspected, saved and exported. Page refreshes and navigation reconnect to the latest sweep in the same browser session, including completed results and their original inputs. Export results as JSON before restarting the backend. Current sweep jobs are ephemeral.
 
 ## Model session consistency
 

@@ -7,14 +7,21 @@ import { executionLabel } from "@/lib/execution";
 import type { CausalResult } from "@/lib/types";
 
 export function CausalResults({ result }: { result: CausalResult }) {
+  const partial =
+    result.complete === false || result.cancelled || !!result.error;
   return (
     <>
       <div className="trace-meta">
-        <span className={`pill ${result.cancelled ? "orange" : "green"}`}>
-          {result.cancelled ? "Partial sweep" : "Sweep complete"}
+        <span className={`pill ${partial ? "orange" : "green"}`}>
+          {partial ? "Partial sweep" : "Sweep complete"}
         </span>
         <span className="trace-source">{result.model_id}</span>
         {result.cancelled && <span>Cancelled between forwards</span>}
+        {partial && (
+          <span>
+            {result.layers.length} of {result.total_layers} blocks completed
+          </span>
+        )}
         <span>{number(result.duration_ms, 0)} ms</span>
         <span>revision {result.revision.slice(0, 8)}</span>
         <span>
@@ -22,6 +29,15 @@ export function CausalResults({ result }: { result: CausalResult }) {
         </span>
         {result.device && <span>{result.device.toUpperCase()}</span>}
       </div>
+      {result.error && (
+        <div className="notice error" role="alert">
+          {result.failed_layer == null
+            ? "The sweep stopped."
+            : "The sweep stopped at block " + result.failed_layer + "."}{" "}
+          {result.error} Completed blocks and baseline scores remain available
+          for inspection, saving and export.
+        </div>
+      )}
       <div className="metrics-grid">
         <Metric
           label="Target token"
@@ -85,22 +101,29 @@ export function CausalResults({ result }: { result: CausalResult }) {
               : "Change from the corrupted baseline in nats. Zero means no change."
           }
         >
-          <SeriesChart
-            data={result.layers.map((l) => ({
-              index: l.layer,
-              recovery: l.recovery,
-              delta: l.delta_log_probability,
-            }))}
-            series={[
-              {
-                key: result.recovery_defined ? "recovery" : "delta",
-                label: result.recovery_defined
-                  ? "Normalized recovery"
-                  : "Log probability change",
-                color: "#b68159",
-              },
-            ]}
-          />
+          {result.layers.length ? (
+            <SeriesChart
+              data={result.layers.map((l) => ({
+                index: l.layer,
+                recovery: l.recovery,
+                delta: l.delta_log_probability,
+              }))}
+              series={[
+                {
+                  key: result.recovery_defined ? "recovery" : "delta",
+                  label: result.recovery_defined
+                    ? "Normalized recovery"
+                    : "Log probability change",
+                  color: "#b68159",
+                },
+              ]}
+            />
+          ) : (
+            <p className="inline-note">
+              No patch measurements completed. Baseline scores remain available
+              above.
+            </p>
+          )}
           <p className="inline-note">
             {result.recovery_defined
               ? result.method
@@ -111,7 +134,12 @@ export function CausalResults({ result }: { result: CausalResult }) {
           title="Token alignment"
           subtitle="Columns preserve the positions used in the patching intervention."
         >
-          <div className="alignment-table table-wrap">
+          <div
+            className="alignment-table table-wrap"
+            role="region"
+            aria-label="Token alignment"
+            tabIndex={0}
+          >
             <table>
               <thead>
                 <tr>
@@ -143,8 +171,13 @@ export function CausalResults({ result }: { result: CausalResult }) {
         title="Per block patching results"
         subtitle="Each row is an independent forward pass with exactly one block patched."
       >
-        <div className="table-wrap">
-          <table>
+        <div
+          className="table-wrap"
+          role="region"
+          aria-label="Per block patching results"
+          tabIndex={0}
+        >
+          <table className="causal-results-table">
             <thead>
               <tr>
                 <th>BLOCK</th>

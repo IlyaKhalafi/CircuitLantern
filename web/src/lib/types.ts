@@ -284,6 +284,8 @@ export interface CausalLayer {
   recovery: number | null;
 }
 export interface CausalResult extends ExecutionProvenance {
+  error?: string | null;
+  failed_layer?: number | null;
   device?: string;
   complete?: boolean;
   requested_target: string;

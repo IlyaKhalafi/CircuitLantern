@@ -128,3 +128,89 @@ def test_causal_prompt_limit_uses_the_loaded_context_allowance(runtime):
             job={},
             max_tokens=128,
         )
+
+
+def test_failed_patch_keeps_completed_layers_and_removes_intervention_hooks(runtime):
+    expected = sweep(runtime)
+    forward = runtime.model.forward
+    calls = 0
+
+    def fail_later(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 4:
+            raise RuntimeError("The next patch forward failed")
+        return forward(*args, **kwargs)
+
+    job = JobRecord({"status": "running", "progress": 0})
+    with patch.object(runtime.model, "forward", side_effect=fail_later):
+        result = sweep(runtime, job=job)
+    job.finish(result)
+    assert result["layers"] == expected["layers"][:1]
+    assert result["clean"] == expected["clean"]
+    assert result["corrupted"] == expected["corrupted"]
+    assert result["complete"] is False
+    assert result["error"] == "The next patch forward failed"
+    assert result["failed_layer"] == 1
+    assert result["cancelled"] is False
+    assert job["status"] == "failed"
+    assert job["progress"] == 50
+    assert job["result"] is result
+    assert all(not block._forward_hooks for block in runtime._blocks())
+
+
+@pytest.mark.parametrize("nonfinite", [False, True])
+def test_first_patch_failure_retains_baselines_without_publishing_a_successful_block(
+    runtime, nonfinite
+):
+    forward = runtime.model.forward
+    calls = 0
+
+    def fail_first_patch(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 3 and not nonfinite:
+            raise RuntimeError()
+        output = forward(*args, **kwargs)
+        if calls == 3:
+            output.logits.fill_(float("nan"))
+        return output
+
+    job = JobRecord({"status": "running", "progress": 0})
+    with patch.object(runtime.model, "forward", side_effect=fail_first_patch):
+        result = sweep(runtime, job=job)
+    job.finish(result)
+    assert result["failed_layer"] == 0
+    assert result["layers"] == []
+    assert result["complete"] is False
+    assert result["clean"] and result["corrupted"]
+    assert result["error"] == (
+        "The model produced non finite logits. Choose a different checkpoint or prompt."
+        if nonfinite
+        else "RuntimeError"
+    )
+    assert job["status"] == "failed" and job["progress"] == 0
+    assert all(not block._forward_hooks for block in runtime._blocks())
+
+
+def test_patch_failure_wins_over_a_simultaneous_cancellation(runtime):
+    forward = runtime.model.forward
+    calls = 0
+    job = JobRecord({"status": "running", "progress": 0})
+
+    def fail_after_cancel(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == 4:
+            job.request_cancel()
+            raise RuntimeError("Patch failed while cancellation was requested")
+        return forward(*args, **kwargs)
+
+    with patch.object(runtime.model, "forward", side_effect=fail_after_cancel):
+        result = sweep(runtime, job=job)
+    job.finish(result)
+    assert job["status"] == "failed"
+    assert len(result["layers"]) == 1
+    assert result["cancelled"] is False
+    assert result["failed_layer"] == 1
+    assert all(not block._forward_hooks for block in runtime._blocks())

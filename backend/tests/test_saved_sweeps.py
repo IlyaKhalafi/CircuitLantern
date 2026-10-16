@@ -1,4 +1,5 @@
 import asyncio
+from unittest.mock import patch
 
 import httpx
 import pytest
@@ -174,3 +175,63 @@ async def test_nonfinite_results_are_rejected_with_a_useful_client_error(client,
     )
     assert response.status_code == 400
     assert (await client.get("/api/experiments")).json() == []
+
+
+@pytest.mark.parametrize("failure_call", [3, 4])
+async def test_actual_failed_patch_job_keeps_saveable_measurements_after_unload(
+    client, runtime, failure_call
+):
+    forward = runtime.model.forward
+    calls = 0
+
+    def fail_patch(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        if calls == failure_call:
+            raise RuntimeError("A patch forward failed")
+        return forward(*args, **kwargs)
+
+    with patch.object(runtime.model, "forward", side_effect=fail_patch):
+        response = await client.post(
+            "/api/causal",
+            json={
+                "clean_prompt": "the capital of France",
+                "corrupted_prompt": "the capital of Poland",
+                "position": -1,
+            },
+        )
+        assert response.status_code == 202
+        job_id = response.json()["id"]
+        for _ in range(100):
+            job = (await client.get(f"/api/jobs/{job_id}")).json()
+            if job["status"] in ("ready", "failed", "cancelled"):
+                break
+            await asyncio.sleep(0.01)
+    assert job["status"] == "failed"
+    result = job["result"]
+    assert result["error"] == "A patch forward failed"
+    assert result["failed_layer"] == failure_call - 3
+    assert len(result["layers"]) == failure_call - 3
+    assert result["complete"] is False and result["cancelled"] is False
+    assert all(not block._forward_hooks for block in runtime._blocks())
+    runtime.unload()
+    saved = await client.post(
+        "/api/experiments/from-job", json={"job_id": job_id, "name": "Retained partial patch"}
+    )
+    assert saved.status_code == 201
+    record_id = saved.json()["id"]
+    record = (await client.get(f"/api/experiments/{record_id}")).json()
+    assert record["kind"] == "causal" and record["result"] == result
+    notes = "Repeat the incomplete sweep before drawing a conclusion."
+    await client.patch(f"/api/experiments/{record_id}", json={"notes": notes})
+    del runtime.jobs[job_id]
+    retry = await client.post(
+        "/api/experiments/from-job", json={"job_id": job_id, "name": "Stale retry name"}
+    )
+    assert retry.status_code == 201
+    assert retry.json()["id"] == record_id
+    assert retry.json()["name"] == "Retained partial patch"
+    assert retry.json()["notes"] == notes
+    assert (
+        ExperimentStore(runtime.settings.data_dir / "records.db").get(record_id)["result"] == result
+    )
