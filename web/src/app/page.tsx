@@ -161,17 +161,12 @@ export default function LibraryPage() {
           </a>
         }
       />
-      <section className="welcome-banner">
+      <section className="welcome-banner library-intro">
         <div>
           <span className="pill orange">
             <Sparkles size={13} />
             {t("THE OPEN MODEL WORKBENCH")}
           </span>
-          <h2>
-            {t("Big questions.")}
-            <br />
-            {t("Meet the small details.")}
-          </h2>
           <p>
             {t(
               "Trace a prediction through every layer. Explore weight geometry.",

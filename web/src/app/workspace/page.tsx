@@ -9,6 +9,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { CheckpointComparisonPanel } from "@/components/checkpoint-comparison";
 import { MatrixResults } from "@/components/matrix-results";
 import { SaveExperiment } from "@/components/save-experiment";
 import { getLayer, ModelGraphView } from "@/components/model-graph";
@@ -34,6 +35,18 @@ export default function WorkspacePage() {
   const [metrics, setMetrics] = useState<MatrixMetrics | null>(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [view, setView] = useState("graph");
+  const [comparisonBusy, setComparisonBusy] = useState(false);
+  function chooseView(value: string) {
+    setView(value);
+    const url = new URL(window.location.href);
+    if (value === "compare") url.searchParams.set("view", "compare");
+    else url.searchParams.delete("view");
+    window.history.replaceState(null, "", url);
+  }
+  useEffect(() => {
+    if (new URLSearchParams(window.location.search).get("view") === "compare")
+      setView("compare");
+  }, []);
   const requestId = useRef(0);
   const refreshId = useRef(0);
   const detail = useRef<HTMLDivElement>(null);
@@ -121,7 +134,17 @@ export default function WorkspacePage() {
           <>
             <button
               className="button secondary"
-              disabled={loading}
+              onClick={() =>
+                chooseView(view === "compare" ? "graph" : "compare")
+              }
+            >
+              {view === "compare"
+                ? t("Back to explorer")
+                : t("Compare checkpoints")}
+            </button>
+            <button
+              className="button secondary"
+              disabled={loading || comparisonBusy}
               onClick={refresh}
             >
               <RefreshCw size={14} />
@@ -137,7 +160,12 @@ export default function WorkspacePage() {
         }
       />
       <ErrorNotice message={error} />
-      {loading ? (
+      {view === "compare" ? (
+        <CheckpointComparisonPanel
+          graph={graph}
+          onBusyChange={setComparisonBusy}
+        />
+      ) : loading ? (
         <Loading label={t("Opening model explorer")} />
       ) : !graph && error ? (
         <Panel
@@ -194,7 +222,7 @@ export default function WorkspacePage() {
               role="tab"
               aria-selected={view === "graph"}
               className={view === "graph" ? "active" : ""}
-              onClick={() => setView("graph")}
+              onClick={() => chooseView("graph")}
             >
               {t("Architecture graph")}
             </button>
@@ -202,7 +230,7 @@ export default function WorkspacePage() {
               role="tab"
               aria-selected={view === "table"}
               className={view === "table" ? "active" : ""}
-              onClick={() => setView("table")}
+              onClick={() => chooseView("table")}
             >
               {t("Weight inventory")}
             </button>

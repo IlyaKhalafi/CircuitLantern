@@ -51,6 +51,22 @@ def serve(port: int):
             "downloads": 0,
             "config": model.config.to_dict(),
         }
+        # A second real checkpoint exercises cross-repository research workflows offline.
+        import torch
+
+        fine_checkpoint = directory / "finetuned"
+        with torch.no_grad():
+            model.transformer.h[0].attn.c_attn.weight.add_(0.02)
+            model.transformer.h[1].mlp.c_fc.weight.mul_(1.05)
+        model.save_pretrained(fine_checkpoint, safe_serialization=True)
+        tokenizer.save_pretrained(fine_checkpoint)
+        fine_weight = fine_checkpoint / "model.safetensors"
+        fine_metadata = dict(
+            metadata,
+            id="circuit-lantern-test/finetuned",
+            revision="fixture-fine-" + hashlib.sha256(fine_weight.read_bytes()).hexdigest()[:32],
+            weight_bytes=fine_weight.stat().st_size,
+        )
         del model, tokenizer
         native_metadata = None
         native_checkpoint = directory / "fp4-checkpoint"
@@ -94,6 +110,8 @@ def serve(port: int):
                 return dict(native_metadata)
 
         def fixture_metadata(model_id: str, revision: str = "main"):
+            if model_id == fine_metadata["id"] and revision in ("main", fine_metadata["revision"]):
+                return dict(fine_metadata)
             if model_id != metadata["id"]:
                 raise ValueError(
                     "The browser test server only provides the deterministic GPT-2 fixture."
@@ -107,6 +125,8 @@ def serve(port: int):
             return dict(metadata)
 
         def fixture_download(*args, **kwargs):
+            if kwargs.get("revision") == fine_metadata["revision"]:
+                return str(fine_checkpoint)
             if (
                 native_metadata is not None
                 and kwargs.get("revision") == native_metadata["revision"]

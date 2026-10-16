@@ -130,7 +130,7 @@ export function BlockDataflow({
           stroke: edge.residual ? "var(--accent)" : "var(--blue)",
           strokeWidth: edge.residual ? 2 : 1.5,
         },
-        labelStyle: { fill: "var(--text)", fontSize: 10 },
+        labelStyle: { fill: "var(--ink)", fontSize: 10 },
         labelBgStyle: { fill: "var(--panel)" },
         labelBgPadding: [5, 3] as [number, number],
         markerEnd: {

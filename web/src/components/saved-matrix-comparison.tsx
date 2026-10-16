@@ -1,5 +1,6 @@
 "use client";
 import { useI18n } from "@/i18n/provider";
+import Link from "next/link";
 import { Download } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { ErrorNotice, Loading, Panel } from "@/components/ui";
@@ -166,6 +167,13 @@ export function SavedMatrixComparison({
         </SavedReferencePicker>
         {loading && <Loading label={t("Opening reference matrix")} />}
         <ErrorNotice message={error || problem} />
+        {problem && (
+          <p className="inline-note">
+            <Link className="text-link" href="/workspace?view=compare">
+              {t("Compare base and finetuned checkpoints in the explorer")}
+            </Link>
+          </p>
+        )}
         {referenceUsable && reference && referenceMetrics && (
           <div className="matrix-comparison-sources">
             <Source

@@ -5,9 +5,11 @@ import {
   ArrowUpRight,
   Box,
   FlaskConical,
+  GitCompareArrows,
   Layers3,
   Network,
   ShieldCheck,
+  Sparkles,
 } from "lucide-react";
 import Link from "next/link";
 import { PageHeader } from "@/components/ui";
@@ -175,6 +177,30 @@ export default function GuidePage() {
             )}
           </p>
         </article>
+        <article className="panel guide-card">
+          <div className="model-icon blue">
+            <Sparkles size={24} />
+          </div>
+          <h2>{t("Learn and test sparse features")}</h2>
+          <p>
+            {t(
+              "Train a ReLU or TopK sparse autoencoder on document-separated residual activations. Inspect held out reconstruction, sparsity, activating contexts and feature annotations.",
+            )}
+          </p>
+          <p>
+            {t(
+              "Ablate or amplify a decoded feature contribution while preserving the original reconstruction error. Compare predictions, evaluate reconstruction loss and measure downstream feature responses. Excluded token positions remain untouched.",
+            )}
+          </p>
+          <p>
+            {t(
+              "Feature graphs report total ablation effects, including indirect paths. They are not direct attribution graphs from cross layer transcoders. Small local corpora and sparse reconstruction alone do not establish monosemanticity.",
+            )}
+          </p>
+          <Link href="/features">
+            {t("Open the feature lab")} <ArrowUpRight size={14} />
+          </Link>
+        </article>
       </div>
       <div className="guide-callout">
         <h2>{t("Read the measurement labels")}</h2>
@@ -188,6 +214,26 @@ export default function GuidePage() {
             "Small and bounded narrow matrices use complete spectra. Other matrices use randomized SVD on the full matrix and report up to 64 approximate components. Full matrix norms and descriptive statistics use every element. Heatmap cells contain region means. Interactive traces capture at most 128 prompt tokens. Spectral radius is computed only for square matrices up to 768 \u00D7 768.",
           )}
         </p>
+        <article className="panel guide-card">
+          <div className="model-icon blue">
+            <GitCompareArrows size={24} />
+          </div>
+          <h2>{t("Compare base and finetuned checkpoints")}</h2>
+          <p>
+            {t(
+              "Capture a reference, load the other checkpoint and measure actual weight distances, residual drift and prediction changes. Only one model needs to stay loaded.",
+            )}
+          </p>
+          <p>
+            {t(
+              "The comparison checks architecture, prompt inputs and vocabulary alignment. Different execution settings are flagged, and saved reports preserve both checkpoints.",
+            )}
+          </p>
+          <Link className="text-link" href="/workspace?view=compare">
+            {t("Open checkpoint comparison")}
+            <ArrowUpRight size={14} />
+          </Link>
+        </article>
       </div>
     </>
   );
