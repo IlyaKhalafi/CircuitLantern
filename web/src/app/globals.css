@@ -1498,6 +1498,7 @@ tbody tr.selectable:hover {
   padding: 5px 8px;
 }
 .trace-output {
+  overflow-wrap: anywhere;
   padding: 18px 21px;
   background: #fcfaf6;
   border-top: 1px solid #eee4d7;
@@ -2551,4 +2552,18 @@ tbody tr.selectable:hover {
   max-width: 100%;
   overflow-wrap: anywhere;
   font: 9px var(--mono);
+}
+
+.generated-token-details summary {
+  cursor: pointer;
+  padding: 14px 20px;
+  font-size: 12px;
+  font-weight: 600;
+}
+.generated-token-details .table-wrap {
+  max-height: 280px;
+  overflow: auto;
+}
+.generated-token-details td {
+  overflow-wrap: anywhere;
 }

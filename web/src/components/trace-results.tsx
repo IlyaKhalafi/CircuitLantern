@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Heatmap, SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
 import { RepresentationGeometry } from "@/components/representation-geometry";
+import { GeneratedOutput } from "@/components/generated-output";
 import { AttentionHeads } from "@/components/attention-heads";
 import { number } from "@/lib/api";
 import { interventionLabel } from "@/lib/interventions";
@@ -69,10 +70,7 @@ export function TraceResults({
             </span>
           ))}
         </div>
-        <div className="trace-output">
-          <span>{trace.prompt}</span>
-          <strong>{trace.continuation}</strong>
-        </div>
+        <GeneratedOutput trace={trace} />
       </Panel>
       <div
         className="tabs section-gap"

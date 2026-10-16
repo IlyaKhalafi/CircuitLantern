@@ -219,6 +219,27 @@ export interface Trace extends ExecutionProvenance {
   tokens: string[];
   token_ids: number[];
   continuation: string;
+  decoded_prompt?: string;
+  generated_text?: string;
+  continuation_text?: string | null;
+  generated_token_ids?: number[];
+  generated_tokens?: string[];
+  generated_pieces?: string[];
+  capture_attention?: boolean;
+  generation_settings?: {
+    max_new_tokens: number;
+    do_sample: boolean;
+    token_healing: boolean;
+    num_beams: number;
+    num_return_sequences: number;
+    use_cache: boolean;
+    pad_token_id: number | null;
+    return_dict_in_generate: boolean;
+    output_attentions: boolean;
+    output_hidden_states: boolean;
+    output_scores: boolean;
+    output_logits: boolean;
+  };
   layers: LayerTrace[];
   attention: Attention[];
   predictions: Prediction[];
