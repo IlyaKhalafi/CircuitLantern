@@ -74,6 +74,10 @@ def assess_compatibility(metadata: dict, hardware: dict, request: CompatibilityR
         warnings.append(
             "Packed weights remain quantized for execution. Matrix analysis dequantizes one selected matrix to float32. Embeddings, output heads and skipped modules remain unquantized."
         )
+        if precision == "int8":
+            warnings.append(
+                "LLM.int8 casts linear inputs to float16 internally. Residual states and matrix statistics remain float32."
+            )
         if request.device == "cpu":
             warnings.append(
                 "CPU quantization reduces resident weight storage. Fallback kernels can dequantize a matrix during a forward pass, so reduced memory does not guarantee faster inference."

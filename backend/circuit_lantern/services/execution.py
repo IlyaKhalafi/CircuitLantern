@@ -1,10 +1,36 @@
 import importlib.metadata
+import logging
+import threading
 from functools import lru_cache
 
 import torch
 
 FLOAT_DTYPES = {"float32": torch.float32, "float16": torch.float16, "bfloat16": torch.bfloat16}
 PACKED_PRECISIONS = {"int4", "int8"}
+
+
+class _CastNoticeFilter(logging.Filter):
+    """Keep the first expected activation cast notice for each input dtype."""
+
+    def __init__(self):
+        super().__init__()
+        self.seen: set[str] = set()
+        self.lock = threading.Lock()
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        if record.msg != "MatMul8bitLt: inputs will be cast from %s to float16 during quantization":
+            return True
+        notice = record.getMessage()
+        with self.lock:
+            if notice in self.seen:
+                return False
+            self.seen.add(notice)
+            return True
+
+
+@lru_cache(maxsize=1)
+def _configure_quantization_logging():
+    logging.getLogger("bitsandbytes.autograd._functions").addFilter(_CastNoticeFilter())
 
 
 def checkpoint_precision(metadata: dict) -> str | None:
@@ -52,6 +78,7 @@ def quantization_capabilities() -> dict:
         result["reason"] = "Install a compatible bitsandbytes build to use NF4 or 8-bit execution."
         result["detail"] = str(error)[:180]
         return result
+    _configure_quantization_logging()
     for device in ("cpu", "cuda"):
         if device == "cuda" and not torch.cuda.is_available():
             continue
