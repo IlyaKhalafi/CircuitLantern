@@ -1,24 +1,26 @@
 <div align="center">
 
-<img src="web/public/brand/lantern-icon.webp" alt="Circuit Lantern logo" width="120" height="120" />
-
-<h1>Circuit Lantern</h1>
-
-<p><strong>A local lab for mechanistic interpretability.</strong></p>
-
-<p>
-Explore weights, trace activations and test what changes a prediction.<br />
-From a Hugging Face checkpoint to a research notebook, on your own server.
+<p align="center">
+  <img src="web/public/brand/lantern-icon.webp" alt="Circuit Lantern logo" width="144" height="144" />
 </p>
 
-<p>
+<h1 align="center">Circuit Lantern</h1>
+
+<p align="center"><strong>Illuminate the inner workings of language models.</strong></p>
+
+<p align="center">
+A local lab for mechanistic interpretability.<br />
+Explore weights, trace activations and test what changes a prediction.
+</p>
+
+<p align="center">
 <a href="#run-locally">Get started</a> &nbsp;·&nbsp;
 <a href="#what-you-can-investigate">Features</a> &nbsp;·&nbsp;
 <a href="#inside-the-lab">Gallery</a> &nbsp;·&nbsp;
 <a href="docs/setup.md">Documentation</a>
 </p>
 
-<p>
+<p align="center">
 <sub>Next.js + Python &nbsp;·&nbsp; Light and dark themes</sub><br />
 <sub>English &nbsp;·&nbsp; فارسی &nbsp;·&nbsp; العربية &nbsp;·&nbsp; 日本語 &nbsp;·&nbsp; Français</sub>
 </p>
