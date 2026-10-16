@@ -49,6 +49,7 @@ export default function LibraryPage() {
   const [revision, setRevision] = useState("main");
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const requestId = useRef(0);
+  const checkQueue = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
     api<ModelCard[]>("/models")
       .then(setModels)
@@ -58,6 +59,7 @@ export default function LibraryPage() {
       .then(setHardware)
       .catch(() => {});
     return () => {
+      ++requestId.current;
       if (timer.current) clearTimeout(timer.current);
     };
   }, []);
@@ -90,20 +92,26 @@ export default function LibraryPage() {
     setError(null);
     setBusy(true);
     setJob(null);
-    try {
-      const result = await post<Compatibility>("/models/compatibility", {
-        model_id: modelId,
-        revision: requestedRevision,
-        device: targetDevice,
-        context_length: targetContext,
-        precision: targetPrecision,
-      });
-      if (id === requestId.current) setReport(result);
-    } catch (e) {
-      if (id === requestId.current) setError((e as Error).message);
-    } finally {
-      if (id === requestId.current) setBusy(false);
-    }
+    const perform = async () => {
+      if (id !== requestId.current) return;
+      try {
+        const result = await post<Compatibility>("/models/compatibility", {
+          model_id: modelId,
+          revision: requestedRevision,
+          device: targetDevice,
+          context_length: targetContext,
+          precision: targetPrecision,
+        });
+        if (id === requestId.current) setReport(result);
+      } catch (e) {
+        if (id === requestId.current) setError((e as Error).message);
+      } finally {
+        if (id === requestId.current) setBusy(false);
+      }
+    };
+    const pending = checkQueue.current.then(perform, perform);
+    checkQueue.current = pending;
+    await pending;
   }
   async function poll(id: string) {
     try {
