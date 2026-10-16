@@ -214,7 +214,7 @@ export default function LibraryPage() {
         </div>
         <div className="lantern-illustration" aria-hidden="true">
           <Image
-            src="/brand/lantern-emblem.webp"
+            src="/brand/lantern-icon.webp"
             alt=""
             width={280}
             height={280}

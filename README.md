@@ -1,6 +1,6 @@
 # Circuit Lantern
 
-<img src="web/public/brand/lantern-emblem.webp" alt="Circuit Lantern" width="100" height="100" />
+<img src="web/public/brand/lantern-icon.webp" alt="Circuit Lantern" width="100" height="100" />
 
 **A local lab for mechanistic interpretability.**
 

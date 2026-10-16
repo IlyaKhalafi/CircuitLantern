@@ -106,7 +106,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <Link href="/" className="brand" onClick={closeNavigation}>
           <span className="brand-mark">
             <Image
-              src="/brand/lantern-emblem.webp"
+              src="/brand/lantern-icon.webp"
               alt=""
               width={52}
               height={52}
