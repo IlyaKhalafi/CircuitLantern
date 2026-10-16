@@ -20,6 +20,11 @@ class CompatibilityRequest(ModelRequest):
     device: Literal["cpu", "cuda"] = "cpu"
 
 
+class TokenizeRequest(BaseModel):
+    prompts: list[Annotated[str, Field(max_length=8000)]] = Field(min_length=1, max_length=2)
+    reserved_tokens: int = Field(default=0, ge=0, le=64)
+
+
 class HeadAblation(BaseModel):
     layer: int = Field(ge=0)
     head: int = Field(ge=0)

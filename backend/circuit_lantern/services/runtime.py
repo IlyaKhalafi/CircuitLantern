@@ -26,6 +26,7 @@ from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
+from circuit_lantern.services.tokens import capture_token_limit, preview_tokens
 from circuit_lantern.services.weights import (
     logical_weight,
     model_weight_inventory,
@@ -359,6 +360,17 @@ class ModelRuntime:
                 return getattr(root, norm_name)
         return None
 
+    def tokenize(self, prompts: list[str], reserved_tokens: int = 0) -> dict:
+        with self.operation():
+            self._require_model()
+            return preview_tokens(
+                self.tokenizer,
+                self.metadata,
+                prompts,
+                self.settings.max_prompt_tokens,
+                reserved_tokens,
+            )
+
     @torch.inference_mode()
     def trace(
         self,
@@ -377,11 +389,9 @@ class ModelRuntime:
             token_count = encoded.input_ids.shape[1]
             if not token_count:
                 raise ValueError("The prompt must contain at least one token.")
-            context_limit = min(
-                self.metadata["context_length"],
-                self.metadata.get("execution_context_length", self.metadata["context_length"]),
+            prompt_limit = capture_token_limit(
+                self.metadata, self.settings.max_prompt_tokens, max_new_tokens
             )
-            prompt_limit = min(self.settings.max_prompt_tokens, context_limit - max_new_tokens)
             if prompt_limit < 1:
                 raise ValueError(
                     "The generation length exceeds the loaded context allowance. Choose fewer generated tokens."

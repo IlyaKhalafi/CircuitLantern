@@ -13,6 +13,7 @@ from circuit_lantern.schemas import (
     ExperimentUpdate,
     LoadRequest,
     ModelRequest,
+    TokenizeRequest,
     TraceRequest,
 )
 from circuit_lantern.services.hardware import hardware_snapshot
@@ -136,6 +137,11 @@ def graph(request: Request):
 @app.get("/api/matrix")
 def matrix(request: Request, name: str = Query(max_length=240)):
     return request.app.state.runtime.matrix(name)
+
+
+@app.post("/api/tokenize")
+def tokenize(payload: TokenizeRequest, request: Request):
+    return request.app.state.runtime.tokenize(payload.prompts, payload.reserved_tokens)
 
 
 @app.post("/api/trace")
