@@ -78,3 +78,60 @@ def test_large_tiny_spectra_keep_the_full_frobenius_energy_denominator():
     assert result["cumulative_energy"][-1] == pytest.approx(64 / 800, rel=1e-5)
     assert result["nuclear_norm"] is None
     assert result["numerical_rank"] is None
+
+
+@pytest.mark.parametrize("transpose", [False, True])
+@pytest.mark.parametrize("scale", [1.0, 1e-20, 1e20])
+def test_narrow_matrix_spectra_are_complete_and_retain_rank_measures(transpose, scale):
+    matrix = torch.zeros(1000, 3)
+    matrix[0, 0], matrix[400, 1], matrix[999, 2] = 3, 2, 1
+    matrix *= scale
+    if transpose:
+        matrix = matrix.T
+    result = matrix_metrics(matrix)
+    assert result["spectrum_exact"]
+    assert result["spectrum_precision"] == "float64"
+    assert result["spectral_radius"] is None
+    assert result["singular_values"] == pytest.approx([3 * scale, 2 * scale, scale], rel=1e-6)
+    assert result["condition_number"] == pytest.approx(3, rel=1e-6)
+    assert result["numerical_rank"] == 3
+    assert result["effective_rank"] == pytest.approx(2.749459273997205, rel=1e-6)
+    assert result["nuclear_norm"] == pytest.approx(6 * scale, rel=1e-6)
+    assert result["cumulative_energy"][-1] == pytest.approx(1)
+
+
+def test_narrow_zero_matrix_has_a_complete_spectrum_and_no_condition_number():
+    result = matrix_metrics(torch.zeros(1000, 3))
+    assert result["spectrum_exact"]
+    assert result["numerical_rank"] == 0
+    assert result["nuclear_norm"] == 0
+    assert result["condition_number"] is result["effective_rank"] is None
+    assert result["cumulative_energy"] == [0, 0, 0]
+
+
+def test_narrow_exact_spectrum_respects_the_workspace_budget(monkeypatch):
+    from circuit_lantern.services import metrics
+
+    monkeypatch.setattr(metrics, "EXACT_THIN_SVD_MAX_ELEMENTS", 2000)
+    result = matrix_metrics(torch.ones(1000, 3))
+    assert not result["spectrum_exact"]
+    assert result["condition_number"] is result["numerical_rank"] is None
+    assert result["spectral_norm"] == pytest.approx(3000**0.5, rel=1e-5)
+    assert result["spectrum_method"] == (
+        "Full matrix randomized SVD with 3 components and 4 power iterations"
+    )
+
+
+@pytest.mark.parametrize("device", ["cpu", "cuda"])
+def test_narrow_full_svd_covers_all_sixty_four_components(device):
+    if device == "cuda" and not torch.cuda.is_available():
+        pytest.skip("CUDA is not installed")
+    matrix = torch.zeros(1200, 64, device=device)
+    matrix[:64] = torch.diag(torch.arange(1, 65, device=device))
+    result = matrix_metrics(matrix)
+    assert result["spectrum_exact"]
+    assert result["numerical_rank"] == 64
+    assert len(result["singular_values"]) == 64
+    assert result["condition_number"] == pytest.approx(64)
+    assert result["nuclear_norm"] == pytest.approx(2080)
+    assert result["cumulative_energy"][-1] == pytest.approx(1)

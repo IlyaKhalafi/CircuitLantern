@@ -348,10 +348,11 @@ export default function WorkspacePage() {
                 {!metrics.spectrum_exact && (
                   <div className="notice info">
                     Spectral norm and stable rank use a randomized SVD on the
-                    full matrix. The leading 64 singular values are approximate.
-                    Cumulative energy is measured against the full matrix
-                    Frobenius norm. Condition numbers, nuclear norms and full
-                    rank measures are unavailable without a complete spectrum.
+                    full matrix. The leading {metrics.singular_values.length}{" "}
+                    singular values are approximate. Cumulative energy is
+                    measured against the full matrix Frobenius norm. Condition
+                    numbers, nuclear norms and full rank measures are
+                    unavailable without a complete spectrum.
                   </div>
                 )}
                 <div className="two-column">
@@ -368,8 +369,8 @@ export default function WorkspacePage() {
                     title="Singular value spectrum"
                     subtitle={
                       metrics.spectrum_exact
-                        ? "Full SVD in float64 · first 128 singular values"
-                        : "Full matrix randomized SVD · leading 64 components"
+                        ? `Full SVD in float64 · showing ${metrics.singular_values.length} of ${Math.min(...metrics.shape)} singular values`
+                        : `Full matrix randomized SVD · ${metrics.singular_values.length} estimated components`
                     }
                   >
                     <SeriesChart

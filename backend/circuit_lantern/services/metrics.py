@@ -4,6 +4,10 @@ import numpy as np
 import torch
 from torch.nn import functional
 
+EXACT_SVD_MAX_DIMENSION = 768
+EXACT_THIN_SVD_MAX_ELEMENTS = 1_048_576
+SVD_COMPONENTS = 64
+
 
 @torch.inference_mode()
 def matrix_metrics(tensor: torch.Tensor, max_elements: int = 4_000_000) -> dict:
@@ -36,7 +40,10 @@ def matrix_metrics(tensor: torch.Tensor, max_elements: int = 4_000_000) -> dict:
         zeros += chunk.numel() - int(torch.count_nonzero(chunk))
         minimum, maximum = min(minimum, float(chunk.min())), max(maximum, float(chunk.max()))
     std = math.sqrt(max(0, second_moment / matrix.numel()))
-    exact_spectrum = max(rows, columns) <= 768
+    components = min(SVD_COMPONENTS, rows, columns)
+    exact_spectrum = max(rows, columns) <= EXACT_SVD_MAX_DIMENSION or (
+        min(rows, columns) <= SVD_COMPONENTS and matrix.numel() <= EXACT_THIN_SVD_MAX_ELEMENTS
+    )
     if exact_spectrum:
         precise = matrix.double()
         singular = torch.linalg.svdvals(precise)
@@ -51,7 +58,7 @@ def matrix_metrics(tensor: torch.Tensor, max_elements: int = 4_000_000) -> dict:
                 torch.set_rng_state(torch.Generator().manual_seed(0).get_state())
             scale = max(abs(minimum), abs(maximum))
             normalized = matrix / scale if scale > 0 else matrix
-            _, singular, _ = torch.svd_lowrank(normalized, q=min(64, rows, columns), niter=4)
+            _, singular, _ = torch.svd_lowrank(normalized, q=components, niter=4)
             singular = singular.double() * scale
     energy = (
         singular.square().cumsum(0) / sum_squares if sum_squares > 0 else torch.zeros_like(singular)
@@ -109,7 +116,7 @@ def matrix_metrics(tensor: torch.Tensor, max_elements: int = 4_000_000) -> dict:
         "spectrum_precision": "float64" if exact_spectrum else "float32",
         "spectrum_method": "Full SVD in float64"
         if exact_spectrum
-        else "Full matrix randomized SVD with 64 components and 4 power iterations",
+        else f"Full matrix randomized SVD with {components} components and 4 power iterations",
         "histogram": [
             {"value": float((bin_edges[i] + bin_edges[i + 1]) / 2), "count": int(v)}
             for i, v in enumerate(histogram)

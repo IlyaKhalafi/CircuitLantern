@@ -168,12 +168,12 @@ export default function GuidePage() {
           within one prompt.
         </p>
         <p>
-          Large matrices use randomized SVD on the full matrix to bound compute
-          cost. The leading 64 spectral components are approximate. Full matrix
-          norms and descriptive statistics use every element. Heatmap cells
-          contain region means. Interactive traces capture at most 128 prompt
-          tokens. Spectral radius is computed only for square matrices up to 768
-          × 768.
+          Small and bounded narrow matrices use complete spectra. Other matrices
+          use randomized SVD on the full matrix and report up to 64 approximate
+          components. Full matrix norms and descriptive statistics use every
+          element. Heatmap cells contain region means. Interactive traces
+          capture at most 128 prompt tokens. Spectral radius is computed only
+          for square matrices up to 768 × 768.
         </p>
       </div>
     </>
