@@ -7,6 +7,7 @@ from fastapi.responses import JSONResponse
 from huggingface_hub.errors import HfHubHTTPError
 
 from circuit_lantern.api.checkpoints import router as checkpoint_router
+from circuit_lantern.api.crosscoders import router as crosscoder_router
 from circuit_lantern.api.features import router as feature_router
 from circuit_lantern.config import get_settings
 from circuit_lantern.schemas import (
@@ -26,12 +27,18 @@ from circuit_lantern.schemas import (
 )
 from circuit_lantern.services.checkpoint_store import CheckpointStore
 from circuit_lantern.services.checkpoints import CheckpointLab
+from circuit_lantern.services.crosscoders.lab import CrosscoderLab
 from circuit_lantern.services.features.lab import FeatureLab
 from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
 from circuit_lantern.services.runtime import ModelChangedError, ModelRuntime, RuntimeBusyError
 from circuit_lantern.services.store import ExperimentStore
+from circuit_lantern.services.tensor_artifacts import (
+    ArtifactBusyError,
+    ArtifactNotFoundError,
+    TensorArtifactStore,
+)
 
 
 @asynccontextmanager
@@ -43,6 +50,13 @@ async def lifespan(app: FastAPI):
         app.state.runtime,
         DictionaryStore(
             settings.data_dir / "dictionaries", max_weight_bytes=settings.max_dictionary_bytes
+        ),
+    )
+    app.state.crosscoders = CrosscoderLab(
+        app.state.runtime,
+        TensorArtifactStore(
+            settings.data_dir / "shared-features",
+            max_bytes=settings.max_dictionary_bytes,
         ),
     )
     app.state.checkpoints = CheckpointLab(
@@ -59,6 +73,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Circuit Lantern", version="0.1.0", lifespan=lifespan)
 app.include_router(feature_router)
 app.include_router(checkpoint_router)
+app.include_router(crosscoder_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,
@@ -71,6 +86,16 @@ app.add_middleware(
 @app.exception_handler(RuntimeBusyError)
 async def runtime_conflict(request: Request, error: RuntimeBusyError | ModelChangedError):
     return JSONResponse(status_code=409, content={"detail": str(error)})
+
+
+@app.exception_handler(ArtifactBusyError)
+async def artifact_conflict(request: Request, error: ArtifactBusyError):
+    return JSONResponse(status_code=409, content={"detail": str(error)})
+
+
+@app.exception_handler(ArtifactNotFoundError)
+async def artifact_missing(request: Request, error: ArtifactNotFoundError):
+    return JSONResponse(status_code=404, content={"detail": str(error)})
 
 
 @app.exception_handler(ValueError)

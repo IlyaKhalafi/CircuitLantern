@@ -238,14 +238,21 @@ class ModelRuntime:
     def head_sweep(self, payload: dict) -> dict:
         return self._start_sweep("head_sweep", payload)
 
-    def _start_sweep(self, kind: str, payload: dict, worker=None) -> dict:
+    def _start_sweep(
+        self, kind: str, payload: dict, worker=None, *, requires_model: bool = True
+    ) -> dict:
+        if not requires_model and worker is None:
+            raise ValueError("Saved artifact jobs require an explicit worker.")
         payload = dict(payload)
         expected_execution_id = payload.pop("expected_execution_id", None)
         with self.job_lock:
             state = self.state()
-            if not state["loaded"]:
-                raise ValueError("Load a model from the model library first.")
-            self._verify_execution(expected_execution_id)
+            if requires_model:
+                if not state["loaded"]:
+                    raise ValueError("Load a model from the model library first.")
+                self._verify_execution(expected_execution_id)
+            elif expected_execution_id is not None:
+                raise ValueError("Artifact training is bound to its saved capture sources.")
             if any(
                 j["status"] in ("queued", "running", "downloading", "loading")
                 for j in self.jobs.values()
@@ -254,8 +261,14 @@ class ModelRuntime:
             job = JobRecord(
                 {
                     "id": uuid.uuid4().hex,
-                    "model_id": state["metadata"]["id"],
-                    "execution_id": state["metadata"].get("execution_id"),
+                    **(
+                        {
+                            "model_id": state["metadata"]["id"],
+                            "execution_id": state["metadata"].get("execution_id"),
+                        }
+                        if requires_model
+                        else {"requires_model": False}
+                    ),
                     "kind": kind,
                     "status": "queued",
                     "progress": 0,
@@ -263,7 +276,7 @@ class ModelRuntime:
                     "created_at": time.time(),
                 }
             )
-            revision = state["metadata"]["revision"]
+            revision = state["metadata"]["revision"] if requires_model else None
             self.jobs = dict(list(self.jobs.items())[-49:])
             self.jobs[job["id"]] = job
             try:
@@ -283,17 +296,26 @@ class ModelRuntime:
             job = self.jobs.get(job_id)
             if job is None:
                 return None
-            if job.get("kind") not in ("causal", "head_sweep", "sae_training", "feature_circuit"):
+            if job.get("kind") not in (
+                "causal",
+                "head_sweep",
+                "sae_training",
+                "feature_circuit",
+                "activation_capture",
+                "crosscoder_training",
+            ):
                 raise ValueError(
                     "Only research jobs can be cancelled. Model downloads must finish before another operation starts."
                 )
             return job.request_cancel()
 
-    def _run_sweep(self, job: JobRecord, payload: dict, revision: str, worker=None):
+    def _run_sweep(self, job: JobRecord, payload: dict, revision: str | None, worker=None):
         is_head_sweep = job["kind"] == "head_sweep"
         label = {
             "sae_training": "Dictionary training",
             "feature_circuit": "Feature ablation graph",
+            "activation_capture": "Residual capture",
+            "crosscoder_training": "Crosscoder training",
         }.get(job["kind"], "Head sweep" if is_head_sweep else "Causal sweep")
         result = None
         failure = None
@@ -302,14 +324,20 @@ class ModelRuntime:
             try:
                 early_cancel = bool(job.get("cancel_requested"))
                 if not early_cancel:
-                    self._require_model()
-                    if (
-                        self.metadata["revision"] != revision
-                        or self.metadata["id"] != job["model_id"]
-                        or self.metadata.get("execution_id") != job.get("execution_id")
-                    ):
-                        raise ValueError("The active model changed. Start the sweep again.")
-                    job.update(status="running", message="Capturing baseline predictions")
+                    if job.get("requires_model", True):
+                        self._require_model()
+                        if (
+                            self.metadata["revision"] != revision
+                            or self.metadata["id"] != job["model_id"]
+                            or self.metadata.get("execution_id") != job.get("execution_id")
+                        ):
+                            raise ValueError("The active model changed. Start the sweep again.")
+                    job.update(
+                        status="running",
+                        message="Capturing baseline predictions"
+                        if job.get("requires_model", True)
+                        else "Processing retained activations",
+                    )
                     if worker is not None:
                         result = worker(payload, job)
                     else:
@@ -328,7 +356,7 @@ class ModelRuntime:
                 failure = str(error)[:1000]
             finally:
                 gc.collect()
-                if self.device.startswith("cuda"):
+                if self.device.startswith("cuda") or payload.get("device") == "cuda":
                     try:
                         torch.cuda.empty_cache()
                     except RuntimeError as error:
@@ -336,20 +364,26 @@ class ModelRuntime:
         # A terminal snapshot guarantees that model hooks and operation ownership
         # have been released before a caller starts its next research operation.
         if early_cancel:
-            job.update(status="cancelled", message=f"{label} cancelled before capture")
+            job.update(
+                status="cancelled",
+                message=f"{label} cancelled before capture"
+                if job.get("requires_model", True)
+                else f"{label} cancelled before training",
+            )
         elif failure:
             job.update(status="failed", message=failure)
         else:
             job.finish(
                 result,
                 label=label,
-                unit="dictionaries"
-                if job["kind"] == "sae_training"
-                else "measurements"
-                if worker
-                else "heads"
-                if is_head_sweep
-                else "layers",
+                unit={
+                    "sae_training": "dictionaries",
+                    "activation_capture": "captures",
+                    "crosscoder_training": "crosscoders",
+                }.get(
+                    job["kind"],
+                    "measurements" if worker else "heads" if is_head_sweep else "layers",
+                ),
             )
 
     @contextmanager
