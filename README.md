@@ -34,6 +34,8 @@ For NVIDIA GPUs, use `make install-cuda` instead of `make install`.
 
 Open [localhost on port 3000](http://localhost:3000). Start with **SmolLM2 135M** or **Pythia 70M**. The tiny random GPT-2 checkpoint is useful for checking the workflow, but its predictions have no linguistic meaning.
 
+For Docker with explicit GPU access, run `python3 scripts/deploy.py --gpus 0 --port 9001`. Use `--gpus 0,1` to expose a device list. See [Docker setup](docs/setup.md#docker-deployment) for details.
+
 ## Inside the lab
 
 ![Zoomable transformer graph with a selected block and its weight matrices](docs/images/model-explorer.png)

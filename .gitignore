@@ -16,3 +16,6 @@ artifacts/
 playwright-report/
 test-results/
 .DS_Store
+
+.lantern-deployment.json
+.lantern-deployment.partial

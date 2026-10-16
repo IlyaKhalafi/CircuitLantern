@@ -47,4 +47,26 @@ Copy [.env.example](../.env.example) to `backend/.env` as needed. Never commit a
 
 Hugging Face downloads use the standard Hub cache. Download storage checks measure that cache filesystem, separately from experiment database storage. Configure `HF_HOME` to move it. The default lockfile selects the CPU index. The CUDA installation target replaces only the environment PyTorch build using driver aware selection. The server page reports whether CUDA is actually available in Python.
 
-Both services bind to loopback by default. This is a personal research workstation with no authentication. Use a private SSH tunnel for remote access. Add authentication and deployment controls before exposing it to an untrusted network.
+The development services bind to loopback by default. This is a personal research workstation with no authentication. Use a private SSH tunnel for remote access. Add authentication and deployment controls before exposing it to an untrusted network.
+
+
+## Docker deployment
+
+Build and start the UI and Python runtime together with an explicit GPU list.
+
+```bash
+python3 scripts/deploy.py --gpus 0 --port 9001
+```
+
+Use `--gpus 0,1` to expose selected GPUs, `--gpus all` for all devices, or `--gpus cpu` for CPU execution. The list controls NVIDIA container device access and does not define CUDA enumeration order. The current model runtime uses the first visible GPU. Model sharding and tensor parallelism are pending.
+
+The Docker UI listens on all host interfaces on the requested port. The backend is reachable only on the Compose network. Model files, dictionaries and experiments persist in `backend/data`. Set `LANTERN_DATA_PATH` to use another host directory. The container runs with the invoking user's UID and GID so saved files remain accessible on the host.
+
+An NVIDIA driver and NVIDIA Container Toolkit are required for GPU mode. Set `LANTERN_TORCH_INDEX_URL` to select a PyTorch wheel index compatible with the server driver. The default uses CUDA 13.0. CPU deployments can use `https://download.pytorch.org/whl/cpu`. Set `HF_TOKEN` in the deployment environment for gated checkpoints. It is passed only to the backend.
+
+Run `python3 scripts/deploy.py --gpus 0 --dry-run` to inspect device access before launching. Use `--no-build` to restart existing images. Stop the deployment with `python3 scripts/deploy.py --stop`. This retains research data. The launcher saves device grants and the absolute data mount in the ignored `.lantern-deployment.json` file. Use the launcher for subsequent starts so the selected devices are preserved. Bare Compose starts use CPU visibility and UID 1000.
+
+
+Container dependencies are pinned in `backend/requirements.docker.txt`, exported from `uv.lock` with Torch selected separately. Regenerate the export after updating the lockfile with `uv export --project backend --frozen --no-dev --no-emit-project --no-hashes --no-annotate --no-header --no-emit-package torch --output-file backend/requirements.docker.txt`.
+
+The default Docker Torch version is 2.14.1. Override `LANTERN_TORCH_VERSION` together with the wheel index when needed. `LANTERN_BACKEND_BASE` accepts an existing compatible Python and CUDA image. This server reused its cached `vllm/vllm-openai:v0.28.0` base with Torch 2.13.0 to avoid another CUDA runtime download. Circuit Lantern runs its own Python service and does not launch vLLM.

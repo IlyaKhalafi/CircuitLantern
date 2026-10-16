@@ -1,0 +1,38 @@
+name: circuit-lantern
+services:
+  backend:
+    image: circuit-lantern-backend:local
+    build:
+      context: ./backend
+      args:
+        PYTHON_BASE: ${LANTERN_BACKEND_BASE:-python:3.12-slim@sha256:a6e34c598f2467ed0e9a8d349809fcd8b5c603269512df273a0bb1784edc11b1}
+        TORCH_VERSION: ${LANTERN_TORCH_VERSION:-2.14.1}
+        TORCH_INDEX_URL: ${LANTERN_TORCH_INDEX_URL:-https://download.pytorch.org/whl/cu130}
+    environment:
+      LANTERN_DATA_DIR: /data
+      NVIDIA_VISIBLE_DEVICES: void
+      HOME: /tmp
+      LANTERN_MAX_MODEL_BYTES: ${LANTERN_MAX_MODEL_BYTES:-21474836480}
+      LANTERN_MAX_PROMPT_TOKENS: ${LANTERN_MAX_PROMPT_TOKENS:-128}
+      HF_HOME: /data/huggingface
+      HF_HUB_CACHE: /data/hub
+      HF_TOKEN: ${HF_TOKEN:-}
+    user: "${LANTERN_UID:-1000}:${LANTERN_GID:-1000}"
+    volumes:
+      - ${LANTERN_DATA_PATH:-./backend/data}:/data
+    restart: unless-stopped
+    init: true
+    shm_size: 1gb
+  web:
+    image: circuit-lantern-web:local
+    build:
+      context: ./web
+    environment:
+      LANTERN_BACKEND_URL: http://backend:8000
+    ports:
+      - "${LANTERN_PORT:-9001}:3000"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
