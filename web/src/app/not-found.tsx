@@ -1,5 +1,8 @@
+import type { Metadata } from "next";
 import { Compass } from "lucide-react";
 import { EmptyState } from "@/components/ui";
+
+export const metadata: Metadata = { title: "Page not found" };
 
 export default function NotFound() {
   return (

@@ -54,13 +54,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
       clearInterval(timer);
     };
   }, [path]);
-  const current = navigation.find((item) => item.href === path);
-  useEffect(() => {
-    document.title =
-      (current?.label ||
-        (path === "/guide" ? "Field guide" : "Page not found")) +
-      " · Circuit Lantern";
-  }, [path, current]);
+  const activeRoute = (href: string) =>
+    path === href || (href !== "/" && path.startsWith(href + "/"));
+  const current = navigation.find((item) => activeRoute(item.href));
+  const currentLabel =
+    path === "/causal/heads" ? "Head ablation" : current?.label;
 
   return (
     <div className="app-shell">
@@ -100,13 +98,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <Link
               key={item.href}
               href={item.href}
-              aria-current={path === item.href ? "page" : undefined}
+              aria-current={
+                path === item.href
+                  ? "page"
+                  : activeRoute(item.href)
+                    ? "true"
+                    : undefined
+              }
               onClick={() => setOpen(false)}
-              className={`nav-item ${path === item.href ? "active" : ""}`}
+              className={`nav-item ${activeRoute(item.href) ? "active" : ""}`}
             >
               <item.icon size={18} />
               {item.label}
-              {path === item.href && <span className="active-dot" />}
+              {activeRoute(item.href) && <span className="active-dot" />}
             </Link>
           ))}
         </nav>
@@ -144,7 +148,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <span>Workbench</span>
             <ChevronRight size={13} />
             <strong>
-              {current?.label ||
+              {currentLabel ||
                 (path === "/guide" ? "Field guide" : "Page not found")}
             </strong>
           </div>

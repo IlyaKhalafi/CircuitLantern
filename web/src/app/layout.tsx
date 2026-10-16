@@ -7,7 +7,7 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: {
-    default: "Circuit Lantern · Model library",
+    default: "Model library · Circuit Lantern",
     template: "%s · Circuit Lantern",
   },
   description:
