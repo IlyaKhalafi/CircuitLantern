@@ -36,12 +36,20 @@ export function SeriesChart({
   area = false,
   height = 235,
   xKey = "index",
+  yAxis,
 }: {
   data: Record<string, number | string | null>[];
   series: { key: string; label: string; color: string }[];
   area?: boolean;
   height?: number;
   xKey?: string;
+  yAxis?: {
+    scale?: "linear" | "log";
+    reversed?: boolean;
+    domain?: [number, number];
+    integer?: boolean;
+    ticks?: number[];
+  };
 }) {
   const Chart = area ? AreaChart : LineChart;
   return (
@@ -58,8 +66,18 @@ export function SeriesChart({
           <YAxis
             tickLine={false}
             axisLine={false}
+            scale={yAxis?.scale}
+            reversed={yAxis?.reversed}
+            domain={yAxis?.domain}
+            allowDecimals={!yAxis?.integer}
+            ticks={yAxis?.ticks}
+            interval={yAxis?.integer ? "preserveStartEnd" : undefined}
             tickFormatter={(v) =>
-              typeof v === "number" ? v.toPrecision(2) : v
+              typeof v === "number"
+                ? yAxis?.integer
+                  ? v.toLocaleString("en")
+                  : v.toPrecision(2)
+                : v
             }
           />
           {series.length > 1 && (
@@ -73,7 +91,11 @@ export function SeriesChart({
           <Tooltip
             itemStyle={{ color: "var(--ink)" }}
             formatter={(value) =>
-              typeof value === "number" ? value.toPrecision(5) : String(value)
+              typeof value === "number"
+                ? yAxis?.integer
+                  ? value.toLocaleString("en")
+                  : value.toPrecision(5)
+                : String(value)
             }
           />
           {series.map((item) =>

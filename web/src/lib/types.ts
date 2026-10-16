@@ -184,6 +184,7 @@ export interface Prediction {
 }
 export interface LayerTrace {
   token_target_log_probabilities?: (number | null)[][];
+  token_target_ranks?: (number | null)[][];
   token_prediction_ids?: number[];
   token_prediction_probabilities?: number[];
   token_entropies?: number[];
@@ -248,6 +249,7 @@ export interface TrackedTarget {
 export interface Trace extends ExecutionProvenance {
   tracked_targets?: TrackedTarget[];
   target_score_method?: string;
+  target_rank_method?: string;
   token_prediction_method?: string;
   final_state_normalized?: boolean;
   geometry?: TraceGeometry;

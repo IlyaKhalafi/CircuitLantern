@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
+import { TargetRanks } from "@/components/target-ranks";
 import { number } from "@/lib/api";
 import {
   targetLabel,
@@ -27,6 +28,9 @@ export function TargetTrajectories({
   const [reference, setReference] = useState(targets.length > 1 ? 1 : -1);
   if (!targets.length) return null;
   const rows = targetTrajectory(trace, position, selected, reference);
+  const hasRanks =
+    !!trace.target_rank_method ||
+    trace.layers.some((layer) => Array.isArray(layer.token_target_ranks));
   const compared =
     reference >= 0 && reference !== selected && !!targets[reference];
   const unavailable = rows.some(
@@ -144,6 +148,13 @@ export function TargetTrajectories({
           )}
         </Panel>
       </div>
+      <TargetRanks
+        rows={rows}
+        selectedLabel={targetLabel(targets[selected])}
+        referenceLabel={compared ? targetLabel(targets[reference]) : undefined}
+        recorded={hasRanks}
+        method={trace.target_rank_method}
+      />
       <details className="comparison-values">
         <summary>Inspect target scores</summary>
         <div
@@ -164,6 +175,12 @@ export function TargetTrajectories({
                 <th>LOGIT DIFFERENCE</th>
                 <th>SELECTED PROBABILITY</th>
                 <th>REFERENCE PROBABILITY</th>
+                {hasRanks && (
+                  <>
+                    <th>SELECTED RANK</th>
+                    <th>REFERENCE RANK</th>
+                  </>
+                )}
               </tr>
             </thead>
             <tbody>
@@ -175,6 +192,12 @@ export function TargetTrajectories({
                   <td>{number(compared ? row.difference : null, 5)}</td>
                   <td>{probability(row.selected)}</td>
                   <td>{probability(compared ? row.reference : null)}</td>
+                  {hasRanks && (
+                    <>
+                      <td>{number(row.selectedRank, 0)}</td>
+                      <td>{number(compared ? row.referenceRank : null, 0)}</td>
+                    </>
+                  )}
                 </tr>
               ))}
             </tbody>

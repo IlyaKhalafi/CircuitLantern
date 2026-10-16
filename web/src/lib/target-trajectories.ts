@@ -28,15 +28,26 @@ export function targetTrajectory(
 ) {
   const targets = trackedTargets(trace);
   return trace.layers.map((layer) => {
-    const matrix = layer.token_target_log_probabilities;
-    const row =
-      Array.isArray(matrix) && matrix.length === trace.tokens.length
-        ? matrix[position]
+    const at = (matrix: (number | null)[][] | undefined, index: number) => {
+      const row =
+        Array.isArray(matrix) && matrix.length === trace.tokens.length
+          ? matrix[position]
+          : null;
+      return Array.isArray(row) && row.length === targets.length
+        ? row[index]
         : null;
-    const known = Array.isArray(row) && row.length === targets.length;
+    };
     const score = (index: number) => {
-      const value = known ? row[index] : null;
+      const value = at(layer.token_target_log_probabilities, index);
       return typeof value === "number" && Number.isFinite(value) && value <= 0
+        ? value
+        : null;
+    };
+    const rank = (index: number) => {
+      const value = at(layer.token_target_ranks, index);
+      return typeof value === "number" &&
+        Number.isSafeInteger(value) &&
+        value >= 1
         ? value
         : null;
     };
@@ -48,6 +59,8 @@ export function targetTrajectory(
       label: layer.label,
       selected: value,
       reference: other,
+      selectedRank: rank(selected),
+      referenceRank: rank(reference),
       difference:
         difference !== null && Number.isFinite(difference) ? difference : null,
     };

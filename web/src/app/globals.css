@@ -2862,3 +2862,14 @@ a.experiment-card {
 .target-trajectories .inline-note {
   overflow-wrap: anywhere;
 }
+
+.comparison-controls .checkbox-row {
+  flex-direction: row;
+  flex: initial;
+  min-width: 0;
+}
+.comparison-controls .checkbox-row input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--orange);
+}

@@ -72,6 +72,22 @@ async function inspect(
     await expect(cells.nth(4)).toHaveText(
       b === null ? "N/A" : number(Math.exp(b) * 100, 4) + "%",
     );
+    if (
+      trace.target_rank_method ||
+      trace.layers.some((capture) => capture.token_target_ranks)
+    ) {
+      await expect(cells.nth(5)).toHaveText(
+        number(layer.token_target_ranks?.[position]?.[selected] ?? null, 0),
+      );
+      await expect(cells.nth(6)).toHaveText(
+        number(
+          reference < 0
+            ? null
+            : (layer.token_target_ranks?.[position]?.[reference] ?? null),
+          0,
+        ),
+      );
+    }
   }
 }
 
@@ -131,6 +147,21 @@ test("tracked targets follow position and alternatives, then reopen after an act
       .selectOption("2");
     await inspect(page, trace, 0, 2, 0);
     expect(await exported(page)).toEqual(trace);
+    await page.getByText("Vocabulary rank", { exact: true }).click();
+    await expect(
+      page.getByRole("checkbox", { name: "Log rank scale", exact: true }),
+    ).toBeChecked();
+    await page
+      .getByRole("checkbox", { name: "Log rank scale", exact: true })
+      .uncheck();
+    await page
+      .getByRole("checkbox", { name: "Log rank scale", exact: true })
+      .check();
+    await expect(
+      page
+        .locator(".target-rank-details .recharts-yAxis-tick-labels")
+        .getByText("1", { exact: true }),
+    ).toBeVisible();
     await page
       .getByRole("combobox", { name: "Reference target", exact: true })
       .selectOption("-1");
@@ -327,3 +358,119 @@ for (const mode of [
     },
   );
 }
+
+for (const mode of [
+  "missing position",
+  "zero",
+  "fractional",
+  "missing entry",
+] as const) {
+  test(
+    "a target rank with " +
+      mode +
+      " remains unavailable without changing stored scores",
+    async ({ page, request }) => {
+      const response = await request.post("/api/trace", {
+        data: {
+          prompt: "the capital of France is",
+          max_new_tokens: 0,
+          tracked_tokens: ["France", "Poland"],
+        },
+      });
+      expect(response.ok()).toBe(true);
+      const trace = (await response.json()) as Trace;
+      if (mode === "missing position")
+        trace.layers[0].token_target_ranks!.pop();
+      else
+        trace.layers[0].token_target_ranks![4][0] =
+          mode === "zero" ? 0 : mode === "fractional" ? 1.5 : null;
+      await page.route("**/api/trace", (route) =>
+        route.fulfill({ json: trace }),
+      );
+      await prepare(page, ["France", "Poland"]);
+      await capture(page);
+      const cells = page
+        .locator(".target-trajectory-table tbody tr")
+        .first()
+        .getByRole("cell");
+      await expect(cells.nth(0)).toHaveText(
+        number(trace.layers[0].token_target_log_probabilities![4][0], 5),
+      );
+      await expect(cells.nth(5)).toHaveText("N/A");
+      await page.getByText("Vocabulary rank", { exact: true }).click();
+      await expect(
+        page.getByText(/Some target ranks at this position are unavailable/),
+      ).toBeVisible();
+      expect(await exported(page)).toEqual(trace);
+    },
+  );
+}
+
+test("legacy chosen scores retain their measurements without inventing vocabulary ranks", async ({
+  page,
+  request,
+}) => {
+  const response = await request.post("/api/trace", {
+    data: {
+      prompt: "the capital of France is",
+      max_new_tokens: 0,
+      tracked_tokens: ["France", "Poland"],
+    },
+  });
+  const trace = (await response.json()) as Trace;
+  delete trace.target_rank_method;
+  trace.layers.forEach((layer) => {
+    delete layer.token_target_ranks;
+  });
+  await page.route("**/api/trace", (route) => route.fulfill({ json: trace }));
+  await prepare(page, ["France", "Poland"]);
+  await capture(page);
+  await inspect(page, trace, 4, 0, 1);
+  await expect(
+    page.getByRole("columnheader", { name: "SELECTED RANK", exact: true }),
+  ).toHaveCount(0);
+  await page.getByText("Vocabulary rank", { exact: true }).click();
+  await expect(
+    page.getByText(/This capture does not include vocabulary ranks/),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("checkbox", { name: "Log rank scale", exact: true }),
+  ).toHaveCount(0);
+  expect(await exported(page)).toEqual(trace);
+});
+
+test("tied first ranks retain a finite chart on logarithmic and linear scales", async ({
+  page,
+  request,
+}) => {
+  const response = await request.post("/api/trace", {
+    data: {
+      prompt: "the capital of France is",
+      max_new_tokens: 0,
+      tracked_tokens: ["France", "Poland"],
+    },
+  });
+  const trace = (await response.json()) as Trace;
+  for (const layer of trace.layers)
+    layer.token_target_ranks = trace.tokens.map(() => [1, 1]);
+  await page.route("**/api/trace", (route) => route.fulfill({ json: trace }));
+  const errors: string[] = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await prepare(page, ["France", "Poland"]);
+  await capture(page);
+  await inspect(page, trace, 4, 0, 1);
+  await page.getByText("Vocabulary rank", { exact: true }).click();
+  const chart = page.locator(".target-rank-details");
+  await expect(chart.locator("path.recharts-line-curve")).toHaveCount(2);
+  for (const path of await chart.locator("path.recharts-line-curve").all())
+    expect(await path.getAttribute("d")).not.toMatch(/NaN|Infinity/);
+  await page
+    .getByRole("checkbox", { name: "Log rank scale", exact: true })
+    .uncheck();
+  for (const path of await chart.locator("path.recharts-line-curve").all())
+    expect(await path.getAttribute("d")).not.toMatch(/NaN|Infinity/);
+  await capturePage(page, {
+    path: "../artifacts/screenshots/tied-target-ranks.png",
+  });
+  expect(errors).toEqual([]);
+});
