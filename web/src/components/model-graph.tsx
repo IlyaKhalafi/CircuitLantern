@@ -21,6 +21,7 @@ type LayerNode = Node<
     subtitle: string;
     matrices: Weight[];
     selected: boolean;
+    sharedOutput?: boolean;
     onInspect: (name: string) => void;
   },
   "layer"
@@ -68,14 +69,16 @@ function Layer({ data }: NodeProps<LayerNode>) {
             key={weight.name}
             type="button"
             className={`graph-matrix nodrag nowheel ${weight.name.includes(".mlp.") ? "mlp" : ""}`}
-            title={`${weight.name} · ${weight.shape.join(" × ")}`}
-            aria-label={`Inspect ${weight.name}, shape ${weight.shape.join(" by ")}`}
+            title={`${weight.name} · ${weight.shape.join(" × ")}${data.sharedOutput ? " · shared with token embedding" : ""}`}
+            aria-label={`Inspect ${weight.name}, shape ${weight.shape.join(" by ")}${data.sharedOutput ? ", shared output projection" : ""}`}
             onClick={(event) => {
               event.stopPropagation();
               data.onInspect(weight.name);
             }}
           >
-            <strong>{matrixLabel(weight.name)}</strong>
+            <strong>
+              {data.sharedOutput ? "W_U" : matrixLabel(weight.name)}
+            </strong>
             <small>{weight.shape.join("×")}</small>
           </button>
         ))}
@@ -121,6 +124,7 @@ export function ModelGraphView({
     const output = graph.matrices.filter((w) =>
       /(?:lm_head|embed_out)\.weight$/.test(w.name),
     );
+    const sharedOutput = graph.metadata.tied_embeddings && !output.length;
     const nodes: LayerNode[] = [
       {
         id: "embedding",
@@ -156,8 +160,9 @@ export function ModelGraphView({
       position: { x: 0, y: (graph.metadata.num_layers + 1) * 150 },
       data: {
         label: "Final norm → unembedding",
-        subtitle: "LOGITS",
-        matrices: output,
+        subtitle: sharedOutput ? "LOGITS · SHARED W_E" : "LOGITS",
+        matrices: sharedOutput ? embedding : output,
+        sharedOutput,
         selected: false,
         onInspect,
       },

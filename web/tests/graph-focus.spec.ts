@@ -34,3 +34,31 @@ test("a researcher can focus a block and inspect a matrix directly", async ({
     page.getByText("All weight matrices", { exact: true }),
   ).toBeVisible();
 });
+
+test("tied output projection opens the shared embedding matrix", async ({
+  page,
+  request,
+}) => {
+  const graph = await (await request.get("/api/graph")).json();
+  expect(graph.metadata.tied_embeddings).toBe(true);
+  const input = graph.matrices.find((weight: { name: string }) =>
+    /(?:wte|embed_tokens|embed_in)\.weight$/.test(weight.name),
+  );
+  await page.goto("/workspace");
+  const output = page.locator('.react-flow__node[data-id="unembedding"]');
+  await expect(output.getByText("LOGITS · SHARED W_E")).toBeVisible();
+  const projection = output.getByRole("button", {
+    name: /shared output projection/,
+  });
+  await expect(projection).toContainText("W_U");
+  await projection.click();
+  await expect(
+    page.getByRole("heading", { name: input.name, exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Singular value spectrum", { exact: true }),
+  ).toBeVisible();
+  await capturePage(page, {
+    path: "../artifacts/screenshots/shared-output-projection.png",
+  });
+});

@@ -27,6 +27,7 @@ export interface ModelMetadata extends ExecutionProvenance {
   vocab_size: number;
   dtype: string;
   quantization: Record<string, unknown> | null;
+  tied_embeddings?: boolean;
   quantizable_parameters?: number;
   largest_matrix_elements?: number;
   download_bytes?: number;
