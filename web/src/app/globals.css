@@ -2781,3 +2781,24 @@ a.experiment-card {
   color: var(--muted);
   line-height: 1.7;
 }
+
+.matrix-comparison-sources {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(280px, 100%), 1fr));
+  gap: 16px;
+  padding: 4px 20px 16px;
+}
+.matrix-comparison-source {
+  border-left: 2px solid #d57b43;
+  padding-left: 12px;
+  font-size: 12px;
+  overflow-wrap: anywhere;
+}
+.matrix-comparison-source:last-child {
+  border-left-color: #97adc6;
+}
+.matrix-comparison-source p {
+  color: var(--muted);
+  margin-top: 7px;
+  line-height: 1.7;
+}

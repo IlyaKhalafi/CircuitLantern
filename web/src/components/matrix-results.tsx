@@ -6,6 +6,7 @@ import { Heatmap, Histogram, SeriesChart } from "@/components/charts";
 import { Panel } from "@/components/ui";
 import { downloadJSON, number } from "@/lib/api";
 import { executionLabel } from "@/lib/execution";
+import { matrixProperties, matrixValue } from "@/lib/matrix-properties";
 import type { MatrixMetrics } from "@/lib/types";
 
 export function MatrixResults({
@@ -123,50 +124,10 @@ export function MatrixResults({
         subtitle="Spectral radius is defined for square matrices and computed exactly up to 768 × 768."
       >
         <div className="weight-stats">
-          {[
-            {
-              label: "Frobenius norm",
-              value: metrics.frobenius_norm,
-            },
-            { label: "Spectral norm", value: metrics.spectral_norm },
-            {
-              label: "Spectral radius",
-              value: metrics.spectral_radius,
-            },
-            { label: "Stable rank", value: metrics.stable_rank },
-            {
-              label: "Condition number",
-              value: metrics.condition_number,
-            },
-            {
-              label: "Operator 1 norm",
-              value: metrics.operator_1_norm,
-            },
-            { label: "Entrywise L1 norm", value: metrics.l1_norm },
-            { label: "Infinity norm", value: metrics.infinity_norm },
-            {
-              label: "Numerical rank",
-              value: metrics.numerical_rank,
-            },
-            {
-              label: "Effective rank",
-              value: metrics.effective_rank,
-            },
-            { label: "Nuclear norm", value: metrics.nuclear_norm },
-            {
-              label: "Exact zeros",
-              value: `${number(metrics.sparsity * 100)}%`,
-            },
-            { label: "Mean", value: metrics.mean },
-            { label: "Standard deviation", value: metrics.std },
-            { label: "Minimum", value: metrics.min },
-            { label: "Maximum", value: metrics.max },
-          ].map((m) => (
-            <div className="weight-stat" key={m.label}>
-              <span>{m.label}</span>
-              <strong>
-                {typeof m.value === "string" ? m.value : number(m.value, 5)}
-              </strong>
+          {matrixProperties(metrics).map((property) => (
+            <div className="weight-stat" key={property.key}>
+              <span>{property.label}</span>
+              <strong>{matrixValue(property.value, property.unit)}</strong>
             </div>
           ))}
         </div>

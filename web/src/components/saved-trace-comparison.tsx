@@ -5,7 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { ErrorNotice, Loading, Panel } from "@/components/ui";
 import { TraceResults } from "@/components/trace-results";
 import { useExperiment } from "@/lib/use-experiment";
-import { notebookHref } from "@/lib/experiments";
+import { SavedReferencePicker } from "@/components/saved-reference-picker";
 import { executionLabel } from "@/lib/execution";
 import { interventionLabel } from "@/lib/interventions";
 import { downloadJSON, number } from "@/lib/api";
@@ -53,15 +53,6 @@ export function SavedTraceComparison({
     : null;
   const comparable = referenceTrace && !problem ? referenceTrace : null;
   const differences = comparable ? traceDifferences(trace, comparable) : [];
-  const linkedReference =
-    referenceId && !candidates.some((item) => item.id === referenceId);
-  function choose(id: string) {
-    window.history.pushState(
-      null,
-      "",
-      notebookHref(window.location.search, { compare: id || null }),
-    );
-  }
   return (
     <>
       <Panel
@@ -69,29 +60,18 @@ export function SavedTraceComparison({
         subtitle="Choose saved evidence to overlay residual magnitudes and prediction uncertainty."
         className="trace-comparison"
       >
-        <div className="comparison-controls">
-          <label>
-            Reference trace
-            <select
-              aria-label="Reference trace"
-              value={referenceId ?? ""}
-              onChange={(event) => choose(event.target.value)}
-              disabled={libraryLoading && !referenceId}
-            >
-              <option value="">No reference</option>
-              {linkedReference && (
-                <option value={referenceId}>
-                  {reference?.name ?? "Linked reference"}
-                </option>
-              )}
-              {candidates.map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.name} · {new Date(item.created_at).toLocaleString()} ·{" "}
-                  {item.id.slice(0, 8)}
-                </option>
-              ))}
-            </select>
-          </label>
+        <SavedReferencePicker
+          label="Reference trace"
+          referenceId={referenceId}
+          reference={reference}
+          candidates={candidates}
+          libraryLoading={libraryLoading}
+          libraryError={libraryError}
+          onRetryLibrary={onRetryLibrary}
+          retryLabel="Retry saved traces"
+          loadingLabel="Finding saved traces"
+          emptyText="Save another activation trace to compare its prompt measurements here."
+        >
           {comparable && reference && (
             <button
               className="button secondary"
@@ -112,25 +92,7 @@ export function SavedTraceComparison({
               <Download size={14} /> Export comparison
             </button>
           )}
-        </div>
-        {libraryLoading && <Loading label="Finding saved traces" />}
-        <ErrorNotice message={libraryError} />
-        {libraryError && (
-          <div className="comparison-controls">
-            <button className="button secondary" onClick={onRetryLibrary}>
-              Retry saved traces
-            </button>
-          </div>
-        )}
-        {!libraryLoading &&
-          !libraryError &&
-          !candidates.length &&
-          !referenceId && (
-            <p className="inline-note">
-              Save another activation trace to compare its prompt measurements
-              here.
-            </p>
-          )}
+        </SavedReferencePicker>
         {loading && <Loading label="Opening reference trace" />}
         <ErrorNotice message={error || problem} />
         {referenceUsable && referenceTrace && (

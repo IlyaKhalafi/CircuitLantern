@@ -21,12 +21,12 @@ Circuit Lantern runs locally with a Next.js frontend and a Python backend. Model
 - **Representation geometry** with layer CKA, token cosine similarity and block residual update magnitudes
 - **Causal interventions** with transformer block bypass, individual attention head zero ablation, a baseline residual overlay and clean to corrupted activation patching across every block
 - **Attention head sweeps** with independent zero interventions, target log probability changes, full distribution divergence, cancellation and partial result export
-- **Experiment notebooks** for activation traces, matrix analyses, residual patching and head sweeps, with search, type filters, bookmarkable records, saved trace comparisons and portable JSON exports
+- **Experiment notebooks** for activation traces, matrix analyses, residual patching and head sweeps, with search, type filters, bookmarkable records, saved trace and matrix comparisons and portable JSON exports
 
 <details>
 <summary>See weight analysis and live activation captures</summary>
 
-These screenshots use NF4 execution of the trained SmolLM2 135M checkpoint at revision `93efa2f097d58c2a74874c7e644dbc9b0cee75a2`.
+These screenshots use the trained SmolLM2 135M checkpoint at revision `93efa2f097d58c2a74874c7e644dbc9b0cee75a2`. Most captures use NF4 execution. The matrix comparison includes an FP32 reference.
 
 ![Weight geometry and matrix properties](docs/images/weight-analysis.png)
 
@@ -40,7 +40,7 @@ These screenshots use NF4 execution of the trained SmolLM2 135M checkpoint at re
 
 ![Independent attention head effects on the target token](docs/images/head-sweep.png)
 
-![Saved matrix measurements reopened without a loaded model](docs/images/experiment-notebook.png)
+![Saved NF4 and FP32 matrix measurements compared without a loaded model](docs/images/experiment-notebook.png)
 
 ![Saved baseline and head intervention compared across prompt measurements](docs/images/trace-comparison.png)
 
@@ -114,6 +114,8 @@ Select a head index in live or saved sweep results to prepare its prompt and hea
 Completed sweeps and available partial results can be saved directly into the experiment notebook. Records preserve the captured checkpoint, execution settings, source job, prompts, measurements and failure or cancellation state. They can be reopened and exported without loading a model. Saving the same job again returns its existing record and preserves edited notes. A retry still finds that record after the in memory job expires. Existing trace notebooks migrate automatically without rewriting their payloads. Search saved names, model IDs and observations, then filter by experiment type. Each record has a bookmarkable URL. Opening a record preserves the current search, and browser back and forward return to the same evidence.
 
 Matrix analyses can also be saved from the weight inspector. Records retain the captured heatmap, spectrum, matrix properties and execution provenance, and reopen without a loaded checkpoint. Save while the analysis remains in the runtime cache. If it expires, reopen the matrix before saving. Retrying a saved analysis returns its original record and preserves edited notes, including after model unload or a backend restart. Notebook upgrades copy existing payload text without rewriting measurements.
+
+Saved matrix analyses can be compared across revisions and execution formats of the same model repository, weight name and logical shape. Overlay singular values and spectral energy, inspect scalar changes, and export both original records with derived measurements. Norm changes compare magnitudes and are not norms of matrix differences. Approximate spectra retain estimate labels, missing measurements remain unavailable and truncated tails are not treated as zero. Energy fractions use each matrix's own Frobenius norm.
 
 Saved activation traces can be compared in the notebook without a loaded model. Choose a reference to overlay residual magnitudes and prediction uncertainty, inspect per-layer norm and entropy changes, or export both original captures with their differences. Comparison requires the same checkpoint revision, raw prompt, token IDs, execution settings and library versions, attention capture option and measurement conventions. Matching profiles can come from different model sessions. Generated continuations are not compared. A difference between L2 norms measures magnitude change and is not a distance between residual vectors.
 

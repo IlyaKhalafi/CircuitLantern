@@ -1,4 +1,4 @@
-import { MatrixResults } from "@/components/matrix-results";
+import { SavedMatrixComparison } from "@/components/saved-matrix-comparison";
 import { CausalResults } from "@/components/causal-results";
 import { HeadSweepResults } from "@/components/head-sweep-results";
 import { SavedTraceComparison } from "@/components/saved-trace-comparison";
@@ -19,7 +19,14 @@ export function ExperimentResult({
 }) {
   if (experiment.kind === "matrix")
     return experiment.result ? (
-      <MatrixResults metrics={experiment.result} />
+      <SavedMatrixComparison
+        experiment={experiment}
+        metrics={experiment.result}
+        experiments={experiments}
+        libraryLoading={libraryLoading}
+        libraryError={libraryError}
+        onRetryLibrary={onRetryLibrary}
+      />
     ) : null;
   if (experiment.kind === "causal")
     return experiment.result ? (

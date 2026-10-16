@@ -164,6 +164,13 @@ export default function GuidePage() {
             and execution settings. Saved weight analyses retain their captured
             matrix properties and charts after the checkpoint is unloaded.
           </p>
+          <p>
+            Choose a reference matrix to compare the same weight across saved
+            revisions or execution formats. Overlay singular values and energy,
+            then inspect property changes. Estimates remain labeled and missing
+            spectrum tails remain unavailable. Norm changes compare magnitudes
+            and do not measure the distance between weight matrices.
+          </p>
         </article>
       </div>
       <div className="guide-callout">
