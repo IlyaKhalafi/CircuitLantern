@@ -6,6 +6,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from huggingface_hub.errors import HfHubHTTPError
 
+from circuit_lantern.api.checkpoints import router as checkpoint_router
 from circuit_lantern.api.features import router as feature_router
 from circuit_lantern.config import get_settings
 from circuit_lantern.schemas import (
@@ -23,6 +24,8 @@ from circuit_lantern.schemas import (
     TokenizeRequest,
     TraceRequest,
 )
+from circuit_lantern.services.checkpoint_store import CheckpointStore
+from circuit_lantern.services.checkpoints import CheckpointLab
 from circuit_lantern.services.features.lab import FeatureLab
 from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
@@ -42,6 +45,9 @@ async def lifespan(app: FastAPI):
             settings.data_dir / "dictionaries", max_weight_bytes=settings.max_dictionary_bytes
         ),
     )
+    app.state.checkpoints = CheckpointLab(
+        app.state.runtime, CheckpointStore(settings.data_dir / "checkpoints")
+    )
     yield
     with app.state.runtime.job_lock:
         for job in app.state.runtime.jobs.values():
@@ -52,6 +58,7 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(title="Circuit Lantern", version="0.1.0", lifespan=lifespan)
 app.include_router(feature_router)
+app.include_router(checkpoint_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,
