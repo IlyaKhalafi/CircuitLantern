@@ -4,6 +4,7 @@ import torch
 
 from circuit_lantern.services.attention import attention_summary
 from circuit_lantern.services.geometry import ResidualGeometry
+from circuit_lantern.services.token_logits import summarize_token_logits
 
 
 @torch.inference_mode()
@@ -42,6 +43,7 @@ def summarize_trace(
             )
         probabilities = torch.softmax(logits[0, -1], dim=-1)
         values, indices = probabilities.topk(min(5, probabilities.numel()))
+        token_summary = summarize_token_logits(logits[0])
         raw_hidden = raw_final[0] if is_final and raw_final else hidden
         vector = raw_hidden[0].float()
         label = "Embedding" if index == 0 else f"Layer {index - 1}"
@@ -63,8 +65,9 @@ def summarize_trace(
                     }
                     for i, v in zip(indices, values)
                 ],
+                **token_summary,
                 "token_predictions": [
-                    tokenizer.decode([i]) for i in logits[0].argmax(-1).cpu().tolist()
+                    tokenizer.decode([i]) for i in token_summary["token_prediction_ids"]
                 ],
             }
         )
@@ -93,4 +96,5 @@ def summarize_trace(
         ],
         "method": f"Logit lens {'with the model final normalization' if final_norm is not None else 'without final normalization for this architecture'}. Intermediate predictions are diagnostic projections, not calibrated probabilities.",
         "final_state_normalized": not bool(raw_final),
+        "token_prediction_method": "Per-token argmax predictions, probabilities and entropy from the full diagnostic logit lens vocabulary. Distribution statistics use float64.",
     }
