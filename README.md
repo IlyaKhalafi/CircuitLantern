@@ -1,15 +1,35 @@
-# Circuit Lantern
+<div align="center">
 
-<img src="web/public/brand/lantern-icon.webp" alt="Circuit Lantern" width="100" height="100" />
+<img src="web/public/brand/lantern-icon.webp" alt="Circuit Lantern logo" width="120" height="120" />
 
-**A local lab for mechanistic interpretability.**
+<h1>Circuit Lantern</h1>
 
-Go from a Hugging Face checkpoint to the weights, activations and interventions behind a prediction. Circuit Lantern combines a Next.js workbench with a Python backend that runs models on your own server.
+<p><strong>A local lab for mechanistic interpretability.</strong></p>
 
-Check the hardware, load a model, follow a prompt through its layers and keep the evidence in a research notebook. Choose a light or dark theme. The interface supports English, Persian, Arabic, Japanese and French, with right to left layouts for Persian and Arabic.
+<p>
+Explore weights, trace activations and test what changes a prediction.<br />
+From a Hugging Face checkpoint to a research notebook, on your own server.
+</p>
 
-![Model library in the light theme](docs/images/workbench-light.png#gh-light-mode-only)
-![Model library in the dark theme](docs/images/workbench-dark.png#gh-dark-mode-only)
+<p>
+<a href="#run-locally">Get started</a> &nbsp;·&nbsp;
+<a href="#what-you-can-investigate">Features</a> &nbsp;·&nbsp;
+<a href="#inside-the-lab">Gallery</a> &nbsp;·&nbsp;
+<a href="docs/setup.md">Documentation</a>
+</p>
+
+<p>
+<sub>Next.js + Python &nbsp;·&nbsp; Light and dark themes</sub><br />
+<sub>English &nbsp;·&nbsp; فارسی &nbsp;·&nbsp; العربية &nbsp;·&nbsp; 日本語 &nbsp;·&nbsp; Français</sub>
+</p>
+
+</div>
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/images/workbench-dark.png" />
+  <source media="(prefers-color-scheme: light)" srcset="docs/images/workbench-light.png" />
+  <img src="docs/images/workbench-light.png" alt="Circuit Lantern model library with hardware checks and model discovery" />
+</picture>
 
 ## What you can investigate
 
