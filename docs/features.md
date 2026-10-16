@@ -12,7 +12,7 @@ Check training resources before starting. The report includes additional RAM and
 
 Capture uses the residual stream immediately after each selected transformer block. The teacher runs in evaluation and inference mode with no cache, attention capture or language model output head during corpus collection. Its weights do not receive gradients.
 
-Exact text duplicates are removed. Unicode normalization, whitespace collapse and case folding group text variants before a seeded split of whole document groups. Original text and tokenization stay unchanged. Paraphrases, prefixes and overlapping templates are not deduplicated. Special tokens and the first token position are excluded by default. Inference and interventions honor the recorded exclusions.
+Exact text duplicates are removed. Unicode normalization, whitespace collapse and case folding group text variants before a seeded split of whole document groups. Original text and tokenization stay unchanged. Validation positions whose complete model input prefix matches a training position are excluded and counted. This can reduce the held out token count or leave too few eligible tokens for training. Paraphrases and other overlapping templates are not deduplicated. Special tokens and the first token position are excluded by default. Inference and interventions honor the recorded exclusions.
 
 Only training activations determine the RMS scale and initial geometric median bias. Validation documents never fit the preprocessing or optimizer. A small held out split can produce unstable quality estimates, so the interface reports its size rather than implying a large benchmark.
 

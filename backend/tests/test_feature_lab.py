@@ -210,24 +210,54 @@ async def test_feature_graph_uses_only_later_layer_edges_and_persists_after_unlo
     )
     assert trained["status"] == "ready", trained["message"]
     identifiers = [item["id"] for item in trained["result"]["dictionaries"]]
-    started = await client.post(
-        "/api/features/circuits",
-        json={
-            "dictionary_ids": identifiers,
-            "prompt": "the capital of France",
-            "features_per_layer": 2,
-        },
-    )
-    assert started.status_code == 202, started.text
-    job = await finished(client, started.json()["id"])
+    from circuit_lantern.services.features import circuits
+
+    observed = []
+    original_forward = circuits.forward
+
+    def record_forward(*args, **kwargs):
+        logits, activations = original_forward(*args, **kwargs)
+        observed.append({key: values.clone() for key, values in activations.items()})
+        return logits, activations
+
+    with patch.object(circuits, "forward", side_effect=record_forward):
+        started = await client.post(
+            "/api/features/circuits",
+            json={
+                "dictionary_ids": identifiers,
+                "prompt": "the capital of France",
+                "features_per_layer": 2,
+            },
+        )
+        assert started.status_code == 202, started.text
+        job = await finished(client, started.json()["id"])
     assert job["status"] == "ready", job["message"]
     result = job["result"]
     assert result["complete"]
     assert len(result["measurements"]) == len(result["nodes"]) > 0
     nodes = {node["id"]: node for node in result["nodes"]}
-    for edge in result["edges"]:
-        if edge["target"] != "output":
-            assert nodes[edge["source"]]["layer"] < nodes[edge["target"]]["layer"]
+    assert result["method"]["edge_position_scope"] == "destination_dictionary_eligible_positions"
+    assert len(observed) == 1 + len(result["measurements"])
+    differs_from_all_positions = False
+    for node in nodes.values():
+        positions = result["eligible_positions"][node["dictionary_id"]]
+        assert 0 not in positions
+        values = observed[0][node["dictionary_id"]][:, node["feature"]]
+        expected = float(values[positions].mean())
+        assert node["mean_activation"] == pytest.approx(expected)
+        differs_from_all_positions |= abs(expected - float(values.mean())) > 1e-6
+    assert differs_from_all_positions
+    assert any(measurement["downstream_changes"] for measurement in result["measurements"])
+    for index, measurement in enumerate(result["measurements"], start=1):
+        for edge in measurement["downstream_changes"]:
+            destination = nodes[edge["target"]]
+            assert nodes[edge["source"]]["layer"] < destination["layer"]
+            identifier, feature = destination["dictionary_id"], destination["feature"]
+            positions = result["eligible_positions"][identifier]
+            expected = float(observed[index][identifier][positions, feature].mean()) - float(
+                observed[0][identifier][positions, feature].mean()
+            )
+            assert edge["activation_change"] == pytest.approx(expected, abs=1e-8)
     assert all(not block._forward_hooks for block in lab.runtime._blocks())
     lab.runtime.unload()
     durable = (await client.get("/api/features/runs/" + result["id"])).json()

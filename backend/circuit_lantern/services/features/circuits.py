@@ -57,8 +57,9 @@ def feature_ablation_graph(lab, payload: dict, job) -> dict:
         "method": {
             "name": "Feature ablation graph",
             "intervention": "Remove one selected decoded feature contribution at eligible prompt positions while preserving the original SAE reconstruction error.",
-            "selection": "Choose features by largest summed baseline activation at each selected residual layer.",
-            "edge_measurement": "Change in a later feature's mean activation across prompt positions after the source ablation. All selected feature changes are retained.",
+            "selection": "Choose features by largest summed baseline activation over each dictionary's eligible prompt positions.",
+            "edge_measurement": "Change in a later feature's mean normalized SAE coefficient across eligible prompt positions of the destination dictionary after the source ablation. All selected feature changes are retained.",
+            "edge_position_scope": "destination_dictionary_eligible_positions",
             "output_measurement": "Change in the fixed target token log probability at the final prompt position.",
             "scope": "Total downstream intervention effects in the original language model. Edges can include indirect paths and are not direct attribution edges. This is not a cross layer transcoder replacement model or a replication of the linear circuit discovery algorithm.",
             "references": [

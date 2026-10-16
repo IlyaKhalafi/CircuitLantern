@@ -19,7 +19,7 @@ Check the hardware, load a model, follow a prompt through its layers and keep th
 - **Prompt traces.** Follow residual streams, intermediate predictions, vocabulary confidence, entropy and attention routing. Explore captured token positions without another forward pass.
 - **Checkpoint changes.** Compare a base model with a finetuned version using retained weights, layer activations and final output distributions. Keep both revisions and execution settings with the results.
 - **Sparse features.** Train ReLU or TopK sparse autoencoders from a text corpus. Inspect held out reconstruction, activating contexts and feature interventions, then save graphs of measured downstream effects.
-- **Causal interventions.** Restore clean residual activations in corrupted prompts or zero attention heads. Inspect target score changes, recovery and distribution divergence, with completed measurements retained when a sweep stops.
+- **Causal interventions.** Residual patching reports target score changes and normalized recovery. Attention head ablation reports target score changes and KL divergence. Completed measurements remain available when a sweep stops.
 - **Research notebook.** Save traces, matrix analyses and sweeps with checkpoint revisions, execution settings and observations. Compare saved evidence and export the source records after unloading the model.
 
 ## Run locally
@@ -72,7 +72,7 @@ Execution supports FP32, FP16, BF16, bitsandbytes NF4, native bitsandbytes FP4 c
 - [Setup](docs/setup.md) covers CUDA installation, configuration and remote access.
 - [Measurements](docs/measurements.md) explains capture conventions, interventions and comparisons.
 - [Sparse features](docs/features.md) covers dictionary training, validation, interventions and research references.
-- [Checkpoint comparisons](docs/checkpoints.md) explains retained references, alignment checks and model drift.
+- [Checkpoint comparisons](docs/checkpoints.md) explains retained references, alignment checks, model drift and block dataflow.
 - [Development](docs/development.md) covers checks and browser verification.
 - [Architecture](docs/architecture.md) describes the service boundaries and current limits.
 

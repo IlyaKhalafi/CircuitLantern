@@ -17,7 +17,7 @@ Selected minus reference is the sign convention. Quantized matrices are dequanti
 
 ## Alignment and provenance
 
-The backend requires matching architecture, block classes, residual width, attention configuration, MLP width, residual branch configuration, output vocabulary size and selected matrix shapes. It also requires identical prompt model inputs and vocabulary mappings. Repositories and revisions may differ.
+The backend requires matching architecture, block classes, residual width, attention head and KV-head counts, head dimension, MLP width, residual branch configuration, tied output embeddings, output vocabulary size and selected matrix shapes. It also requires identical prompt model inputs and vocabulary mappings. Repositories and revisions may differ.
 
 Use matching execution settings for a checkpoint study. When precision, quantization, device or library versions differ, the report explicitly warns that changes combine checkpoint and execution effects. Both source checkpoints and execution settings remain in the export.
 
@@ -25,7 +25,7 @@ Use matching execution settings for a checkpoint study. When precision, quantiza
 
 Choose up to 12 matrices per reference. The reference limit is 128 MiB of tensor evidence. Available RAM, GPU memory and disk space are checked with the model resident. The library holds up to 32 references and 128 comparison reports.
 
-Reports can be reopened or exported without either model loaded. Deleting a reference frees its tensors while preserving completed comparison reports. Invalid files are isolated from valid evidence and can be removed through the interface.
+Reports can be reopened or exported without either model loaded. Deleting a reference frees its tensors while preserving completed comparison reports. Files with unreadable metadata are isolated from valid evidence and can be removed through the interface. Tensor integrity is verified when a reference is compared.
 
 ## Block computation paths
 
