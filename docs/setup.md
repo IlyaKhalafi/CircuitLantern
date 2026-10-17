@@ -70,4 +70,8 @@ Run `python3 scripts/deploy.py --gpus 0 --dry-run` to inspect device access befo
 
 Container dependencies are pinned in `backend/requirements.docker.txt`, exported from `uv.lock` with Torch selected separately. Regenerate the export after updating the lockfile with `uv export --project backend --frozen --no-dev --no-emit-project --no-hashes --no-annotate --no-header --no-emit-package torch --output-file backend/requirements.docker.txt`.
 
+The runtime uses Transformers 5.20.1 and supports current text backbones such as Qwen3.5. Refresh the lockfile with `uv lock --project backend --upgrade-package transformers --upgrade-package huggingface-hub`, regenerate the Docker export, run the checks and rebuild the images when upgrading. Restarting an old image with `--no-build` does not update its libraries.
+
+Hub discovery includes Transformers language models and multimodal models with text backbones. Known GGUF, MLX and adapter-only variants are excluded. Entering a repository ID directly still checks the actual checkpoint. Missing files, invalid revisions, access restrictions, rate limits and connection failures have distinct explanations. Only private or gated repositories require a server token for access. Gated models also require approval for the token's account on Hugging Face.
+
 The default Docker Torch version is 2.14.1. Override `LANTERN_TORCH_VERSION` together with the wheel index when needed. `LANTERN_BACKEND_BASE` accepts an existing compatible Python and CUDA image. This server reused its cached `vllm/vllm-openai:v0.28.0` base with Torch 2.13.0 to avoid another CUDA runtime download. Circuit Lantern runs its own Python service and does not launch vLLM.

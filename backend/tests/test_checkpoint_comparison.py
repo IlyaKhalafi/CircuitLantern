@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.checkpoint_schemas import CheckpointCaptureRequest, CheckpointCompareRequest
 from circuit_lantern.services.checkpoint_store import CheckpointStore
@@ -35,7 +36,7 @@ def test_identical_checkpoint_has_zero_actual_weight_residual_and_prediction_dri
     assert torch.equal(torch.get_rng_state(), rng)
     for name, tensor in lab.runtime.model.state_dict().items():
         assert torch.equal(tensor, before[name])
-    assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    assert_no_forward_hooks(lab.runtime._blocks())
     assert CheckpointStore(lab.store.directory).comparison(result["id"]) == result
 
 
@@ -87,7 +88,7 @@ def test_failed_capture_cleans_all_hooks_and_publishes_no_reference(lab):
     ):
         capture(lab)
     assert not lab.store.list()
-    assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    assert_no_forward_hooks(lab.runtime._blocks())
 
 
 def test_evidence_limit_and_low_memory_reject_before_dequantization(lab):

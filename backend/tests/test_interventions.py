@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 from transformers import (
     GPTNeoXConfig,
     GPTNeoXForCausalLM,
@@ -95,9 +96,20 @@ def test_zero_ablation_changes_only_one_head_input_and_applies_during_generation
             installed.remove()
     torch.testing.assert_close(runtime.model(**inputs).logits, baseline.logits, rtol=0, atol=0)
     if runtime.model.config.model_type == "gpt2":
-        mask = torch.ones(len(blocks), target["heads"])
-        mask[0, head] = 0
-        reference = runtime.model(**inputs, head_mask=mask)
+        from transformers.models.gpt2 import modeling_gpt2
+
+        # The native head_mask argument was removed in Transformers 5. Compare
+        # with an independent intervention on the selected head's values.
+        attention_forward = modeling_gpt2.eager_attention_forward
+
+        def masked_values(module, query, key, value, attention_mask, **kwargs):
+            if module is blocks[0].attn:
+                value = value.clone()
+                value[:, head] = 0
+            return attention_forward(module, query, key, value, attention_mask, **kwargs)
+
+        with patch.object(modeling_gpt2, "eager_attention_forward", side_effect=masked_values):
+            reference = runtime.model(**inputs)
         torch.testing.assert_close(changed.logits, reference.logits, rtol=1e-5, atol=1e-6)
     for name, tensor in runtime.model.named_parameters():
         torch.testing.assert_close(tensor, weights[name], rtol=0, atol=0)
@@ -119,7 +131,7 @@ def test_head_trace_exports_the_intervention_and_cleans_up_failed_generation(att
     ):
         runtime.trace("the capital", 2, True, None, {"layer": 0, "head": 0})
     assert not projection._forward_pre_hooks
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_invalid_or_ambiguous_head_targets_fail_before_installing_hooks(runtime):
@@ -131,14 +143,16 @@ def test_invalid_or_ambiguous_head_targets_fail_before_installing_hooks(runtime)
     with pytest.raises(ValueError, match="either a block bypass"):
         TraceRequest(prompt="the capital", ablate_layer=0, ablate_head={"layer": 0, "head": 0})
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_unknown_and_pruned_attention_layouts_are_not_offered(runtime):
     assert attention_head_targets([torch.nn.Identity()]) == []
     with pytest.raises(ValueError, match="unavailable"):
         install_head_ablation([torch.nn.Identity()], 0, 0)
-    runtime._blocks()[0].attn.prune_heads([0])
+    # Preserve the guard for legacy pruned layouts without relying on the
+    # removed Transformers pruning API.
+    runtime._blocks()[0].attn.pruned_heads = {0}
     assert [target["layer"] for target in attention_head_targets(runtime._blocks())] == [1]
     with pytest.raises(ValueError, match="pruned"):
         install_head_ablation(runtime._blocks(), 0, 0)
@@ -177,7 +191,7 @@ def test_bypassed_block_capture_matches_the_residual_used_by_the_next_block(atte
     assert after["update_norm"] == 0
     assert after["relative_update"] == 0
     assert after["predictions"] == before["predictions"]
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
     # Independently bypass the block, then compare the real final distribution.
     def identity_block(module, args, kwargs, output):
@@ -195,4 +209,4 @@ def test_bypassed_block_capture_matches_the_residual_used_by_the_next_block(atte
     for prediction in result["predictions"] + final_lens:
         token_id = prediction["token_id"]
         assert prediction["probability"] == pytest.approx(float(probabilities[token_id]), abs=1e-7)
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())

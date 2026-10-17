@@ -7,6 +7,29 @@ from circuit_lantern.services.geometry import ResidualGeometry
 from circuit_lantern.services.token_logits import summarize_token_logits
 
 
+def attention_layer_indices(layer_types, total_layers: int, captured_layers: int) -> list[int]:
+    """Handle both complete attention tuples and compressed hybrid outputs."""
+    if captured_layers == total_layers:
+        return list(range(total_layers))
+    if not captured_layers:
+        return []
+    if layer_types and len(layer_types) == total_layers:
+        attention_kinds = {
+            "attention",
+            "full_attention",
+            "sliding_attention",
+            "global_attention",
+            "local_attention",
+        }
+        indices = [i for i, kind in enumerate(layer_types) if kind in attention_kinds]
+        if len(indices) == captured_layers:
+            return indices
+    raise ValueError(
+        "Attention layers could not be aligned for this architecture. Turn off attention capture "
+        "to inspect residuals and predictions."
+    )
+
+
 @torch.inference_mode()
 def summarize_trace(
     outputs,
@@ -19,6 +42,7 @@ def summarize_trace(
     ablate_layer: int | None,
     attention_query_position: int = -1,
     tracked_targets: list[dict] | None = None,
+    attention_layer_types: list[str] | None = None,
 ) -> dict:
     """Materialize prompt diagnostics so their tensors can be released before generation."""
     if not torch.isfinite(outputs.logits).all():
@@ -76,11 +100,17 @@ def summarize_trace(
         )
     attention = []
     if outputs.attentions is not None:
+        indices = attention_layer_indices(
+            attention_layer_types, len(outputs.hidden_states) - 1, len(outputs.attentions)
+        )
         for index, tensor in enumerate(outputs.attentions):
             if tensor is None:
                 continue
             attention.append(
-                {"layer": index, **attention_summary(tensor, attention_query_position)}
+                {
+                    "layer": indices[index],
+                    **attention_summary(tensor, attention_query_position),
+                }
             )
     final_probabilities = torch.softmax(outputs.logits[0, -1].float(), -1)
     top_values, top_indices = final_probabilities.topk(min(10, final_probabilities.numel()))

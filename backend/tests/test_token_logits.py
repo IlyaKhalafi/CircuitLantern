@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.services import token_logits
 from circuit_lantern.services.token_logits import summarize_token_logits
@@ -126,4 +127,4 @@ def test_intervention_capture_keeps_position_summaries_portable_and_aligned(runt
         assert all(0 <= value <= 1 for value in capture["token_prediction_probabilities"])
         assert all(math.isfinite(value) and value >= 0 for value in capture["token_entropies"])
     json.dumps(result, allow_nan=False)
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())

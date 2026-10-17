@@ -5,8 +5,10 @@ import uuid
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
 
+import httpx
 import torch
 from huggingface_hub import snapshot_download
+from huggingface_hub.errors import HfHubHTTPError, LocalEntryNotFoundError, OfflineModeIsEnabled
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
 from circuit_lantern.config import Settings
@@ -26,6 +28,7 @@ from circuit_lantern.services.execution import (
 from circuit_lantern.services.generation import decode_generation, generation_settings
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.head_sweep import MAX_SWEEP_HEADS, head_ablation_sweep
+from circuit_lantern.services.hub_errors import explain_hub_error
 from circuit_lantern.services.interventions import attention_head_targets, install_head_ablation
 from circuit_lantern.services.jobs import JobRecord
 from circuit_lantern.services.metrics import matrix_metrics
@@ -138,6 +141,14 @@ class ModelRuntime:
                 or ["*.safetensors", "*.json", "*.txt", "*.model", "*.tiktoken"],
                 max_workers=2,
             )
+        except (
+            HfHubHTTPError,
+            LocalEntryNotFoundError,
+            OfflineModeIsEnabled,
+            httpx.RequestError,
+        ) as error:
+            job.update(status="failed", progress=0, message=explain_hub_error(error)[1])
+            return
         except Exception as error:  # noqa: BLE001 - a failed download must preserve the active model
             job.update(status="failed", progress=0, message=str(error)[:1000])
             return
@@ -593,6 +604,7 @@ class ModelRuntime:
                     tracked_targets=tracked_targets,
                     bypassed_hidden=bypassed_hidden,
                     ablate_layer=ablate_layer,
+                    attention_layer_types=getattr(self.model.config, "layer_types", None),
                     attention_query_position=resolved_attention_query
                     if resolved_attention_query is not None
                     else -1,

@@ -148,6 +148,14 @@ def test_default_context_is_read_from_the_supported_architecture(checkpoint):
     assert result["context_length"] == 1024
 
 
+def test_architecture_failures_preserve_complete_diagnostics(checkpoint):
+    message = "An unsupported architecture. " + "Required details. " * 40 + "Final diagnostic."
+    with patch("circuit_lantern.services.hub.architecture_layout", side_effect=ValueError(message)):
+        metadata = inspect(checkpoint, {"model.safetensors": 1000})
+    assert metadata["architecture_supported"] is False
+    assert metadata["architecture_error"] == message
+
+
 @pytest.mark.parametrize(
     "index",
     [

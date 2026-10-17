@@ -859,6 +859,12 @@ select {
   margin-top: 2px;
   flex-shrink: 0;
 }
+.check-message span,
+.notice > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
 .check-message.blocked {
   color: var(--accent);
 }
