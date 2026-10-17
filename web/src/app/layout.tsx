@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { ThemeProvider } from "@/components/theme-provider";
 import { resolveTheme, themeCookie } from "@/lib/theme";
 import { Shell } from "@/components/shell";
+import { HelpProvider } from "@/components/help-tooltip";
 import { I18nProvider } from "@/i18n/provider";
 import { requestLanguage } from "@/i18n/server";
 import { text } from "@/i18n/format";
@@ -13,6 +14,7 @@ import "@fontsource-variable/dm-sans";
 import "@fontsource/ibm-plex-mono/400.css";
 import "@fontsource/ibm-plex-mono/500.css";
 import "./globals.css";
+import "./workbench.css";
 
 export async function generateMetadata(): Promise<Metadata> {
   const { locale, messages } = await requestLanguage();
@@ -39,7 +41,9 @@ export default async function RootLayout({
       <body>
         <I18nProvider initialLocale={locale} initialMessages={messages}>
           <ThemeProvider initialTheme={theme}>
-            <Shell>{children}</Shell>
+            <HelpProvider>
+              <Shell>{children}</Shell>
+            </HelpProvider>
           </ThemeProvider>
         </I18nProvider>
       </body>

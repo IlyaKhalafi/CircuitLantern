@@ -1,4 +1,5 @@
 "use client";
+import { FieldLabel, HelpTooltip } from "@/components/help-tooltip";
 import { useEffect, useMemo, useState } from "react";
 import {
   Background,
@@ -317,10 +318,7 @@ export function BlockDataflow({
     );
   return (
     <>
-      <p className="flow-intro">
-        {t(
-          "Follow the arrows to see where each output goes. Select a matrix to inspect it.",
-        )}
+      <div className="flow-context">
         <span>
           {flow.provenance
             ? t("Connections derived from model source")
@@ -328,7 +326,12 @@ export function BlockDataflow({
               ? t("Parallel attention and MLP branches")
               : t("Sequential attention and MLP branches")}
         </span>
-      </p>
+        <HelpTooltip label="Block dataflow">
+          {t(
+            "Follow the arrows to see where each output goes. Select a matrix to inspect it.",
+          )}
+        </HelpTooltip>
+      </div>
       {flow.provenance && (
         <div className="flow-coverage" role="status">
           <strong>
@@ -344,9 +347,14 @@ export function BlockDataflow({
         </div>
       )}
       <div className="flow-focus">
-        <label>
-          {t("Diagram focus")}
+        <div className="form-field">
+          <FieldLabel
+            id="block-diagram-focus"
+            label="Diagram focus"
+            help="Show the complete block or focus on one computation path."
+          />
           <select
+            id="block-diagram-focus"
             aria-label={t("Diagram focus")}
             value={section}
             onChange={(event) => {
@@ -370,10 +378,15 @@ export function BlockDataflow({
               <option value="mlp">{t("MLP path")}</option>
             )}
           </select>
-        </label>
-        <label>
-          {t("Trace connections")}
+        </div>
+        <div className="form-field">
+          <FieldLabel
+            id="block-trace-connections"
+            label="Trace connections"
+            help="Highlight the operations that feed into or follow a selected operation."
+          />
           <select
+            id="block-trace-connections"
             aria-label={t("Trace connections")}
             value={focused}
             onChange={(event) =>
@@ -392,14 +405,19 @@ export function BlockDataflow({
               </option>
             ))}
           </select>
-        </label>
-        <span>
-          {t(
-            visibleFlow.edges.some((edge) => edge.residual)
-              ? "Blue arrows carry activations. Gold arrows carry the residual stream."
-              : "Blue arrows carry activations.",
+        </div>
+        <div className="flow-legend">
+          <span>
+            <i className="activation-swatch" />
+            {t("Activations")}
+          </span>
+          {visibleFlow.edges.some((edge) => edge.residual) && (
+            <span>
+              <i className="residual-swatch" />
+              {t("Residual stream")}
+            </span>
           )}
-        </span>
+        </div>
       </div>
       <p className="flow-mobile-hint">
         {t("Pan to follow branches or zoom out for an overview.")}

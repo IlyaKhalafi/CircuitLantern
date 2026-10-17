@@ -7,7 +7,9 @@ test("selected context allowance survives loading and bounds capture with genera
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Tiny random GPT-2/ }).click();
-  await page.getByLabel("Context allowance").selectOption("16");
+  await page
+    .getByLabel("Context allowance", { exact: true })
+    .selectOption("16");
   await expect(page.getByText("Ready to explore on this server")).toBeVisible();
   await page.getByRole("button", { name: "Download & explore" }).click();
   await expect(page).toHaveURL(/workspace/);
@@ -16,7 +18,7 @@ test("selected context allowance survives loading and bounds capture with genera
   expect(runtime.metadata.execution_config.context_length).toBe(16);
   await page.goto("/playground");
   await expect(
-    page.getByText(/Up to 8 prompt tokens with this generation length/),
+    page.getByText("Prompt limit 8 tokens", { exact: true }),
   ).toBeVisible();
   await expect(page.getByLabel("Generated tokens")).toHaveValue("8");
   await page
@@ -37,7 +39,7 @@ test("selected context allowance survives loading and bounds capture with genera
   );
   await page.getByLabel("Generated tokens").selectOption("4");
   await expect(
-    page.getByText(/Up to 12 prompt tokens with this generation length/),
+    page.getByText("Prompt limit 12 tokens", { exact: true }),
   ).toBeVisible();
   await page.getByRole("button", { name: "Run & trace" }).click();
   await expect(

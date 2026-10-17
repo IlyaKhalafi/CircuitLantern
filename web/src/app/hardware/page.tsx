@@ -53,8 +53,8 @@ export default function HardwarePage() {
     <>
       <PageHeader
         eyebrow={t("KNOW YOUR ENVIRONMENT")}
-        title={t("A clear view of your server.")}
-        description={t(
+        title={t("Server & runtime")}
+        help={t(
           "Live resource availability and the runtime behind every compatibility check.",
         )}
         actions={
@@ -276,6 +276,7 @@ export default function HardwarePage() {
             <div className="stack">
               <Panel
                 title={t("Active model")}
+                id="active-model"
                 subtitle={t("One checkpoint is kept in memory at a time.")}
               >
                 <div className="panel-body">
