@@ -1,37 +1,49 @@
-<div align="center">
-
 <p align="center">
-  <img src="web/public/brand/lantern-icon.webp" alt="Circuit Lantern logo" width="144" height="144" />
+  <a href="#run-locally">
+    <img src="web/public/brand/lantern-icon.webp" alt="Circuit Lantern logo" width="180" height="180" />
+  </a>
 </p>
 
 <h1 align="center">Circuit Lantern</h1>
 
-<p align="center"><strong>Illuminate the inner workings of language models.</strong></p>
-
 <p align="center">
-A local lab for mechanistic interpretability.<br />
-Explore weights, trace activations and test what changes a prediction.
+  <strong>Illuminate the inner workings of language models.</strong>
 </p>
 
 <p align="center">
-<a href="#run-locally">Get started</a> &nbsp;·&nbsp;
-<a href="#what-you-can-investigate">Features</a> &nbsp;·&nbsp;
-<a href="#inside-the-lab">Gallery</a> &nbsp;·&nbsp;
-<a href="docs/setup.md">Documentation</a>
+  Your local lab for mechanistic interpretability.<br />
+  Explore weights, trace activations and test what changes a prediction.
 </p>
 
 <p align="center">
-<sub>Next.js + Python &nbsp;·&nbsp; Light and dark themes</sub><br />
-<sub>English &nbsp;·&nbsp; فارسی &nbsp;·&nbsp; العربية &nbsp;·&nbsp; 日本語 &nbsp;·&nbsp; Français</sub>
+  <img src="https://img.shields.io/badge/Next.js-111827?style=flat-square&amp;logo=nextdotjs&amp;logoColor=93c5fd" alt="Next.js" />
+  <img src="https://img.shields.io/badge/Python-111827?style=flat-square&amp;logo=python&amp;logoColor=fbbf24" alt="Python" />
+  <img src="https://img.shields.io/badge/Local_inference-111827?style=flat-square&amp;labelColor=111827&amp;color=fbbf24" alt="Local inference" />
 </p>
 
-</div>
+<p align="center">
+  <a href="#run-locally"><strong>Get started</strong></a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#what-you-can-investigate">Features</a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="#inside-the-lab">Gallery</a> &nbsp;&nbsp;·&nbsp;&nbsp;
+  <a href="docs/setup.md">Docs</a>
+</p>
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/images/workbench-dark.png" />
-  <source media="(prefers-color-scheme: light)" srcset="docs/images/workbench-light.png" />
-  <img src="docs/images/workbench-light.png" alt="Circuit Lantern model library with hardware checks and model discovery" />
-</picture>
+<p align="center">
+  <sub>Light and dark themes</sub><br />
+  <sub>English &nbsp;·&nbsp; فارسی &nbsp;·&nbsp; العربية &nbsp;·&nbsp; 日本語 &nbsp;·&nbsp; Français</sub>
+</p>
+
+<br />
+
+<p align="center">
+  <a href="#inside-the-lab">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="docs/images/workbench-dark.png" />
+      <source media="(prefers-color-scheme: light)" srcset="docs/images/workbench-light.png" />
+      <img src="docs/images/workbench-light.png" alt="Circuit Lantern model library with hardware checks and model discovery" width="1200" />
+    </picture>
+  </a>
+</p>
 
 ## What you can investigate
 
