@@ -30,7 +30,11 @@ def probe(runtime, *, job=None, examples=2, causal_heads=1, start=0):
         targets,
         causal_heads,
         job if job is not None else {},
-        {"requested_forward_passes": examples * (1 + causal_heads)},
+        {
+            "requested_forward_passes": examples * (1 + causal_heads)
+            if type(causal_heads) is int
+            else 1
+        },
     )
     return result, batch
 
@@ -290,3 +294,12 @@ def test_resource_plan_blocks_missing_headroom(runtime, constraint):
         hardware=hardware,
     )
     assert not plan["compatible"] and plan["blockers"]
+
+
+@pytest.mark.parametrize("invalid", [-1, 13, True, "1"])
+def test_engine_rejects_unbounded_or_untyped_causal_work_before_forward(runtime, invalid):
+    with (
+        patch.object(runtime.model, "forward", side_effect=AssertionError("Unexpected forward")),
+        pytest.raises(ValueError, match="zero to twelve"),
+    ):
+        probe(runtime, causal_heads=invalid)

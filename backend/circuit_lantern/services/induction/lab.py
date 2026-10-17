@@ -4,10 +4,11 @@ from circuit_lantern.induction_schemas import InductionProbeRequest
 from circuit_lantern.services.execution import execution_provenance
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.head_sweep import select_head_targets
-from circuit_lantern.services.induction.engine import REFERENCES, measure_induction
+from circuit_lantern.services.induction.engine import METHOD_RECORD, REFERENCES, measure_induction
 from circuit_lantern.services.induction.identity import comparison_identity, identity_digest
 from circuit_lantern.services.induction.planning import output_vocabulary_size, probe_plan
 from circuit_lantern.services.induction.probes import ProbeConfig, build_probe_batch
+from circuit_lantern.services.induction.reference import ProbeReferences
 from circuit_lantern.services.interventions import attention_head_targets
 from circuit_lantern.services.tokens import capture_token_limit
 
@@ -15,8 +16,9 @@ MAX_PATTERN_HEADS = 8192
 
 
 class InductionLab:
-    def __init__(self, runtime):
+    def __init__(self, runtime, store=None):
         self.runtime = runtime
+        self.references = ProbeReferences(store)
 
     def _layout(self):
         runtime = self.runtime
@@ -134,31 +136,46 @@ class InductionLab:
         blocks, heads = self._layout()
         selected = select_head_targets(blocks, request.layers, max_heads=MAX_PATTERN_HEADS)
         config = ProbeConfig(request.block_length, request.repeats, request.examples, request.seed)
-        start = self._start_token(request.include_start_token)
+        start = (
+            self._start_token(request.include_start_token)
+            if request.reference_experiment_id is None
+            else None
+        )
+        prefix_length = (
+            int(request.include_start_token)
+            if request.reference_experiment_id
+            else int(start is not None)
+        )
         limit = capture_token_limit(runtime.metadata, runtime.settings.max_prompt_tokens)
-        if config.block_length * config.repeats + int(start is not None) > limit:
+        if config.block_length * config.repeats + prefix_length > limit:
             raise ValueError("The repeated token probe exceeds the active context allowance.")
         plan = probe_plan(
             runtime.model,
             config,
-            prefix_length=int(start is not None),
+            prefix_length=prefix_length,
             causal_heads=request.causal_heads,
             all_heads=heads,
             selected_heads=selected,
             device=runtime.device,
             hardware=hardware_snapshot(runtime.settings.data_dir),
+            retained_reference_bytes=self.references.size(request.reference_experiment_id),
         )
         plan.update(**execution_provenance(runtime.metadata), selected_layers=selected)
         if not plan["compatible"]:
             return None, selected, plan
+        restored = self.references.restore(request)
         vocabulary = runtime.tokenizer.get_vocab()
-        batch = build_probe_batch(
-            self._vocabulary(start, vocabulary),
-            runtime.tokenizer.all_special_ids,
-            start,
-            config,
-            context_limit=limit,
-        )
+        if restored is not None:
+            batch = restored[0]
+            start = batch.start_token_id
+        else:
+            batch = build_probe_batch(
+                self._vocabulary(start, vocabulary),
+                runtime.tokenizer.all_special_ids,
+                start,
+                config,
+                context_limit=limit,
+            )
         identity = comparison_identity(
             runtime.model, runtime.tokenizer, blocks, batch, vocabulary=vocabulary
         )
@@ -169,6 +186,27 @@ class InductionLab:
             vocabulary_pool_size=batch.vocabulary_pool_size,
             start_token_id=start,
         )
+        matched = self.references.prepare(
+            restored,
+            request.causal_heads,
+            {
+                **execution_provenance(runtime.metadata),
+                "device": runtime.device,
+                "dataset": batch.description(),
+                "dataset_fingerprint": batch.fingerprint,
+                "comparison_identity": identity,
+                "method_record": METHOD_RECORD,
+            },
+            selected,
+        )
+        if matched is not None:
+            plan.update(
+                reference_probe=matched.summary,
+                reference_signature=matched.signature,
+                causal_candidates=matched.candidates,
+                causal_heads=len(matched.candidates),
+                requested_forward_passes=batch.config.examples * (1 + len(matched.candidates)),
+            )
         return batch, selected, plan
 
     def plan(self, request: InductionProbeRequest) -> dict:
@@ -185,6 +223,7 @@ class InductionLab:
                 expected_execution_id=self.runtime.metadata["execution_id"],
                 expected_probe_fingerprint=batch.fingerprint,
                 expected_comparison_identity=plan["comparison_identity_sha256"],
+                expected_reference_signature=plan.get("reference_signature"),
             )
         return self.runtime._start_sweep("induction_probe", payload, self._measure)
 
@@ -192,6 +231,7 @@ class InductionLab:
         values = dict(payload)
         expected = values.pop("expected_probe_fingerprint")
         expected_identity = values.pop("expected_comparison_identity")
+        expected_reference = values.pop("expected_reference_signature", None)
         request = InductionProbeRequest(**values)
         batch, targets, plan = self._prepare(request)
         if not plan["compatible"]:
@@ -202,8 +242,10 @@ class InductionLab:
             raise ValueError(
                 "The probe token mapping or layout changed. Start the measurement again."
             )
+        if plan.get("reference_signature") != expected_reference:
+            raise ValueError("The reference probe changed. Start the measurement again.")
         runtime = self.runtime
-        return measure_induction(
+        result = measure_induction(
             runtime.model,
             runtime.tokenizer,
             runtime._blocks(),
@@ -211,7 +253,17 @@ class InductionLab:
             runtime.device,
             batch,
             targets,
-            request.causal_heads,
+            plan["causal_heads"],
             job,
             plan,
+            causal_candidates=plan.get("causal_candidates"),
         )
+        if request.reference_experiment_id:
+            result.update(
+                reference_experiment_id=request.reference_experiment_id,
+                reference_probe=plan["reference_probe"],
+                causal_candidate_policy="reference_prefix_ranking",
+                input_policy="Exact saved reference IDs replayed without resampling. The reference sampling distribution is retained even when this tokenizer designates different special tokens.",
+                active_tokenizer_special_ids=sorted(set(runtime.tokenizer.all_special_ids)),
+            )
+        return result

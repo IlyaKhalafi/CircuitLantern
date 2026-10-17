@@ -22,6 +22,18 @@ REFERENCES = [
 ]
 
 
+METHOD_RECORD = {
+    "implementation": "circuit_lantern_repeated_token_probe_v1",
+    "sampling": "Source blocks contain uniform distinct nonspecial vocabulary IDs, repeated without retokenization. Matching runs replay retained source blocks without resampling under the new tokenizer special token policy. This adapts the paper's frequency-filtered sampling.",
+    "prefix_score": "Mean attention mass to causal keys whose preceding token equals the query token. Only queries after the first block are scored.",
+    "other_scores": "Duplicate and previous token attention use the same repeated query positions. This differs from the paper's previous token evaluator on natural text.",
+    "numerics": "Attention rows are validated against storage precision, normalized and accumulated in float64. The uniform baseline assumes full causal attention.",
+    "targets": "Every target is the next token in the known periodic sequence, including the final prompt position. Losses use natural logarithms.",
+    "causal_test": "Each selected query head is independently zeroed at every prompt position before its output projection. Delta is ablated minus baseline mean periodic target log probability. KL is baseline to ablated over the full output vocabulary, averaged over repeated queries.",
+    "scope": "Attention pattern scores do not establish copying or causal importance. Ablations measure effects on this synthetic probe distribution and do not establish a mechanism for general in-context learning.",
+}
+
+
 def aggregate_heads(
     scores: list[torch.Tensor], targets: list[dict], representative: dict
 ) -> list[dict]:
@@ -63,10 +75,35 @@ def measure_induction(
     causal_heads: int,
     job,
     plan: dict,
+    *,
+    causal_candidates: list[dict] | None = None,
 ) -> dict:
     started = time.perf_counter()
+    batch.config.validate()
+    if type(causal_heads) is not int or not 0 <= causal_heads <= 12:
+        raise ValueError("Choose zero to twelve causal candidate heads.")
     if model.training:
         raise ValueError("Repeated token probes require the model in evaluation mode.")
+    requested = min(causal_heads, sum(item["heads"] for item in targets))
+    if causal_candidates is not None:
+        problem = "Choose distinct causal candidate heads within the selected attention layout."
+        if not isinstance(causal_candidates, list) or any(
+            not isinstance(row, dict) or "layer" not in row or "head" not in row
+            for row in causal_candidates
+        ):
+            raise ValueError(problem)
+        available = {item["layer"]: item["heads"] for item in targets}
+        coordinates = [(row["layer"], row["head"]) for row in causal_candidates]
+        if (
+            len(coordinates) != requested
+            or any(type(layer) is not int or type(head) is not int for layer, head in coordinates)
+            or len(set(coordinates)) != len(coordinates)
+            or any(
+                layer not in available or not 0 <= head < available[layer]
+                for layer, head in coordinates
+            )
+        ):
+            raise ValueError(problem)
     identity = plan.get("comparison_identity") or comparison_identity(
         model, tokenizer, blocks, batch
     )
@@ -83,7 +120,9 @@ def measure_induction(
         "layer_targets": targets,
         "requested_examples": batch.config.examples,
         "measured_examples": 0,
-        "requested_causal_heads": min(causal_heads, sum(item["heads"] for item in targets)),
+        "requested_causal_heads": requested,
+        "causal_candidate_policy": "explicit" if causal_candidates is not None else "prefix_ranked",
+        "requested_causal_candidates": causal_candidates,
         "completed_causal_heads": 0,
         "representative_probe": None,
         "representative_query_position": len(batch.probes[0].token_ids) - 1,
@@ -97,16 +136,7 @@ def measure_induction(
         "error": None,
         "failed_at": None,
         "references": REFERENCES,
-        "method_record": {
-            "implementation": "circuit_lantern_repeated_token_probe_v1",
-            "sampling": "Uniform distinct nonspecial vocabulary IDs per block, repeated without retokenization. This adapts the paper's frequency-filtered sampling.",
-            "prefix_score": "Mean attention mass to causal keys whose preceding token equals the query token. Only queries after the first block are scored.",
-            "other_scores": "Duplicate and previous token attention use the same repeated query positions. This differs from the paper's previous token evaluator on natural text.",
-            "numerics": "Attention rows are validated against storage precision, normalized and accumulated in float64. The uniform baseline assumes full causal attention.",
-            "targets": "Every target is the next token in the known periodic sequence, including the final prompt position. Losses use natural logarithms.",
-            "causal_test": "Each selected query head is independently zeroed at every prompt position before its output projection. Delta is ablated minus baseline mean periodic target log probability. KL is baseline to ablated over the full output vocabulary, averaged over repeated queries.",
-            "scope": "Attention pattern scores do not establish copying or causal importance. Ablations measure effects on this synthetic probe distribution and do not establish a mechanism for general in-context learning.",
-        },
+        "method_record": dict(METHOD_RECORD),
     }
     scores, representative, baselines = [], {}, []
     arguments = inspect.signature(model.forward).parameters
@@ -214,6 +244,9 @@ def measure_induction(
         )
         result["mean_repeated_nll"] = sum(row["repeated_nll"] for row in metrics) / len(metrics)
     selected = result["heads"][: result["requested_causal_heads"]]
+    if causal_candidates is not None and len(scores) == batch.config.examples:
+        indexed = {(row["layer"], row["head"]): row for row in result["heads"]}
+        selected = [indexed[(row["layer"], row["head"])] for row in causal_candidates]
     if len(scores) == batch.config.examples and not result["error"]:
         for candidate in selected:
             effects = []
