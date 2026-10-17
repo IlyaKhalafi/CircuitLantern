@@ -1,5 +1,6 @@
 """Immutable metadata views preserve evidence while repeated browsing avoids decoding."""
 
+import asyncio
 import sqlite3
 from concurrent.futures import ThreadPoolExecutor
 from contextlib import contextmanager
@@ -546,3 +547,115 @@ async def test_annotation_volume_is_budgeted_before_fetch_and_returns_retryable_
             assert recovered.json()["annotations"]["0"]["notes"] == notes
     finally:
         lab.downloads.close()
+
+
+@pytest.mark.anyio
+async def test_export_encoding_does_not_hold_the_cold_parse_lock(store, monkeypatch):
+    from circuit_lantern.api import crosscoders
+
+    identifier, other = saved(store)["id"], saved(store)["id"]
+    entered, resume = Event(), Event()
+    original = crosscoders.jsonable_encoder
+
+    def gated(value):
+        entered.set()
+        assert resume.wait(5)
+        return original(value)
+
+    lab = CrosscoderLab(None, store)
+    monkeypatch.setattr(app.state, "crosscoders", lab, raising=False)
+    monkeypatch.setattr(crosscoders, "jsonable_encoder", gated)
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            exporting = asyncio.create_task(
+                client.get("/api/crosscoders/" + identifier + "/export")
+            )
+            try:
+                assert await asyncio.to_thread(entered.wait, 5)
+                value = await asyncio.wait_for(asyncio.to_thread(store.get_readonly, other), 1)
+                assert value["id"] == other
+            finally:
+                resume.set()
+                response = await exporting
+            assert response.status_code == 200
+            assert store._metadata_memory._reserved == 0
+    finally:
+        resume.set()
+        lab.downloads.close()
+
+
+@pytest.mark.anyio
+async def test_export_reports_concurrent_deletion_instead_of_silently_dropping_notes(
+    store, monkeypatch
+):
+    identifier = saved(store)["id"]
+    store.label(identifier, 0, "Observation", "Retain this annotation")
+    entered, resume = Event(), Event()
+    original = store.read_annotations
+
+    @contextmanager
+    def gated(*args, **kwargs):
+        entered.set()
+        assert resume.wait(5)
+        with original(*args, **kwargs) as value:
+            yield value
+
+    lab = CrosscoderLab(None, store)
+    monkeypatch.setattr(app.state, "crosscoders", lab, raising=False)
+    monkeypatch.setattr(store, "read_annotations", gated)
+    try:
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            exporting = asyncio.create_task(
+                client.get("/api/crosscoders/" + identifier + "/export")
+            )
+            try:
+                assert await asyncio.to_thread(entered.wait, 5)
+                assert await asyncio.to_thread(store.delete, identifier)
+            finally:
+                resume.set()
+                response = await exporting
+            assert response.status_code == 404
+            assert store._metadata_memory._reserved == 0
+    finally:
+        resume.set()
+        lab.downloads.close()
+
+
+@pytest.mark.parametrize("reader", ["list", "search_annotations"])
+def test_lists_and_annotation_search_fail_quickly_under_sqlite_writer_contention(store, reader):
+    identifier = saved(store)["id"]
+    operation = (
+        (lambda: store.list("crosscoder"))
+        if reader == "list"
+        else (lambda: store.search_annotations(identifier, "observation"))
+    )
+    with sqlite3.connect(store.database) as connection:
+        connection.execute("BEGIN EXCLUSIVE")
+        try:
+            with ThreadPoolExecutor(max_workers=1) as executor, pytest.raises(ArtifactBusyError):
+                executor.submit(operation).result(timeout=1)
+        finally:
+            connection.rollback()
+    if reader == "list":
+        assert operation()[0]["id"] == identifier
+    else:
+        assert operation() == set()
+
+
+def test_tensor_limits_and_validation_memory_are_checked_before_finiteness(store, monkeypatch):
+    finite = Mock(side_effect=AssertionError("Finiteness ran before the memory guard"))
+    monkeypatch.setattr(torch, "isfinite", finite)
+    with pytest.raises(ValueError, match="configured size limit"):
+        store.save("crosscoder", {"name": "Too large"}, {"values": torch.ones(300)}, {})
+    with monkeypatch.context() as patcher:
+        patcher.setattr("circuit_lantern.services.artifact_views.available_memory_bytes", lambda: 1)
+        with pytest.raises(MetadataMemoryError):
+            store.save(
+                "crosscoder", {"name": "No validation memory"}, {"values": torch.ones(2)}, {}
+            )
+    finite.assert_not_called()
+    assert store._metadata_memory._reserved == 0

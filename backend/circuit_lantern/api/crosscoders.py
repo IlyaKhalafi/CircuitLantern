@@ -42,7 +42,7 @@ def artifact_json(request: Request, identifier: str, kind: str, *, bundle=False)
                 "format": "circuit-lantern-crosscoder-bundle-v1",
                 "artifact": value,
                 "annotations": reservations.enter_context(
-                    store.read_annotations(identifier, serializing=True)
+                    store.read_annotations(identifier, serializing=True, require_artifact=True)
                 ),
             }
         # JSONResponse renders eagerly while the shared memory reservation is still held.
