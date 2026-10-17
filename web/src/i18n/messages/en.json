@@ -1798,5 +1798,14 @@
   "Other": "Other",
   "Unmapped matrices": "Unmapped matrices",
   "These weights were not mapped to the selected output path. They remain available for inspection.": "These weights were not mapped to the selected output path. They remain available for inspection.",
-  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "Connections could not be resolved safely for this block. Inspect its weights in the inventory."
+  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "Connections could not be resolved safely for this block. Inspect its weights in the inventory.",
+  "Depthwise convolution · SiLU · uncached sequence": "Depthwise convolution · SiLU · uncached sequence",
+  "Split QKV · reshape heads · L2 normalization in kernel": "Split QKV · reshape heads · L2 normalization in kernel",
+  "Split QKV · reshape value heads": "Split QKV · reshape value heads",
+  "Chunked gated delta rule · recurrent state · not softmax attention": "Chunked gated delta rule · recurrent state · not softmax attention",
+  "Split query · Q RMSNorm · RoPE": "Split query · Q RMSNorm · RoPE",
+  "Split gate · sigmoid": "Split gate · sigmoid",
+  "K RMSNorm · RoPE": "K RMSNorm · RoPE",
+  "Attention probabilities × V · concatenate heads": "Attention probabilities × V · concatenate heads",
+  "Attention output × sigmoid(gate)": "Attention output × sigmoid(gate)"
 }

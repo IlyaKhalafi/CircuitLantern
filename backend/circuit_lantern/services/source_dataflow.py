@@ -11,11 +11,27 @@ import logging
 import textwrap
 from functools import lru_cache
 
+from torch.nn import Linear
+from transformers.pytorch_utils import Conv1D
+
+from circuit_lantern.services.fp8 import is_fp8_linear
+
 _UNKNOWN = object()
 
 
 class UnresolvedFlow(Exception):
     """Source cannot prove the selected path at this module boundary."""
+
+
+def projection_module(module):
+    """A parameter named weight alone does not prove a projection uses it."""
+    if type(module) in (Linear, Conv1D) or is_fp8_linear(module):
+        return True
+    if type(module).__module__ != "bitsandbytes.nn.modules":
+        return False
+    from bitsandbytes.nn import Linear4bit, Linear8bitLt, LinearFP4, LinearNF4
+
+    return type(module) in (Linear4bit, Linear8bitLt, LinearFP4, LinearNF4)
 
 
 @lru_cache(maxsize=256)
@@ -106,7 +122,7 @@ class SourceFlow:
             if result is not None:
                 return result
         weight = path + ".weight"
-        if weight in self.weights and not list(module.children()):
+        if weight in self.weights and projection_module(module):
             return self.node(
                 path.rsplit(".", 1)[-1],
                 inputs,
