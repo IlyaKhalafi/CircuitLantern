@@ -17,8 +17,18 @@ export function CausalNavigation() {
           <Link
             key={href}
             href={href}
-            aria-current={path === href ? "page" : undefined}
-            className={path === href ? "active" : ""}
+            aria-current={
+              path === href ||
+              (href === "/causal/heads" && path.startsWith(href + "/"))
+                ? "page"
+                : undefined
+            }
+            className={
+              path === href ||
+              (href === "/causal/heads" && path.startsWith(href + "/"))
+                ? "active"
+                : ""
+            }
           >
             {t(label)}
           </Link>

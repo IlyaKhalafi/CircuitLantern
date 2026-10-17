@@ -39,9 +39,13 @@ function ExperimentNotebook() {
   const recordId = params.get("experiment");
   const query = params.get("q") ?? "";
   const requestedKind = params.get("kind");
-  const kind = ["trace", "causal", "head_sweep", "matrix"].includes(
-    requestedKind ?? "",
-  )
+  const kind = [
+    "trace",
+    "causal",
+    "head_sweep",
+    "matrix",
+    "induction_probe",
+  ].includes(requestedKind ?? "")
     ? requestedKind!
     : "all";
   const {
