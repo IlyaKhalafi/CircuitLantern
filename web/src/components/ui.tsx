@@ -110,19 +110,21 @@ export function Panel({
   children,
   action,
   className = "",
+  translateTitle = true,
 }: {
   title: string;
   subtitle?: string;
   children: ReactNode;
   action?: ReactNode;
   className?: string;
+  translateTitle?: boolean;
 }) {
   const { t, localize } = useI18n();
   return (
     <section className={`panel ${className}`}>
       <div className="panel-header">
         <div>
-          <h2>{t(title)}</h2>
+          <h2>{translateTitle ? t(title) : title}</h2>
           {subtitle && <p>{t(subtitle)}</p>}
         </div>
         {localize(action)}
