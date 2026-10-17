@@ -227,3 +227,20 @@ def test_unrepresentable_training_scale_is_rejected_before_optimization():
     train = [first, torch.arange(4, dtype=torch.float32).reshape(-1, 1)]
     with pytest.raises(ValueError, match="float32 range"):
         train_crosscoder(train, [value[:1] for value in train], CrosscoderConfig(features=2))
+
+
+def test_planning_rejects_training_that_cannot_publish_its_feature_metadata():
+    from circuit_lantern.services.crosscoders.model import CrosscoderConfig
+    from circuit_lantern.services.crosscoders.planning import training_budget
+
+    plan = training_budget(
+        (16, 16),
+        128,
+        CrosscoderConfig(features=4096, steps=32),
+        4096,
+        "cpu",
+        {"ram_available_bytes": 256 * 1024**2, "experiment_disk_free_bytes": 2 * 1024**3},
+        1024**3,
+    )
+    assert not plan["compatible"]
+    assert "Insufficient available RAM for the retained activation workflow." in plan["blockers"]

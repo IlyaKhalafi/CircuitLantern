@@ -381,6 +381,8 @@ class CrosscoderLab:
             }
             for bank, capture in enumerate(captures)
         ]
+        # Statistics retain sample references, so the activation and split copies can be freed.
+        del loaded, values, train, validation, captures
         summary = {
             "completed_steps": trained.completed_steps,
             "requested_steps": config.steps,

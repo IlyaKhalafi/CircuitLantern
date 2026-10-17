@@ -15,7 +15,8 @@ def capture_budget(
     limit: int,
 ) -> dict:
     tensors = width * samples * 4
-    host = tensors * 3 + corpus_bytes * 8
+    metadata = corpus_bytes + 16 * 1024
+    host = tensors * 3 + metadata * 112
     gpu = forward["device_bytes"] if device.startswith("cuda") else 0
     if not gpu:
         host += forward["device_bytes"]
@@ -38,6 +39,9 @@ def training_budget(
     batch = max(128, min(config.batch_size, samples))
     work = 32 * parameters + 40 * batch * config.features + 24 * batch * sum(widths)
     host = 16 * samples * sum(widths) + 12 * parameters + config.features * 4096 + corpus_bytes * 8
+    # Include immutable metadata publication and later JSON export before starting training.
+    metadata = config.features * 1024 + corpus_bytes * 2 + config.steps * 512 + 16 * 1024
+    host = max(host, metadata * 112 + weights * 3)
     gpu = work if device == "cuda" else 0
     if device == "cpu":
         host += work

@@ -67,6 +67,7 @@ class TensorArtifactStore:
         self._metadata_memory = MetadataMemoryBudget()
         with self.file_lock:
             with self.connect() as connection:
+                connection.execute("PRAGMA journal_mode = WAL")
                 connection.executescript("""
                     CREATE TABLE IF NOT EXISTS artifacts (
                         id TEXT PRIMARY KEY,
@@ -111,7 +112,7 @@ class TensorArtifactStore:
 
     @contextmanager
     def connect(self):
-        connection = sqlite3.connect(self.database, timeout=0.1)
+        connection = sqlite3.connect(self.database, timeout=5)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         try:
@@ -145,6 +146,7 @@ class TensorArtifactStore:
     @contextmanager
     def _read_connection(self):
         with self.connect() as connection:
+            connection.execute("PRAGMA busy_timeout = 100")
             connection.execute("BEGIN")
             yield connection
 
@@ -206,21 +208,19 @@ class TensorArtifactStore:
         self, identifier: str, loaded: ManifestSnapshot, *, serializing=False, freezing=False
     ):
         multiplier = METADATA_JSON_RAM_MULTIPLIER if serializing else METADATA_DECODE_RAM_MULTIPLIER
-        with (
-            ExitStack() as parsing,
-            self._metadata_memory.reserve(
-                loaded.size * (multiplier - METADATA_TEXT_RAM_MULTIPLIER)
-            ),
-        ):
+        with ExitStack() as parsing:
             parsing.enter_context(self._metadata_memory.decode_lock)
-            payload = self._decode(loaded.encoded, loaded.digest)
-            if payload.get("id") != identifier or payload["kind"] != loaded.kind:
-                raise ValueError("The saved artifact metadata is invalid.")
-            # Freeze under the cold-parse lock, but let exports encode independently.
-            # Both paths retain their memory reservation through the caller's work.
-            if not freezing:
-                parsing.close()
-            yield dict(payload, manifest_sha256=loaded.digest)
+            with self._metadata_memory.reserve(
+                loaded.size * (multiplier - METADATA_TEXT_RAM_MULTIPLIER)
+            ):
+                payload = self._decode(loaded.encoded, loaded.digest)
+                if payload.get("id") != identifier or payload["kind"] != loaded.kind:
+                    raise ValueError("The saved artifact metadata is invalid.")
+                # Freeze under the cold-parse lock, but let exports encode independently.
+                # Both paths retain their memory reservation through the caller's work.
+                if not freezing:
+                    parsing.close()
+                yield dict(payload, manifest_sha256=loaded.digest)
 
     @contextmanager
     def read_metadata(self, identifier: str, *, kind: str | None = None, serializing=False):
