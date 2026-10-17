@@ -11,6 +11,8 @@ import {
   type CrosscoderTask,
   useSessionDraft,
 } from "@/components/crosscoder-shared";
+import { ExecutionContext } from "@/components/execution-context";
+import type { RuntimeState } from "@/lib/types";
 import { post } from "@/lib/api";
 import {
   validInteger,
@@ -22,6 +24,7 @@ import {
 
 export function CrosscoderCaptures({
   capabilities,
+  runtime,
   captures,
   reference,
   compared,
@@ -31,6 +34,7 @@ export function CrosscoderCaptures({
   blocked,
 }: {
   capabilities: CrosscoderCapabilities | null;
+  runtime: RuntimeState | null;
   captures: CaptureSummary[];
   reference: CaptureSummary | null;
   compared: CaptureSummary | null;
@@ -161,6 +165,13 @@ export function CrosscoderCaptures({
       <>
         <div className="feature-toolbar">
           <button
+            className="button secondary"
+            disabled={!valid || busy}
+            onClick={() => check(role)}
+          >
+            {t("Check resources")}
+          </button>
+          <button
             className="button primary"
             disabled={!valid || busy}
             onClick={() => {
@@ -173,13 +184,6 @@ export function CrosscoderCaptures({
                 ? "Capture reference"
                 : "Capture matched activations",
             )}
-          </button>
-          <button
-            className="button secondary"
-            disabled={!valid || busy}
-            onClick={() => check(role)}
-          >
-            {t("Check resources")}
           </button>
         </div>
         {plan?.role === role && <CrosscoderBudget plan={plan.value} />}
@@ -217,9 +221,15 @@ export function CrosscoderCaptures({
         <Layers size={20} />
         <div>
           <span>{t("Current checkpoint")}</span>
-          <strong dir="auto">
-            {capabilities?.execution?.model_id || t("No model loaded")}
-          </strong>
+          {runtime?.metadata?.execution_id &&
+          runtime.metadata.execution_id ===
+            capabilities?.execution?.execution_id ? (
+            <ExecutionContext runtime={runtime} />
+          ) : (
+            <strong dir="auto">
+              {capabilities?.execution?.model_id || t("No model loaded")}
+            </strong>
+          )}
         </div>
         <Link className="button secondary" href="/">
           {t("Open model library")}
