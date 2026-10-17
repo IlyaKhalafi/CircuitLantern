@@ -2,8 +2,10 @@
 
 import sqlite3
 
-SCHEMA_VERSION = 3
-EXPERIMENT_KINDS = frozenset(("trace", "causal", "head_sweep", "matrix", "induction_probe"))
+SCHEMA_VERSION = 4
+EXPERIMENT_KINDS = frozenset(
+    ("trace", "causal", "head_sweep", "matrix", "induction_probe", "causal_batch")
+)
 COLUMNS = (
     "id",
     "name",
