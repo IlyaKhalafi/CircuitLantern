@@ -316,3 +316,48 @@ async def test_capture_capabilities_and_missing_tensor_download(client, lab):
     response = await client.get("/api/crosscoders/captures/" + reference["id"] + "/tensors")
     assert response.status_code == 404
     assert "tensor file" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_cancelled_joint_training_retains_a_checksummed_partial_dictionary(
+    client, lab, monkeypatch
+):
+    from circuit_lantern.services.crosscoders.training import train_crosscoder
+
+    reference, compared = await capture_pair(client, lab)
+    lab.runtime.unload()
+
+    def stop_after_observed_steps(train, validation, config, *, device, progress, cancelled):
+        def observed(row):
+            progress(row)
+            if row["step"] >= 3:
+                for job in lab.runtime.jobs.values():
+                    if job["kind"] == "crosscoder_training":
+                        job.request_cancel()
+
+        return train_crosscoder(
+            train, validation, config, device=device, progress=observed, cancelled=cancelled
+        )
+
+    monkeypatch.setattr(
+        "circuit_lantern.services.crosscoders.lab.train_crosscoder", stop_after_observed_steps
+    )
+    response = await client.post(
+        "/api/crosscoders/train",
+        json={
+            "capture_ids": [reference["id"], compared["id"]],
+            "expansion": 1,
+            "steps": 16,
+        },
+    )
+    assert response.status_code == 202
+    job = await finished(client, response.json())
+    assert job["status"] == "cancelled"
+    assert job["result"]["complete"] is False
+    artifact = job["result"]["crosscoders"][0]
+    assert artifact["training_summary"]["completed_steps"] == 3
+    assert artifact["training_summary"]["cancelled"] is True
+    manifest, dictionary = lab.load_model(artifact["id"])
+    assert manifest["training_summary"] == artifact["training_summary"]
+    assert dictionary.config.features == artifact["features"]
+    assert (await client.get("/api/crosscoders/" + artifact["id"] + "/weights")).status_code == 200
