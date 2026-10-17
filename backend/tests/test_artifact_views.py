@@ -2,15 +2,16 @@
 
 import asyncio
 import sqlite3
-from concurrent.futures import ThreadPoolExecutor
-from contextlib import contextmanager
-from threading import Event, Lock
+from concurrent.futures import ThreadPoolExecutor, TimeoutError
+from contextlib import closing, contextmanager
+from threading import Event, Lock, current_thread
 from unittest.mock import Mock
 
 import httpx
 import pytest
 import torch
 from fastapi.encoders import jsonable_encoder
+from filelock import FileLock
 
 from circuit_lantern.main import app
 from circuit_lantern.services.artifact_views import (
@@ -22,6 +23,7 @@ from circuit_lantern.services.artifact_views import (
 from circuit_lantern.services.crosscoders.lab import CrosscoderLab
 from circuit_lantern.services.tensor_artifacts import (
     ArtifactBusyError,
+    ArtifactNotFoundError,
     TensorArtifactStore,
     canonical_json,
     digest_bytes,
@@ -423,7 +425,8 @@ def test_mutable_readers_do_not_decode_concurrently(store, monkeypatch):
 
 def test_sqlite_writer_contention_returns_busy_and_recovers(store):
     identifier = saved(store)["id"]
-    with sqlite3.connect(store.database) as connection:
+    with closing(sqlite3.connect(store.database)) as connection:
+        connection.execute("PRAGMA locking_mode = EXCLUSIVE")
         connection.execute("BEGIN EXCLUSIVE")
         try:
             with ThreadPoolExecutor(max_workers=1) as executor:
@@ -633,7 +636,8 @@ def test_lists_and_annotation_search_fail_quickly_under_sqlite_writer_contention
         if reader == "list"
         else (lambda: store.search_annotations(identifier, "observation"))
     )
-    with sqlite3.connect(store.database) as connection:
+    with closing(sqlite3.connect(store.database)) as connection:
+        connection.execute("PRAGMA locking_mode = EXCLUSIVE")
         connection.execute("BEGIN EXCLUSIVE")
         try:
             with ThreadPoolExecutor(max_workers=1) as executor, pytest.raises(ArtifactBusyError):
@@ -659,3 +663,145 @@ def test_tensor_limits_and_validation_memory_are_checked_before_finiteness(store
             )
     finite.assert_not_called()
     assert store._metadata_memory._reserved == 0
+
+
+def test_a_slow_metadata_snapshot_does_not_block_annotation_writes_to_another_artifact(
+    store, monkeypatch
+):
+    cold, writable = saved(store)["id"], saved(store)["id"]
+    store.get_readonly(writable)
+    entered, resume = Event(), Event()
+    original = store._metadata_memory.reserve
+
+    @contextmanager
+    def gated(size):
+        with original(size):
+            if current_thread().name.startswith("metadata-snapshot"):
+                entered.set()
+                assert resume.wait(5)
+            yield
+
+    monkeypatch.setattr(store._metadata_memory, "reserve", gated)
+    with ThreadPoolExecutor(max_workers=1, thread_name_prefix="metadata-snapshot") as executor:
+        reading = executor.submit(store.get_readonly, cold)
+        try:
+            assert entered.wait(5)
+            assert (
+                store.label(writable, 0, "Concurrent note", "Preserve completed work")["label"]
+                == "Concurrent note"
+            )
+        finally:
+            resume.set()
+        assert reading.result(timeout=5)["id"] == cold
+    assert store.annotations(writable)[0]["label"] == "Concurrent note"
+
+
+def test_queued_cold_decodes_reserve_memory_only_when_they_start(store, monkeypatch):
+    first_id, second_id = saved(store)["id"], saved(store)["id"]
+    with store.connect() as connection:
+        size = connection.execute(
+            "SELECT length(CAST(manifest AS BLOB)) FROM artifacts WHERE id = ?", (first_id,)
+        ).fetchone()[0]
+    monkeypatch.setattr(
+        "circuit_lantern.services.artifact_views.available_memory_bytes", lambda: size * 100
+    )
+    entered, second_loaded, second_waiting, resume = Event(), Event(), Event(), Event()
+    original_decode, original_read = store._decode, store._read_manifest
+    original_lock = store._metadata_memory.decode_lock
+    call_lock = Lock()
+    reads = 0
+    lock_entries = 0
+
+    class ObservedLock:
+        def __enter__(self):
+            nonlocal lock_entries
+            with call_lock:
+                lock_entries += 1
+                if lock_entries == 2:
+                    second_waiting.set()
+            original_lock.acquire()
+            return self
+
+        def __exit__(self, *args):
+            original_lock.release()
+
+    @contextmanager
+    def observed(*args):
+        nonlocal reads
+        with original_read(*args) as value:
+            with call_lock:
+                reads += 1
+                if reads == 2:
+                    second_loaded.set()
+            yield value
+
+    def gated(*args):
+        entered.set()
+        assert resume.wait(5)
+        return original_decode(*args)
+
+    monkeypatch.setattr(store, "_read_manifest", observed)
+    monkeypatch.setattr(store, "_decode", gated)
+    monkeypatch.setattr(store._metadata_memory, "decode_lock", ObservedLock())
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        first = executor.submit(store.get_readonly, first_id)
+        try:
+            assert entered.wait(5)
+            second = executor.submit(store.get_readonly, second_id)
+            assert second_loaded.wait(5)
+            assert second_waiting.wait(1)
+        finally:
+            resume.set()
+        assert first.result(timeout=5)["id"] == first_id
+        assert second.result(timeout=5)["id"] == second_id
+    assert store._metadata_memory._reserved == 0
+
+
+def test_publication_waits_for_a_short_file_operation_instead_of_losing_finished_tensors(store):
+    lock = FileLock(store.directory / ".artifacts.lock")
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        lock.acquire()
+        try:
+            publishing = executor.submit(saved, store)
+            with pytest.raises(TimeoutError):
+                publishing.result(timeout=0.1)
+        finally:
+            lock.release()
+        manifest = publishing.result(timeout=5)
+    assert store.get(manifest["id"]) == manifest
+
+
+def test_annotations_remain_writable_while_tensor_file_operations_hold_the_lock(store):
+    identifier = saved(store)["id"]
+    with FileLock(store.directory / ".artifacts.lock"):
+        assert (
+            store.label(identifier, 0, "First observation", "Keep the first note")["feature"] == 0
+        )
+        assert (
+            store.label(identifier, 1, "Second observation", "Keep the second note")["feature"] == 1
+        )
+    assert set(store.annotations(identifier)) == {0, 1}
+
+
+def test_annotation_commit_rechecks_deletion_after_reading_feature_metadata(store, monkeypatch):
+    identifier = saved(store)["id"]
+    original = store.get_readonly
+    entered, resume = Event(), Event()
+
+    def gated(*args, **kwargs):
+        value = original(*args, **kwargs)
+        entered.set()
+        assert resume.wait(5)
+        return value
+
+    monkeypatch.setattr(store, "get_readonly", gated)
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        writing = executor.submit(store.label, identifier, 0, "Observation", "Do not resurrect")
+        try:
+            assert entered.wait(5)
+            assert store.delete(identifier)
+        finally:
+            resume.set()
+        with pytest.raises(ArtifactNotFoundError):
+            writing.result(timeout=5)
+    assert store.annotations(identifier) == {}

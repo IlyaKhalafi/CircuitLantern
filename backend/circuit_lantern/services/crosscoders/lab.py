@@ -141,7 +141,13 @@ class CrosscoderLab:
         budget = capture_budget(
             width,
             len(corpus.samples),
-            len(json.dumps(corpus.description(), ensure_ascii=False).encode()),
+            len(json.dumps(corpus.description(), ensure_ascii=False).encode())
+            + len(
+                json.dumps(
+                    request.model_dump(exclude={"name", "expected_execution_id"}),
+                    ensure_ascii=False,
+                ).encode()
+            ),
             forward_memory(
                 self.runtime.model,
                 max(len(row["token_ids"]) for row in corpus.documents),
@@ -381,6 +387,8 @@ class CrosscoderLab:
             }
             for bank, capture in enumerate(captures)
         ]
+        # Statistics retain sample references, so the activation and split copies can be freed.
+        del loaded, values, train, validation, captures
         summary = {
             "completed_steps": trained.completed_steps,
             "requested_steps": config.steps,

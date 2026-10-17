@@ -153,11 +153,11 @@ def test_annotations_are_separate_from_immutable_evidence_and_cascade_on_delete(
     assert not store.delete(manifest["id"])
 
 
-def test_busy_store_returns_without_waiting(tmp_path):
+def test_busy_reads_return_without_waiting(tmp_path):
     store = TensorArtifactStore(tmp_path, 1024)
     lock = FileLock(tmp_path / ".artifacts.lock")
     with lock, pytest.raises(ArtifactBusyError):
-        save(store)
+        store.load("a" * 32, kind="capture")
     assert store.list("capture") == []
 
 

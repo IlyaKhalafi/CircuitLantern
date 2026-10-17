@@ -29,6 +29,7 @@ from circuit_lantern.services.artifact_views import (
     ArtifactManifestViews,
     ManifestSnapshot,
     MetadataMemoryBudget,
+    MetadataMemoryError,
     checked_metadata_size,
 )
 from circuit_lantern.services.prepared_downloads import DownloadCancelledError
@@ -67,6 +68,7 @@ class TensorArtifactStore:
         self._metadata_memory = MetadataMemoryBudget()
         with self.file_lock:
             with self.connect() as connection:
+                connection.execute("PRAGMA journal_mode = WAL")
                 connection.executescript("""
                     CREATE TABLE IF NOT EXISTS artifacts (
                         id TEXT PRIMARY KEY,
@@ -111,7 +113,7 @@ class TensorArtifactStore:
 
     @contextmanager
     def connect(self):
-        connection = sqlite3.connect(self.database, timeout=0.1)
+        connection = sqlite3.connect(self.database, timeout=5)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         try:
@@ -130,9 +132,9 @@ class TensorArtifactStore:
             connection.close()
 
     @contextmanager
-    def operation(self):
+    def operation(self, *, timeout=0):
         try:
-            self.file_lock.acquire(timeout=0)
+            self.file_lock.acquire(timeout=timeout)
         except Timeout as error:
             raise ArtifactBusyError(
                 "The saved tensor artifacts are busy. Try again shortly."
@@ -145,6 +147,7 @@ class TensorArtifactStore:
     @contextmanager
     def _read_connection(self):
         with self.connect() as connection:
+            connection.execute("PRAGMA busy_timeout = 100")
             connection.execute("BEGIN")
             yield connection
 
@@ -206,21 +209,19 @@ class TensorArtifactStore:
         self, identifier: str, loaded: ManifestSnapshot, *, serializing=False, freezing=False
     ):
         multiplier = METADATA_JSON_RAM_MULTIPLIER if serializing else METADATA_DECODE_RAM_MULTIPLIER
-        with (
-            ExitStack() as parsing,
-            self._metadata_memory.reserve(
-                loaded.size * (multiplier - METADATA_TEXT_RAM_MULTIPLIER)
-            ),
-        ):
+        with ExitStack() as parsing:
             parsing.enter_context(self._metadata_memory.decode_lock)
-            payload = self._decode(loaded.encoded, loaded.digest)
-            if payload.get("id") != identifier or payload["kind"] != loaded.kind:
-                raise ValueError("The saved artifact metadata is invalid.")
-            # Freeze under the cold-parse lock, but let exports encode independently.
-            # Both paths retain their memory reservation through the caller's work.
-            if not freezing:
-                parsing.close()
-            yield dict(payload, manifest_sha256=loaded.digest)
+            with self._metadata_memory.reserve(
+                loaded.size * (multiplier - METADATA_TEXT_RAM_MULTIPLIER)
+            ):
+                payload = self._decode(loaded.encoded, loaded.digest)
+                if payload.get("id") != identifier or payload["kind"] != loaded.kind:
+                    raise ValueError("The saved artifact metadata is invalid.")
+                # Freeze under the cold-parse lock, but let exports encode independently.
+                # Both paths retain their memory reservation through the caller's work.
+                if not freezing:
+                    parsing.close()
+                yield dict(payload, manifest_sha256=loaded.digest)
 
     @contextmanager
     def read_metadata(self, identifier: str, *, kind: str | None = None, serializing=False):
@@ -298,7 +299,7 @@ class TensorArtifactStore:
         with self._metadata_memory.reserve(validation_bytes):
             if any(not torch.isfinite(value).all() for value in tensors.values()):
                 raise ValueError("Saved artifacts require finite float32 tensors.")
-        with self.operation(), ExitStack() as reservations:
+        with self.operation(timeout=5), ExitStack() as reservations:
             identifier = uuid.uuid4().hex
             destination = self._path(identifier)
             temporary = self.directory / ("." + identifier + ".partial")
@@ -394,7 +395,7 @@ class TensorArtifactStore:
                             "The saved artifact exceeds the configured file size limit."
                         )
                     if size * 4 > available_memory_bytes() * 0.75:
-                        raise ValueError(
+                        raise MetadataMemoryError(
                             "Insufficient available RAM to load the saved tensor artifact."
                         )
                     data = stream.read(self.max_bytes + _HEADER_ALLOWANCE + 1)
@@ -423,7 +424,7 @@ class TensorArtifactStore:
         if cancelled and cancelled():
             raise DownloadCancelledError()
         with self.operation():
-            manifest = self.get(identifier, kind=kind)
+            manifest = self.get_readonly(identifier, kind=kind)
             if manifest is None:
                 raise ArtifactNotFoundError("The saved tensor artifact was not found.")
             expected = manifest.get("tensors_sha256")
@@ -551,30 +552,37 @@ class TensorArtifactStore:
             }
 
     def label(self, identifier: str, feature: int, label: str, notes: str) -> dict:
-        with self.operation():
-            manifest = self.get_readonly(identifier, kind="crosscoder")
-            if manifest is None:
+        manifest = self.get_readonly(identifier, kind="crosscoder")
+        if manifest is None:
+            raise ArtifactNotFoundError("The crosscoder was not found.")
+        if type(feature) is not int or not 0 <= feature < manifest["features"]:
+            raise ValueError("Choose an existing crosscoder feature.")
+        if (
+            not isinstance(label, str)
+            or len(label) > 100
+            or not isinstance(notes, str)
+            or len(notes) > 10000
+        ):
+            raise ValueError("The feature label or notes exceed the supported length.")
+        updated = datetime.now(UTC).isoformat()
+        with self.connect() as connection:
+            connection.execute("BEGIN IMMEDIATE")
+            row = connection.execute(
+                "SELECT kind, manifest_sha256 FROM artifacts WHERE id = ?", (identifier,)
+            ).fetchone()
+            if row is None or row["kind"] != "crosscoder":
                 raise ArtifactNotFoundError("The crosscoder was not found.")
-            if type(feature) is not int or not 0 <= feature < manifest["features"]:
-                raise ValueError("Choose an existing crosscoder feature.")
-            if (
-                not isinstance(label, str)
-                or len(label) > 100
-                or not isinstance(notes, str)
-                or len(notes) > 10000
-            ):
-                raise ValueError("The feature label or notes exceed the supported length.")
-            updated = datetime.now(UTC).isoformat()
-            with self.connect() as connection:
-                connection.execute(
-                    "INSERT INTO labels VALUES (?, ?, ?, ?, ?) ON CONFLICT (artifact_id, feature) "
-                    "DO UPDATE SET label = excluded.label, notes = excluded.notes, updated_at = excluded.updated_at",
-                    (identifier, feature, label, notes, updated),
-                )
-            return {
-                "artifact_id": identifier,
-                "feature": feature,
-                "label": label,
-                "notes": notes,
-                "updated_at": updated,
-            }
+            if row["manifest_sha256"] != manifest["manifest_sha256"]:
+                raise ValueError("The saved artifact metadata is invalid.")
+            connection.execute(
+                "INSERT INTO labels VALUES (?, ?, ?, ?, ?) ON CONFLICT (artifact_id, feature) "
+                "DO UPDATE SET label = excluded.label, notes = excluded.notes, updated_at = excluded.updated_at",
+                (identifier, feature, label, notes, updated),
+            )
+        return {
+            "artifact_id": identifier,
+            "feature": feature,
+            "label": label,
+            "notes": notes,
+            "updated_at": updated,
+        }
