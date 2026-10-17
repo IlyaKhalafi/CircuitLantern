@@ -59,8 +59,10 @@ def dictionary_plan(
 
 
 def forward_memory(model, token_count: int, feature_count: int = 0, *, logits: bool = True) -> dict:
-    width = int(model.get_input_embeddings().weight.shape[1])
     config = model.config
+    width = int(
+        getattr(config, "hidden_size", None) or model.get_input_embeddings().weight.shape[1]
+    )
     vocab = int(model.get_output_embeddings().weight.shape[0]) if logits else 0
     intermediate = (
         getattr(config, "intermediate_size", None) or getattr(config, "n_inner", None) or 4 * width

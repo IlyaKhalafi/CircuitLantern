@@ -62,6 +62,7 @@ export function ExperimentLibrary({
         <label>
           {t("Experiment type")}
           <select
+            aria-label={t("Experiment type")}
             value={kind}
             onChange={(event) =>
               update({
@@ -71,6 +72,7 @@ export function ExperimentLibrary({
           >
             <option value="all">{t("All experiments")}</option>
             <option value="trace">{t("Activation traces")}</option>
+            <option value="causal_batch">{t("Prompt-set patching")}</option>
             <option value="causal">{t("Residual patching")}</option>
             <option value="head_sweep">{t("Head ablation")}</option>
             <option value="matrix">{t("Matrix analyses")}</option>

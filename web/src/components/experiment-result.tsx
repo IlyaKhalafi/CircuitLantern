@@ -1,3 +1,4 @@
+import { PromptSetResults } from "@/components/prompt-set-results";
 import { SavedMatrixComparison } from "@/components/saved-matrix-comparison";
 import { SavedCausalComparison } from "@/components/saved-causal-comparison";
 import { HeadSweepResults } from "@/components/head-sweep-results";
@@ -18,6 +19,10 @@ export function ExperimentResult({
   libraryError: string | null;
   onRetryLibrary: () => void;
 }) {
+  if (experiment.kind === "causal_batch")
+    return experiment.result ? (
+      <PromptSetResults result={experiment.result} />
+    ) : null;
   if (experiment.kind === "matrix")
     return experiment.result ? (
       <SavedMatrixComparison

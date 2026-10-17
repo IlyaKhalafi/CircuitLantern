@@ -1,3 +1,4 @@
+import type { PromptSetResult } from "@/lib/prompt-sets";
 import type { InductionResult } from "@/lib/induction";
 
 export interface ExecutionProvenance {
@@ -351,6 +352,7 @@ interface ExperimentBase {
 export type Experiment =
   | (ExperimentBase & { kind?: "trace"; trace?: Trace })
   | (ExperimentBase & { kind: "causal"; result?: CausalResult })
+  | (ExperimentBase & { kind: "causal_batch"; result?: PromptSetResult })
   | (ExperimentBase & { kind: "head_sweep"; result?: HeadSweepResult })
   | (ExperimentBase & { kind: "matrix"; result?: MatrixMetrics })
   | (ExperimentBase & { kind: "induction_probe"; result?: InductionResult });

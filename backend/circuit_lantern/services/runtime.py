@@ -302,6 +302,7 @@ class ModelRuntime:
                 "sae_training",
                 "feature_circuit",
                 "induction_probe",
+                "causal_batch",
             ):
                 raise ValueError(
                     "Only research jobs can be cancelled. Model downloads must finish before another operation starts."
@@ -314,6 +315,7 @@ class ModelRuntime:
             "sae_training": "Dictionary training",
             "feature_circuit": "Feature ablation graph",
             "induction_probe": "Induction probe",
+            "causal_batch": "Prompt-set sweep",
         }.get(job["kind"], "Head sweep" if is_head_sweep else "Causal sweep")
         result = None
         failure = None
