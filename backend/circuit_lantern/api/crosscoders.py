@@ -1,13 +1,14 @@
 """Retained activation captures and joint feature comparison endpoints."""
 
 import asyncio
+import sqlite3
 from functools import partial
 from threading import Event
 from typing import Annotated, Literal
 
 import torch
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
-from fastapi.responses import StreamingResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
 from circuit_lantern.crosscoder_schemas import (
@@ -17,7 +18,7 @@ from circuit_lantern.crosscoder_schemas import (
     MatchedCaptureRequest,
 )
 from circuit_lantern.services.crosscoders.lab import REFERENCES
-from circuit_lantern.services.prepared_downloads import DownloadCancelledError
+from circuit_lantern.services.prepared_downloads import DownloadCancelledError, PreparedDownloads
 from circuit_lantern.services.tensor_artifacts import ArtifactNotFoundError
 
 router = APIRouter(prefix="/api/crosscoders", tags=["crosscoders"])
@@ -102,6 +103,25 @@ def stream_download(stream, length: int, filename: str):
     return PinnedDownloadResponse(stream, length, filename)
 
 
+class PreparedDownloadResponse(Response):
+    def __init__(self, downloads: PreparedDownloads, ticket: str):
+        super().__init__()
+        self.downloads = downloads
+        self.ticket = ticket
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        lease = self.downloads.take(self.ticket)
+        if lease is None:
+            response = JSONResponse(
+                {"detail": "The prepared download expired. Prepare the download again."},
+                status_code=410,
+                headers={"Cache-Control": "no-store"},
+            )
+        else:
+            response = stream_download(lease.stream, lease.length, lease.filename)
+        await response(scope, receive, send)
+
+
 def open_artifact(request: Request, identifier: str, kind: str, cancelled=None):
     try:
         return request.app.state.crosscoders.store.open_tensors(
@@ -109,7 +129,7 @@ def open_artifact(request: Request, identifier: str, kind: str, cancelled=None):
         )
     except ArtifactNotFoundError:
         raise
-    except OSError as error:
+    except (OSError, sqlite3.Error) as error:
         raise HTTPException(
             503, "The saved tensor file could not be read. Check server storage and try again."
         ) from error
@@ -168,10 +188,7 @@ async def prepare_capture_download(identifier: Identifier, request: Request):
 
 @router.get("/downloads/{ticket}")
 def prepared_download(ticket: Annotated[str, Path(pattern=r"^[a-f0-9]{64}$")], request: Request):
-    lease = request.app.state.crosscoders.downloads.take(ticket)
-    if lease is None:
-        raise HTTPException(410, "The prepared download expired. Prepare the download again.")
-    return stream_download(lease.stream, lease.length, lease.filename)
+    return PreparedDownloadResponse(request.app.state.crosscoders.downloads, ticket)
 
 
 @router.get("/captures/{identifier}/tensors")

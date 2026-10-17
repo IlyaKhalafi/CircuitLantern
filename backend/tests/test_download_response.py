@@ -40,3 +40,37 @@ async def test_pinned_stream_closes_after_normal_or_interrupted_transfer(spec, d
         assert b"".join(message.get("body", b"") for message in messages) == content
     assert stream.closed
     assert response.headers["cache-control"] == "no-store"
+
+
+@pytest.mark.anyio
+async def test_asgi_disconnect_message_closes_the_pinned_stream():
+    stream = BytesIO(b"verified stream")
+    response = stream_download(stream, 15, "capture.safetensors")
+
+    async def receive():
+        return {"type": "http.disconnect"}
+
+    async def send(message):
+        pass
+
+    await response(
+        {"type": "http", "method": "GET", "asgi": {"spec_version": "2.3"}}, receive, send
+    )
+    assert stream.closed
+
+
+def test_prepared_get_keeps_the_stream_owned_until_response_execution():
+    from types import SimpleNamespace
+
+    from circuit_lantern.api.crosscoders import prepared_download
+    from circuit_lantern.services.prepared_downloads import PreparedDownloads
+
+    downloads = PreparedDownloads()
+    stream = BytesIO(b"pending")
+    ticket, _ = downloads.prepare(lambda: (stream, 7), "capture.safetensors")
+    request = SimpleNamespace(
+        app=SimpleNamespace(state=SimpleNamespace(crosscoders=SimpleNamespace(downloads=downloads)))
+    )
+    response = prepared_download(ticket, request)
+    downloads.close()
+    assert response is not None and stream.closed

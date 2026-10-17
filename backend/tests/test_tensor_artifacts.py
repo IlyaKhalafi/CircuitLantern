@@ -296,7 +296,7 @@ def test_cancelled_checksum_releases_the_pinned_file(tmp_path, monkeypatch):
     def cancelled():
         nonlocal calls
         calls += 1
-        return calls >= 2
+        return calls >= 3
 
     with pytest.raises(DownloadCancelledError):
         store.open_tensors(manifest["id"], kind="capture", cancelled=cancelled)

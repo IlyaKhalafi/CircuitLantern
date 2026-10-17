@@ -624,11 +624,15 @@ async def test_abandoned_preparation_releases_capacity_and_fifth_live_ticket_ret
 
 
 @pytest.mark.anyio
-@pytest.mark.parametrize("code", [5, 24])
+@pytest.mark.parametrize("code", [5, 24, "database"])
 async def test_unreadable_tensor_preparation_reports_storage_failure(
     client, lab, monkeypatch, code
 ):
     def unreadable(*args, **kwargs):
+        if code == "database":
+            import sqlite3
+
+            raise sqlite3.OperationalError("Internal storage details")
         raise OSError(code, "Internal storage details")
 
     monkeypatch.setattr(lab.store, "open_tensors", unreadable)
@@ -638,3 +642,55 @@ async def test_unreadable_tensor_preparation_reports_storage_failure(
         "The saved tensor file could not be read. Check server storage and try again."
     )
     assert "Internal storage details" not in response.text
+
+
+@pytest.mark.anyio
+async def test_http_disconnect_discards_a_verification_that_completes_late(
+    client, lab, monkeypatch
+):
+    from io import BytesIO
+    from threading import Event
+
+    from starlette.requests import Request
+
+    from circuit_lantern.api.crosscoders import prepare_download
+
+    committed, release, closed = Event(), Event(), Event()
+    tickets = []
+
+    class TrackedStream(BytesIO):
+        def close(self):
+            super().close()
+            closed.set()
+
+    stream = TrackedStream(b"late verification")
+    monkeypatch.setattr(
+        lab.store, "open_tensors", lambda *args, **kwargs: (stream, len(stream.getvalue()))
+    )
+    original = lab.downloads.prepare
+
+    def late_prepare(opener, filename, cancelled=None):
+        # Emulate verification finishing exactly as the request disconnects.
+        value = original(opener, filename)
+        tickets.append(value[0])
+        committed.set()
+        assert release.wait(5)
+        return value
+
+    monkeypatch.setattr(lab.downloads, "prepare", late_prepare)
+
+    async def receive():
+        if committed.is_set():
+            return {"type": "http.disconnect"}
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    request = Request({"type": "http", "app": app}, receive)
+    try:
+        response = await prepare_download(request, "a" * 32, "capture")
+        assert response.status_code == 499
+        assert not stream.closed
+        release.set()
+        assert await asyncio.to_thread(closed.wait, 5)
+        assert lab.downloads.take(tickets[0]) is None
+    finally:
+        release.set()
