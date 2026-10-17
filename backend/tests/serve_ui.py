@@ -136,6 +136,41 @@ def serve(port: int):
 
         main.model_metadata = fixture_metadata
         runtime_module.snapshot_download = fixture_download
+
+        @main.app.get("/api/test/hybrid-graph")
+        def hybrid_graph(layers: int = 4):
+            # A real, meta-only architecture fixture. Never changes the active
+            # checkpoint or invents numerical matrix measurements.
+            from transformers import Qwen3_5ForCausalLM, Qwen3_5TextConfig
+
+            from circuit_lantern.services.dataflow import block_dataflow
+            from circuit_lantern.services.weights import model_weight_inventory
+
+            config = Qwen3_5TextConfig(
+                vocab_size=1000,
+                hidden_size=32,
+                intermediate_size=64,
+                num_hidden_layers=12 if layers == 12 else 4,
+                num_attention_heads=4,
+                num_key_value_heads=2,
+                head_dim=8,
+                linear_key_head_dim=8,
+                linear_value_head_dim=8,
+                linear_num_key_heads=2,
+                linear_num_value_heads=4,
+            )
+            with torch.device("meta"):
+                hybrid = Qwen3_5ForCausalLM(config)
+            weights, total = model_weight_inventory(hybrid)
+            return {
+                "metadata": dict(
+                    main.app.state.runtime.metadata, num_layers=config.num_hidden_layers
+                ),
+                "matrices": weights,
+                "dataflow": block_dataflow(hybrid, hybrid.model.layers, weights),
+                "total_parameters": total,
+            }
+
         original_lifespan = main.app.router.lifespan_context
 
         @asynccontextmanager

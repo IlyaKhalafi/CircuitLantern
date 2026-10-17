@@ -146,6 +146,14 @@ export interface BlockFlow {
   layer: number;
   supported: boolean;
   parallel_residual?: boolean;
+  provenance?: "source";
+  block_type?: string;
+  mixer_type?: string;
+  mapped_matrices?: number;
+  total_matrices?: number;
+  opaque_modules?: string[];
+  unmapped_matrices?: string[];
+  assumptions?: string[];
   nodes: {
     id: string;
     label: string;
@@ -153,6 +161,10 @@ export interface BlockFlow {
     y: number;
     weight: string | null;
     detail: string;
+    section?: string;
+    module_path?: string;
+    matrices?: string[];
+    opaque?: boolean;
   }[];
   edges: {
     source: string;
