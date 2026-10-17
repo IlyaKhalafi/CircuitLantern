@@ -478,6 +478,13 @@ class CrosscoderLab:
             or not 1 <= limit <= 100
         ):
             raise ValueError("Choose a supported feature ranking and page size.")
+        if (
+            sort == "cosine"
+            and manifest["banks"][0]["input_dim"] != manifest["banks"][1]["input_dim"]
+        ):
+            raise ValueError(
+                "Decoder cosine requires equal bank widths and aligned model coordinates."
+            )
         rows = list(manifest["feature_statistics"])
         if query.strip():
             needle = query.strip().casefold()

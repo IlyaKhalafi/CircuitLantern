@@ -7,6 +7,7 @@ import uuid
 import httpx
 import pytest
 import torch
+from model_fixtures import tiny_gpt2
 from safetensors.torch import load
 
 from circuit_lantern.main import app
@@ -490,3 +491,57 @@ async def test_training_rejects_duplicate_capture_identifiers_before_reading_art
             )
             assert response.status_code == 400
             assert response.json()["detail"] == "Choose two distinct retained activation captures."
+
+
+@pytest.mark.anyio
+async def test_unequal_width_teachers_train_without_claiming_cosine_ranking(client, lab):
+    started = await client.post(
+        "/api/crosscoders/captures",
+        json={"documents": DOCUMENTS, "layer": 0, "max_samples": 64},
+    )
+    reference_job = await finished(client, started.json())
+    assert reference_job["status"] == "ready", reference_job
+    reference = reference_job["result"]["captures"][0]
+    lab.runtime.model, lab.runtime.tokenizer = tiny_gpt2(hidden_size=12)
+    lab.runtime.metadata.update(
+        id="local-narrower",
+        hidden_size=12,
+        execution_id=uuid.uuid4().hex,
+        execution_config=describe_execution(lab.runtime.model, "float32", "cpu"),
+    )
+    matched = await client.post(
+        "/api/crosscoders/captures/" + reference["id"] + "/match",
+        json={"name": "Narrower checkpoint", "layer": 0},
+    )
+    compared_job = await finished(client, matched.json())
+    assert compared_job["status"] == "ready", compared_job
+    compared = compared_job["result"]["captures"][0]
+    assert reference["input_dim"] == 16 and compared["input_dim"] == 12
+    assert (await client.delete("/api/runtime")).status_code == 204
+    started = await client.post(
+        "/api/crosscoders/train",
+        json={
+            "capture_ids": [reference["id"], compared["id"]],
+            "expansion": 1,
+            "steps": 8,
+            "batch_size": 8,
+        },
+    )
+    trained = await finished(client, started.json())
+    assert trained["status"] == "ready", trained
+    identifier = trained["result"]["crosscoders"][0]["id"]
+    path = "/api/crosscoders/" + identifier
+    page = await client.get(path + "/features")
+    assert page.status_code == 200
+    assert page.json()["total"] == 16
+    assert all(row["decoder_cosine"] is None for row in page.json()["features"])
+    for direction in ("highest", "lowest"):
+        ranked = await client.get(path + "/features?sort=cosine&direction=" + direction)
+        assert ranked.status_code == 400
+        assert ranked.json()["detail"] == (
+            "Decoder cosine requires equal bank widths and aligned model coordinates."
+        )
+    assert (await client.get(path + "/features?sort=reference")).status_code == 200
+    manifest, model = lab.load_model(identifier)
+    assert [bank["input_dim"] for bank in manifest["banks"]] == [16, 12]
+    assert model.config.features == 16

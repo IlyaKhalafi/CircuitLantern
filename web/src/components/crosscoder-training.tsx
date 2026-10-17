@@ -62,6 +62,10 @@ export function CrosscoderTraining({
     validNumber(draft.learningRate, Number.MIN_VALUE, 0.1) &&
     validNumber(draft.penalty, 0, 10) &&
     (capabilities?.devices || ["cpu"]).includes(draft.device as "cpu" | "cuda");
+  const unavailableDevice =
+    ready &&
+    capabilities != null &&
+    !capabilities.devices.includes(draft.device as "cpu" | "cuda");
   const busy = task.busy || planning || blocked;
   function edit(field: keyof typeof draft, value: string) {
     setDraft((current) => ({ ...current, [field]: value }));
@@ -125,6 +129,11 @@ export function CrosscoderTraining({
               disabled={busy}
               onChange={(event) => edit("device", event.target.value)}
             >
+              {unavailableDevice && (
+                <option value={draft.device} disabled>
+                  {t("Saved device unavailable")}
+                </option>
+              )}
               {(capabilities?.devices || ["cpu"]).map((device) => (
                 <option key={device} value={device}>
                   {t(device === "cuda" ? "GPU" : "CPU")}
@@ -133,6 +142,13 @@ export function CrosscoderTraining({
             </select>
           </label>
         </div>
+        {unavailableDevice && (
+          <p className="notice" role="status">
+            {t(
+              "The saved training device is unavailable on this server. Choose an available device before training.",
+            )}
+          </p>
+        )}
         <details className="feature-advanced">
           <summary>{t("Advanced training settings")}</summary>
           <div className="feature-form-grid">

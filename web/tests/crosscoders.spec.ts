@@ -102,6 +102,18 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
   test.setTimeout(180000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      "lantern-crosscoder-training-draft",
+      JSON.stringify({ device: "cuda" }),
+    );
+  });
+  await page.route("**/api/crosscoders/capabilities", async (route) => {
+    const response = await route.fetch();
+    await route.fulfill({
+      json: { ...(await response.json()), devices: ["cpu"] },
+    });
+  });
   let comparisonId = "";
   let referenceId = "";
   let comparedId = "";
@@ -200,6 +212,22 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
       }),
     });
     await expect(training).toBeVisible();
+    await expect(
+      training.getByLabel("Training device", { exact: true }),
+    ).toHaveValue("cuda");
+    await expect(training.getByRole("status")).toHaveText(
+      "The saved training device is unavailable on this server. Choose an available device before training.",
+    );
+    await expect(
+      training.getByRole("button", {
+        name: "Train shared features",
+        exact: true,
+      }),
+    ).toBeDisabled();
+    await training
+      .getByLabel("Training device", { exact: true })
+      .selectOption("cpu");
+    await expect(training.getByRole("status")).toHaveCount(0);
     const retained: CaptureSummary[] = await (
       await request.get("/api/crosscoders/captures")
     ).json();

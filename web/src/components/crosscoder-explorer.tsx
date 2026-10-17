@@ -143,7 +143,11 @@ function SharedFeatureInspector({
             />
             <Metric
               label="Decoder cosine"
-              value={number(feature.decoder_cosine)}
+              value={
+                feature.decoder_cosine == null
+                  ? t("Unavailable")
+                  : number(feature.decoder_cosine)
+              }
             />
           </div>
           <div className="crosscoder-norms">
@@ -418,15 +422,27 @@ export function CrosscoderExplorer({
               <div className="metrics-grid crosscoder-overview-metrics">
                 <Metric
                   label="Reference explained variance"
-                  value={number(
-                    overview.validation_metrics.banks[0].explained_variance,
-                  )}
+                  value={
+                    overview.validation_metrics.banks[0].explained_variance ==
+                    null
+                      ? t("Unavailable")
+                      : number(
+                          overview.validation_metrics.banks[0]
+                            .explained_variance,
+                        )
+                  }
                 />
                 <Metric
                   label="Compared explained variance"
-                  value={number(
-                    overview.validation_metrics.banks[1].explained_variance,
-                  )}
+                  value={
+                    overview.validation_metrics.banks[1].explained_variance ==
+                    null
+                      ? t("Unavailable")
+                      : number(
+                          overview.validation_metrics.banks[1]
+                            .explained_variance,
+                        )
+                  }
                 />
                 <Metric
                   label="Mean active features"
@@ -553,7 +569,15 @@ export function CrosscoderExplorer({
                         ["compared", "Compared decoder share"],
                         ["cosine", "Decoder cosine"],
                       ].map(([value, label]) => (
-                        <option key={value} value={value}>
+                        <option
+                          key={value}
+                          value={value}
+                          disabled={
+                            value === "cosine" &&
+                            overview.banks[0].input_dim !==
+                              overview.banks[1].input_dim
+                          }
+                        >
                           {t(label)}
                         </option>
                       ))}
@@ -574,6 +598,14 @@ export function CrosscoderExplorer({
                     </select>
                   </label>
                 </div>
+                {overview.banks[0].input_dim !==
+                  overview.banks[1].input_dim && (
+                  <p className="muted">
+                    {t(
+                      "Decoder cosine requires equal bank widths and aligned model coordinates.",
+                    )}
+                  </p>
+                )}
                 {reading && <Loading />}
                 {!reading && page?.features.length === 0 && (
                   <p className="muted">{t("No matching features")}</p>
