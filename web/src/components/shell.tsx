@@ -9,7 +9,6 @@ import {
   Cpu,
   FlaskConical,
   GitBranch,
-  Layers3,
   Menu,
   Network,
   X,
@@ -78,7 +77,7 @@ export function Shell({ children }: { children: React.ReactNode }) {
       : path === "/causal/heads"
         ? "Head ablation"
         : path === "/causal"
-          ? "Causal tracing"
+          ? "Residual patching"
           : path === "/features/compare"
             ? "Shared feature comparisons"
             : path === "/features"
@@ -134,13 +133,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <small>{t("MECHANISTIC INTERPRETABILITY")}</small>
           </span>
         </Link>
-        <div className="workspace-label">
-          <span className="workspace-avatar">L</span>
-          <div>
-            {t("Local workspace")}
-            <small>{t("Personal research environment")}</small>
-          </div>
-        </div>
         <div className="nav-label">{t("WORKBENCH")}</div>
         <nav aria-label={t("Main navigation")}>
           {navigation.map((item) => (
@@ -163,21 +155,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </Link>
           ))}
         </nav>
-        <div className="sidebar-note">
-          <div className="orbit-mark">
-            <Layers3 size={28} />
-          </div>
-          <h3>{t("Understand what\u2019s inside.")}</h3>
-          <p>
-            {t(
-              "From individual weights to the circuits that shape a prediction.",
-            )}
-          </p>
-          <Link href="/guide" onClick={closeNavigation}>
-            {t("Explore the field guide")}
-            <ArrowUpRight size={14} />
-          </Link>
-        </div>
         <div className="sidebar-bottom">
           <a
             href="https://github.com/IlyaKhalafi/CircuitLantern"
@@ -210,14 +187,28 @@ export function Shell({ children }: { children: React.ReactNode }) {
               width={24}
               height={24}
             />
-            <span className="breadcrumb-root">{t("Workbench")}</span>
+            <span className="breadcrumb-root">
+              {t(
+                current?.href === "/playground" ? "Research lab" : "Workbench",
+              )}
+            </span>
+            {path.startsWith("/causal") && (
+              <>
+                <ChevronRight className="breadcrumb-parent" size={13} />
+                <span className="breadcrumb-parent">{t("Causal tracing")}</span>
+              </>
+            )}
+            {path.startsWith("/features/") && (
+              <>
+                <ChevronRight className="breadcrumb-parent" size={13} />
+                <span className="breadcrumb-parent">{t("Feature lab")}</span>
+              </>
+            )}
             <ChevronRight size={13} />
             <strong>
               {t(
-                mobile && path === "/features/compare"
-                  ? "Model diffing"
-                  : currentLabel ||
-                      (path === "/guide" ? "Field guide" : "Page not found"),
+                currentLabel ||
+                  (path === "/guide" ? "Field guide" : "Page not found"),
               )}
             </strong>
           </div>
@@ -245,13 +236,6 @@ export function Shell({ children }: { children: React.ReactNode }) {
         <main id="main-content" tabIndex={-1}>
           {children}
         </main>
-        <footer className="main-footer">
-          <span>{t("Built for the questions behind the predictions.")}</span>
-          <span>
-            <span className="status-dot" />
-            {t("Local research workspace")}
-          </span>
-        </footer>
       </div>
     </div>
   );

@@ -1,0 +1,64 @@
+.help-trigger {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 24px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  cursor: help;
+}
+.help-trigger:hover,
+.help-trigger[aria-expanded="true"] {
+  background: var(--blue-tint);
+  color: var(--blue);
+}
+.help-tooltip {
+  z-index: 80;
+  max-width: min(320px, calc(100vw - 24px));
+  padding: 12px 14px;
+  border: 1px solid var(--blue-border);
+  border-radius: 10px;
+  background: var(--panel);
+  color: var(--ink);
+  box-shadow: 0 8px 28px color-mix(in srgb, var(--ink) 14%, transparent);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.7;
+  text-align: start;
+  overflow-wrap: anywhere;
+}
+.help-description[hidden] {
+  display: none;
+}
+.heading-with-help,
+.control-label,
+.metric-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+.heading-with-help {
+  flex-wrap: wrap;
+}
+.control-label label {
+  margin: 0;
+}
+.form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+@media (pointer: coarse) {
+  .help-trigger {
+    width: 32px;
+    height: 32px;
+    flex-basis: 32px;
+  }
+}

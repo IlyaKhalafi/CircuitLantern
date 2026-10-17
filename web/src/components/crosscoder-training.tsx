@@ -180,6 +180,13 @@ export function CrosscoderTraining({
         <ErrorNotice message={error} />
         <div className="feature-toolbar">
           <button
+            className="button secondary"
+            disabled={!valid || busy}
+            onClick={check}
+          >
+            {t("Check resources")}
+          </button>
+          <button
             className="button primary"
             disabled={!valid || busy}
             onClick={() => {
@@ -189,13 +196,6 @@ export function CrosscoderTraining({
           >
             <Play size={14} />
             {t("Train shared features")}
-          </button>
-          <button
-            className="button secondary"
-            disabled={!valid || busy}
-            onClick={check}
-          >
-            {t("Check resources")}
           </button>
         </div>
         <CrosscoderBudget plan={plan} />

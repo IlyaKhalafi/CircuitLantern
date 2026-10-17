@@ -28,7 +28,9 @@ test("GPU replacement budget explains released tensors on desktop and mobile", a
   await expect(
     page.getByText("Available budget", { exact: true }),
   ).toBeVisible();
-  await page.getByLabel("Execution device").selectOption("cuda");
+  await page
+    .getByLabel("Execution device", { exact: true })
+    .selectOption("cuda");
   await expect(
     page.getByText("Replacement budget", { exact: true }),
   ).toBeVisible();

@@ -306,3 +306,11 @@
   background: var(--accent-tint);
   border-color: var(--accent-border);
 }
+
+.crosscoder-modes.feature-tabs {
+  display: inline-flex;
+}
+.crosscoder-modes.feature-tabs button[aria-pressed="true"] {
+  background: var(--blue-tint);
+  color: var(--blue);
+}

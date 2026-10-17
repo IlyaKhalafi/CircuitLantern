@@ -1,14 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import {
-  ArrowLeft,
-  Download,
-  FlaskConical,
-  Play,
-  RefreshCw,
-  Square,
-} from "lucide-react";
+import { Download, FlaskConical, Play, RefreshCw, Square } from "lucide-react";
 import { InductionResults } from "@/components/induction-results";
 import { MatchingProbeReference } from "@/components/matching-probe-reference";
 import { SaveJobExperiment } from "@/components/save-job-experiment";
@@ -20,6 +13,8 @@ import {
   Panel,
 } from "@/components/ui";
 import { useInduction } from "@/hooks/use-induction";
+import { CausalNavigation } from "@/components/causal-navigation";
+import { ExecutionContext } from "@/components/execution-context";
 import { validProbeNumbers } from "@/lib/induction-settings";
 import { useI18n } from "@/i18n/provider";
 import { bytes, downloadJSON } from "@/lib/api";
@@ -45,8 +40,9 @@ export function InductionWorkbench() {
     <>
       <PageHeader
         eyebrow={t("REPEATED TOKEN PROBES")}
-        title={t("Follow a pattern. Test the heads.")}
-        description={t(
+        title={t("Induction probe")}
+        description={<ExecutionContext runtime={lab.runtime} />}
+        help={t(
           "Repeat token blocks, rank matching attention and measure candidate head effects.",
         )}
         actions={
@@ -82,10 +78,7 @@ export function InductionWorkbench() {
           </>
         }
       />
-      <Link className="induction-back" href="/causal/heads">
-        <ArrowLeft size={14} />
-        {t("Head ablation")}
-      </Link>
+      <CausalNavigation />
       <MatchingProbeReference lab={lab} />
       <ErrorNotice message={lab.error === result?.error ? null : lab.error} />
       {lab.loading ? (
@@ -106,12 +99,20 @@ export function InductionWorkbench() {
           <Loading label={t("Checking probe capabilities")} />
         )
       ) : !capabilities.supported ? (
-        <ErrorNotice
-          message={
-            capabilities.reason ||
-            t("Repeated token probes are unavailable for this execution.")
-          }
-        />
+        <div className="notice warning method-unavailable" role="status">
+          <span>
+            {capabilities.reason ||
+              t(
+                "Repeated token probes are unavailable for this execution.",
+              )}{" "}
+            {t(
+              "Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.",
+            )}
+          </span>
+          <Link className="text-link" href="/">
+            {t("Open a supported model")}
+          </Link>
+        </div>
       ) : (
         settings && (
           <Panel
@@ -339,7 +340,7 @@ export function InductionWorkbench() {
         </div>
       )}
       {!result && (
-        <div className="guide-callout">
+        <div className="guide-callout method-explanation">
           <h2>{t("Evidence for a hypothesis")}</h2>
           <p>
             {t(

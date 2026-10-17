@@ -3,6 +3,7 @@ import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { ArrowLeft, RefreshCw, Sparkles } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
+import type { RuntimeState } from "@/lib/types";
 import { api } from "@/lib/api";
 import { useBackgroundJob } from "@/lib/jobs";
 import { CrosscoderCaptures } from "@/components/crosscoder-captures";
@@ -33,6 +34,7 @@ export function CrosscoderWorkbench() {
   const { t } = useI18n();
   const [capabilities, setCapabilities] =
     useState<CrosscoderCapabilities | null>(null);
+  const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [captureRecords, setCaptures] = useState<
     (CaptureSummary | DamagedArtifact)[]
   >([]);
@@ -53,6 +55,7 @@ export function CrosscoderWorkbench() {
       api<CrosscoderCapabilities>("/crosscoders/capabilities"),
       api<(CaptureSummary | DamagedArtifact)[]>("/crosscoders/captures"),
       api<(CrosscoderSummary | DamagedArtifact)[]>("/crosscoders"),
+      api<RuntimeState>("/runtime"),
     ]);
     if (sequence !== request.current) return;
     const errors: string[] = [];
@@ -62,6 +65,7 @@ export function CrosscoderWorkbench() {
     else errors.push(results[1].reason.message);
     if (results[2].status === "fulfilled") setComparisons(results[2].value);
     else errors.push(results[2].reason.message);
+    setRuntime(results[3].status === "fulfilled" ? results[3].value : null);
     setError(errors.length ? errors.join(" ") : null);
     setLoading(false);
   }, []);
@@ -152,8 +156,8 @@ export function CrosscoderWorkbench() {
     <div className="crosscoder-workbench">
       <PageHeader
         eyebrow={t("MODEL DIFFING")}
-        title={t("Compare models through shared features.")}
-        description={t(
+        title={t("Shared feature comparisons")}
+        help={t(
           "Retain matching activations from two checkpoints, train a sparse crosscoder and inspect the evidence without writing code.",
         )}
         actions={
@@ -184,12 +188,11 @@ export function CrosscoderWorkbench() {
         />
       )}
       <div
-        className="crosscoder-modes"
+        className="crosscoder-modes feature-tabs"
         role="group"
         aria-label={t("Shared feature workflow")}
       >
         <button
-          className={"button " + (mode === "prepare" ? "primary" : "secondary")}
           aria-pressed={mode === "prepare"}
           onClick={() =>
             setSelection((current) => ({ ...current, mode: "prepare" }))
@@ -198,7 +201,6 @@ export function CrosscoderWorkbench() {
           {t("Prepare comparison")}
         </button>
         <button
-          className={"button " + (mode === "explore" ? "primary" : "secondary")}
           aria-pressed={mode === "explore"}
           onClick={() =>
             setSelection((current) => ({ ...current, mode: "explore" }))
@@ -211,6 +213,7 @@ export function CrosscoderWorkbench() {
       <div hidden={mode !== "prepare" || loading || !restored}>
         <CrosscoderCaptures
           capabilities={capabilities}
+          runtime={runtime}
           captures={captures}
           reference={reference}
           compared={compared}

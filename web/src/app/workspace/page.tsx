@@ -10,6 +10,7 @@ import {
 import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { CheckpointComparisonPanel } from "@/components/checkpoint-comparison";
+import { ExecutionContext } from "@/components/execution-context";
 import { MatrixResults } from "@/components/matrix-results";
 import { SaveExperiment } from "@/components/save-experiment";
 import { getLayer, ModelGraphView } from "@/components/model-graph";
@@ -120,15 +121,16 @@ export default function WorkspacePage() {
     <>
       <PageHeader
         eyebrow={t("ANATOMY OF A TRANSFORMER")}
-        title={t("See the structure. Inspect the weights.")}
+        title={t("Model explorer")}
         description={
-          graph
-            ? t("{v0} \u00B7 {v1} \u00B7 revision {v2}", {
-                v0: graph.metadata.id,
-                v1: graph.metadata.architecture,
-                v2: graph.metadata.revision.slice(0, 8),
-              })
-            : t("A map of the computations behind every prediction.")
+          graph ? (
+            <>
+              <ExecutionContext metadata={graph.metadata} />
+              <span className="revision-context">
+                {t("Revision")} <bdi>{graph.metadata.revision.slice(0, 8)}</bdi>
+              </span>
+            </>
+          ) : undefined
         }
         actions={
           <>
@@ -191,30 +193,38 @@ export default function WorkspacePage() {
         </EmptyState>
       ) : (
         <>
-          <div className="metrics-grid">
+          <div className="metrics-grid explorer-metrics">
             <Metric
               label={t("Parameters")}
               value={number(graph.total_parameters, 0)}
-              note={t("Measured from loaded weights")}
+              help={t("Measured from loaded weights")}
             />
             <Metric
               label={t("Transformer blocks")}
               value={graph.metadata.num_layers}
-              note={t("{v0} attention heads per block", {
-                v0: graph.metadata.num_heads,
-              })}
+              note={
+                graph.dataflow?.some(
+                  (flow) => flow.mixer_type === "linear_attention",
+                )
+                  ? t("{count} full attention blocks", {
+                      count: graph.dataflow.filter(
+                        (flow) => flow.mixer_type === "full_attention",
+                      ).length,
+                    })
+                  : t("{v0} attention heads per block", {
+                      v0: graph.metadata.num_heads,
+                    })
+              }
             />
             <Metric
               label={t("Hidden dimension")}
               value={graph.metadata.hidden_size}
-              note={t("{v0} key/value heads", {
-                v0: graph.metadata.num_kv_heads,
-              })}
+              help={t("Width of each token's residual vector.")}
             />
             <Metric
               label={t("Weight matrices")}
               value={graph.matrices.length}
-              note={t("Two dimensional parameters")}
+              help={t("Two dimensional parameters")}
             />
           </div>
           <div className="tabs" role="tablist" aria-label={t("Explorer view")}>
@@ -239,7 +249,7 @@ export default function WorkspacePage() {
             <div className="graph-layout">
               <Panel
                 title={t("Model architecture")}
-                subtitle={t(
+                help={t(
                   "Scroll to zoom, drag to pan, select a block to inspect its matrices.",
                 )}
                 action={

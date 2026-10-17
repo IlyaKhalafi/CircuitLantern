@@ -124,10 +124,20 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
       .getByRole("link", { name: "Compare shared features", exact: true })
       .click();
     await expect(page).toHaveURL(/\/features\/compare$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Shared feature comparisons",
+    );
+    await expect(page.locator(".breadcrumb strong")).toHaveText(
+      "Shared feature comparisons",
+    );
     await expect(page.locator(".sidebar nav a.active")).toHaveAttribute(
       "href",
       "/playground",
     );
+    const execution = page.locator(".crosscoder-session .execution-context");
+    await expect(execution).toContainText("FP32");
+    await expect(execution).toContainText("CPU");
+    await expect(execution).toContainText("256 context tokens");
     const reference = page.locator("section.panel").filter({
       has: page.getByRole("heading", {
         name: "1 · Reference activations",
@@ -190,9 +200,9 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     await expect(
       reference.getByText("Reference {raw}", { exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".crosscoder-session strong")).toHaveText(
-      "circuit-lantern-test/finetuned",
-    );
+    await expect(
+      page.locator(".crosscoder-session .execution-context bdi").first(),
+    ).toHaveText("circuit-lantern-test/finetuned");
     await matched
       .getByLabel("Capture name", { exact: true })
       .fill("Compared {raw}");
@@ -238,9 +248,11 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     ).toBe(referenceId);
     await request.delete("/api/runtime");
     await page.getByRole("button", { name: "Refresh", exact: true }).click();
-    await expect(page.locator(".crosscoder-session strong")).toHaveText(
-      "No model loaded",
-    );
+    await expect(
+      page
+        .locator(".crosscoder-session")
+        .getByText("No model loaded", { exact: true }),
+    ).toBeVisible();
     await training
       .getByLabel("Comparison name", { exact: true })
       .fill("Joint comparison {raw}");

@@ -31,7 +31,9 @@ test("hybrid layers show distinct connected mixer paths and exact matrix links",
       .locator(".flow-operation")
       .getByText("Attention probabilities", { exact: true }),
   ).toHaveCount(0);
-  await page.getByLabel("Diagram focus").selectOption("attention");
+  await page
+    .getByLabel("Diagram focus", { exact: true })
+    .selectOption("attention");
   const matrixName = "model.layers.0.linear_attn.in_proj_qkv.weight";
   await page.route("**/api/matrix**", (route) =>
     route.fulfill({
@@ -79,17 +81,25 @@ test("connection tracing isolates branches and resets across layer changes", asy
   const update = graph.dataflow[0].nodes.find(
     (node: { label: string }) => node.label === "Update projection",
   );
-  await page.getByLabel("Trace connections").selectOption(update.id);
+  await page
+    .getByLabel("Trace connections", { exact: true })
+    .selectOption(update.id);
   await expect(page.locator(".flow-dimmed").first()).toBeVisible();
-  await page.getByLabel("Trace connections").focus();
+  await page.getByLabel("Trace connections", { exact: true }).focus();
   await page.keyboard.press("Home");
-  await expect(page.getByLabel("Trace connections")).toHaveValue("");
+  await expect(
+    page.getByLabel("Trace connections", { exact: true }),
+  ).toHaveValue("");
   await expect(page.locator(".flow-dimmed")).toHaveCount(0);
-  await page.getByLabel("Trace connections").selectOption(update.id);
+  await page
+    .getByLabel("Trace connections", { exact: true })
+    .selectOption(update.id);
   await page
     .getByRole("button", { name: "Block 1 · Gated DeltaNet", exact: true })
     .click();
-  await expect(page.getByLabel("Trace connections")).toHaveValue("");
+  await expect(
+    page.getByLabel("Trace connections", { exact: true }),
+  ).toHaveValue("");
   await expect(page.locator(".flow-dimmed")).toHaveCount(0);
 });
 
@@ -129,7 +139,9 @@ test("hybrid graph remains usable in both themes and on a narrow screen", async 
   await page
     .getByRole("button", { name: "Block dataflow", exact: true })
     .click();
-  await page.getByLabel("Diagram focus").selectOption("attention");
+  await page
+    .getByLabel("Diagram focus", { exact: true })
+    .selectOption("attention");
   for (const theme of ["light", "dark"]) {
     await page
       .getByRole("button", {
@@ -200,7 +212,9 @@ test("larger source-derived architectures open directly on readable connections"
   await expect(
     page.getByRole("button", { name: "Block dataflow", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByLabel("Diagram focus")).toHaveValue("attention");
+  await expect(page.getByLabel("Diagram focus", { exact: true })).toHaveValue(
+    "attention",
+  );
   await expect(page.getByText("8 of 8 block matrices connected")).toBeVisible();
   await expect
     .poll(

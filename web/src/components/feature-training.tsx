@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { FieldLabel, HelpTooltip } from "@/components/help-tooltip";
+import { useEffect, useId, useState } from "react";
 import { Play, Square, Upload } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
@@ -108,10 +109,22 @@ export function FeatureTraining({
     }
   }
   const busy = task.busy || planning;
+  const requirementId = useId();
+  const requirement = !capabilities?.supported
+    ? t("Load a supported model to train a dictionary.")
+    : task.busy
+      ? t("Training is running.")
+      : planning
+        ? t("Checking training resources")
+        : !plan
+          ? t("Check training resources before training.")
+          : !plan.compatible
+            ? t("Resolve the resource blockers below before training.")
+            : null;
   return (
     <Panel
       title={t("Train a sparse dictionary")}
-      subtitle={t(
+      help={t(
         "Learn sparse directions from the residual stream of your loaded model.",
       )}
     >
@@ -166,10 +179,13 @@ export function FeatureTraining({
           />
         </label>
         <div className="feature-toolbar">
-          <span className="muted">
-            {t(
-              "One document per line. Whole document groups are held out before tokens are sampled.",
-            )}
+          <span className="control-label">
+            <span>{t("One document per line.")}</span>
+            <HelpTooltip label="Training corpus">
+              {t(
+                "Whole document groups are held out before tokens are sampled.",
+              )}
+            </HelpTooltip>
           </span>
           <label className="button secondary feature-upload">
             <Upload size={14} />
@@ -193,9 +209,14 @@ export function FeatureTraining({
             )}
           </p>
           <div className="feature-form-grid">
-            <label>
-              {t("SAE method")}
+            <div className="form-field">
+              <FieldLabel
+                id="dictionary-method"
+                label="SAE method"
+                help="TopK keeps a fixed number of active features. ReLU uses a sparsity penalty during training."
+              />
               <select
+                id="dictionary-method"
                 aria-label={t("SAE method")}
                 value={method}
                 onChange={(e) => {
@@ -207,7 +228,7 @@ export function FeatureTraining({
                 <option value="topk">{t("TopK with AuxK")}</option>
                 <option value="relu">{t("ReLU with L1")}</option>
               </select>
-            </label>
+            </div>
             <label>
               {t("Dictionary expansion")}
               <select
@@ -353,21 +374,32 @@ export function FeatureTraining({
         </details>
         <div className="feature-toolbar">
           <button
-            className="button secondary"
+            className={plan?.compatible ? "button secondary" : "button primary"}
             disabled={busy || !capabilities?.supported}
             onClick={check}
           >
             {t("Check training resources")}
           </button>
           <button
-            className="button primary"
-            disabled={busy || !plan?.compatible || !capabilities?.supported}
-            onClick={() => task.start("/features/train", payload())}
+            className={plan?.compatible ? "button primary" : "button secondary"}
+            aria-describedby={requirement ? requirementId : undefined}
+            aria-disabled={
+              busy || !plan?.compatible || !capabilities?.supported
+            }
+            onClick={() => {
+              if (!busy && plan?.compatible && capabilities?.supported)
+                task.start("/features/train", payload());
+            }}
           >
             <Play size={15} />
             {t("Train dictionary")}
           </button>
         </div>
+        {requirement && (
+          <p className="action-requirement" id={requirementId}>
+            {requirement}
+          </p>
+        )}
         {plan && (
           <div className="feature-plan" role="status">
             <ErrorNotice
@@ -467,7 +499,7 @@ export function FeatureTraining({
             )}
           </div>
         )}
-        <p className="inline-note">
+        <p className="inline-note scientific-caveat">
           {t(
             "Reconstruction and sparsity do not prove that a feature has a single semantic meaning. Inspect examples and test interventions.",
           )}
