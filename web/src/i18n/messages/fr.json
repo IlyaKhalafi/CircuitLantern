@@ -1759,5 +1759,7 @@
   "{v0} sampled positions use IDs designated as special by the captured checkpoint tokenizer. The sequence start token is excluded from this count.": "{v0} positions échantillonnées utilisent des identifiants considérés comme spéciaux par le tokenizer du modèle capturé. Le jeton de début de séquence est exclu de ce nombre.",
   "Open reference probe": "Ouvrir la sonde de référence",
   "percentage points": "points de pourcentage",
-  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "Le classement des variations est exploratoire. Les têtes ont été sélectionnées et mesurées sur ces mêmes sondes. Aucun intervalle d’incertitude n’est estimé."
+  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "Le classement des variations est exploratoire. Les têtes ont été sélectionnées et mesurées sur ces mêmes sondes. Aucun intervalle d’incertitude n’est estimé.",
+  "Change": "Variation",
+  "Scroll horizontally to see all columns.": "Faites défiler horizontalement pour voir toutes les colonnes."
 }

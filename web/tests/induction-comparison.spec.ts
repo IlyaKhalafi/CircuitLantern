@@ -459,6 +459,16 @@ test("checkpoint comparison and matching stay usable in every language, theme an
                 exact: true,
               }),
             ).toBeVisible();
+            await expect(
+              page.locator(".probe-comparison-table thead"),
+            ).toContainText(messages["Head"]);
+            await expect(
+              page.locator(".probe-comparison-table thead"),
+            ).toContainText(messages["Change"]);
+            if (name === "mobile")
+              await expect(page.locator(".probe-table-hint")).toHaveText(
+                messages["Scroll horizontally to see all columns."],
+              );
             await page.locator(".probe-comparison").scrollIntoViewIfNeeded();
             await screenshot(
               page,

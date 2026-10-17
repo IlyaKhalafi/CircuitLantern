@@ -1759,5 +1759,7 @@
   "{v0} sampled positions use IDs designated as special by the captured checkpoint tokenizer. The sequence start token is excluded from this count.": "تستخدم {v0} مواضع مأخوذة معرّفات يعدّها مُجزّئ رموز نقطة التحقق الملتقطة خاصة. لا يُحتسب رمز بدء التسلسل.",
   "Open reference probe": "فتح المسبار المرجعي",
   "percentage points": "نقاط مئوية",
-  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "ترتيب التغيّرات استكشافي. اختيرت الرؤوس وقِيست باستخدام هذه المجسات نفسها. لم تُقدّر فترة لعدم اليقين."
+  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "ترتيب التغيّرات استكشافي. اختيرت الرؤوس وقِيست باستخدام هذه المجسات نفسها. لم تُقدّر فترة لعدم اليقين.",
+  "Change": "التغيّر",
+  "Scroll horizontally to see all columns.": "مرّر أفقيًا لعرض جميع الأعمدة."
 }

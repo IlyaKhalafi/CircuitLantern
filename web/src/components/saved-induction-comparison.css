@@ -126,3 +126,16 @@
   color: var(--muted);
   margin-top: 4px;
 }
+
+.probe-table-hint {
+  display: none;
+}
+@media (max-width: 650px) {
+  .probe-table-hint {
+    display: block;
+    color: var(--muted);
+    font-size: 11px;
+    line-height: 1.8;
+    margin-block: 12px;
+  }
+}

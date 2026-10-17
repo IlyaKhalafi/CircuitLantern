@@ -209,7 +209,7 @@
   "Layer": "レイヤー",
   "Attention head to zero": "ゼロにする attention head",
   "Head {v0}": "Head {v0}",
-  "Head": "Head",
+  "Head": "ヘッド",
   "Capture attention": "attention をキャプチャ",
   "Tracing activations": "activation をトレース中",
   "Run & trace": "実行してトレース",
@@ -1759,5 +1759,7 @@
   "{v0} sampled positions use IDs designated as special by the captured checkpoint tokenizer. The sequence start token is excluded from this count.": "抽出した位置のうち {v0} 箇所で、取得したチェックポイントのトークナイザーが特殊と定義する ID を使っています。系列開始トークンはこの数に含みません。",
   "Open reference probe": "参照プローブを開く",
   "percentage points": "パーセントポイント",
-  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "変化の順位は探索的なものです。ヘッドの選択と測定には同じプローブを使用しています。不確実性区間は推定していません。"
+  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "変化の順位は探索的なものです。ヘッドの選択と測定には同じプローブを使用しています。不確実性区間は推定していません。",
+  "Change": "変化",
+  "Scroll horizontally to see all columns.": "すべての列を見るには横にスクロールしてください。"
 }

@@ -209,7 +209,7 @@
   "Layer": "لایه",
   "Attention head to zero": "head توجه برای صفر کردن",
   "Head {v0}": "Head {v0}",
-  "Head": "Head",
+  "Head": "سر",
   "Capture attention": "ثبت attention",
   "Tracing activations": "در حال ردیابی activation‌ها",
   "Run & trace": "اجرا و ردیابی",
@@ -1759,5 +1759,7 @@
   "{v0} sampled positions use IDs designated as special by the captured checkpoint tokenizer. The sequence start token is excluded from this count.": "{v0} موقعیت نمونه‌گیری‌شده از شناسه‌هایی استفاده می‌کنند که توکن‌ساز نقطهٔ وارسی ثبت‌شده ویژه می‌داند. توکن آغاز توالی در این شمارش نیست.",
   "Open reference probe": "باز کردن کاوش مرجع",
   "percentage points": "واحد درصد",
-  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "رتبه‌بندی تغییرات برای بررسی اولیه است. سرها با همین پروب‌ها انتخاب و اندازه‌گیری شده‌اند. بازه‌ای برای عدم قطعیت برآورد نشده است."
+  "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "رتبه‌بندی تغییرات برای بررسی اولیه است. سرها با همین پروب‌ها انتخاب و اندازه‌گیری شده‌اند. بازه‌ای برای عدم قطعیت برآورد نشده است.",
+  "Change": "تغییر",
+  "Scroll horizontally to see all columns.": "برای دیدن همه ستون‌ها، به‌صورت افقی پیمایش کنید."
 }

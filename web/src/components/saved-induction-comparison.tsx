@@ -281,6 +281,9 @@ function Changes({ comparison }: { comparison: ProbeComparison }) {
           </p>
         </Panel>
       </div>
+      <p className="probe-table-hint">
+        {t("Scroll horizontally to see all columns.")}
+      </p>
       <div
         className="table-wrap probe-comparison-table"
         role="region"
@@ -294,19 +297,19 @@ function Changes({ comparison }: { comparison: ProbeComparison }) {
           <thead>
             <tr>
               {[
-                "Layer",
-                "Head",
-                "Selected",
-                "Reference",
-                "Change",
-                "Paired probes",
-              ].map((label) => (
-                <th scope="col" key={label}>
-                  {t(label)}
-                  {["Selected", "Reference", "Change"].includes(label) && (
+                ["Layer", t("Layer")],
+                ["Head", t("Head")],
+                ["Selected", t("Selected")],
+                ["Reference", t("Reference")],
+                ["Change", t("Change")],
+                ["Paired probes", t("Paired probes")],
+              ].map(([key, label]) => (
+                <th scope="col" key={key}>
+                  {label}
+                  {["Selected", "Reference", "Change"].includes(key) && (
                     <small className="probe-comparison-unit">
                       {definition.factor === 100
-                        ? label === "Change"
+                        ? key === "Change"
                           ? t("percentage points")
                           : "%"
                         : t("nats")}
