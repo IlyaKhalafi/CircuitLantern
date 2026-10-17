@@ -1,7 +1,7 @@
 import AxeBuilder from "@axe-core/playwright";
 import {
   expect,
-  test,
+  test as base,
   type APIRequestContext,
   type Page,
 } from "@playwright/test";
@@ -20,13 +20,23 @@ const documents = [
   "France of the is capital",
   "Poland of the is capital",
 ].join("\n");
-async function load(request: APIRequestContext, model: string) {
+async function load(
+  request: APIRequestContext,
+  model: string,
+  settings: {
+    revision?: string;
+    device?: string;
+    precision?: string;
+    context_length?: number;
+  } = {},
+) {
   const response = await request.post("/api/models/load", {
     data: {
       model_id: model,
       device: "cpu",
       precision: "float32",
       context_length: 256,
+      ...settings,
     },
   });
   expect(response.status()).toBe(202);
@@ -38,6 +48,42 @@ async function load(request: APIRequestContext, model: string) {
     )
     .toBe("ready");
 }
+const test = base.extend<{ researchSession: void }>({
+  researchSession: [
+    async ({ request }, use) => {
+      const before: RuntimeState = await (
+        await request.get("/api/runtime")
+      ).json();
+      await load(request, "hf-internal-testing/tiny-random-gpt2");
+      try {
+        await use();
+      } finally {
+        if (before.loaded && before.metadata) {
+          await load(request, before.metadata.id, {
+            revision: before.metadata.revision,
+            device: before.device,
+            precision:
+              before.precision || before.metadata.execution_precision || "auto",
+            context_length:
+              before.context_length ||
+              before.metadata.execution_context_length ||
+              128,
+          });
+          const restored: RuntimeState = await (
+            await request.get("/api/runtime")
+          ).json();
+          expect(restored.context_length).toBe(before.context_length);
+          expect(restored.precision).toBe(before.precision);
+          expect(restored.metadata?.revision).toBe(before.metadata.revision);
+        } else {
+          expect((await request.delete("/api/runtime")).status()).toBe(204);
+        }
+      }
+    },
+    { auto: true, timeout: 60000 },
+  ],
+});
+
 async function screenshot(page: Page, name: string) {
   const directory = join(process.cwd(), "../artifacts/screenshots");
   mkdirSync(directory, { recursive: true });
@@ -56,11 +102,9 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
   test.setTimeout(180000);
   const errors: string[] = [];
   page.on("pageerror", (error) => errors.push(error.message));
-  const before: RuntimeState = await (await request.get("/api/runtime")).json();
   let comparisonId = "";
   let referenceId = "";
   let comparedId = "";
-  await load(request, "hf-internal-testing/tiny-random-gpt2");
   try {
     await page.goto("/features");
     await page
@@ -399,8 +443,6 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     if (comparisonId) await request.delete("/api/crosscoders/" + comparisonId);
     for (const id of [referenceId, comparedId])
       if (id) await request.delete("/api/crosscoders/captures/" + id);
-    if (before.loaded && before.metadata)
-      await load(request, before.metadata.id);
   }
 });
 
