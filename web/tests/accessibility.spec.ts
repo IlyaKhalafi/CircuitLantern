@@ -6,7 +6,7 @@ for (const [path, title] of Object.entries({
   "/workspace": "Model explorer",
   "/hardware": "Server & runtime",
   "/playground": "Activation lab",
-  "/causal": "Causal tracing",
+  "/causal": "Residual patching",
   "/causal/heads": "Head ablation",
   "/experiments": "Experiments",
   "/guide": "Field guide",

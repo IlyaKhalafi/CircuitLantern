@@ -1,5 +1,6 @@
 "use client";
 import { useI18n } from "@/i18n/provider";
+import { ExecutionContext } from "@/components/execution-context";
 import {
   ArrowRight,
   Download,
@@ -92,8 +93,9 @@ export default function CausalPage() {
     <>
       <PageHeader
         eyebrow={t("TEST THE PATH OF INFORMATION")}
-        title={t("Restore a signal. Measure the effect.")}
-        description={t(
+        title={t("Residual patching")}
+        description={<ExecutionContext runtime={runtime} />}
+        help={t(
           "Patch clean residual activations into a corrupted prompt, one transformer block at a time.",
         )}
         actions={
@@ -298,7 +300,7 @@ export default function CausalPage() {
             )}
           </Panel>
           {!result && !busy && (
-            <div className="guide-callout">
+            <div className="guide-callout method-explanation">
               <h2>{t("What the sweep measures")}</h2>
               <p>
                 {t(

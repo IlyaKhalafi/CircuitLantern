@@ -7,7 +7,7 @@ test.describe.serial("research workflow", () => {
   }) => {
     await page.goto("/");
     await expect(
-      page.getByRole("heading", { name: "Open a model. Look closer." }),
+      page.getByRole("heading", { name: "Model library", exact: true }),
     ).toBeVisible();
     await expect(
       page.getByRole("button", { name: /Tiny random GPT-2/ }),
@@ -20,7 +20,9 @@ test.describe.serial("research workflow", () => {
     await expect(
       page.getByText("Ready to explore on this server"),
     ).toBeVisible();
-    await page.getByLabel("Execution format").selectOption("nvfp4");
+    await page
+      .getByLabel("Execution format", { exact: true })
+      .selectOption("nvfp4");
     await expect(
       page.getByText(/Native NVFP4 requires a Blackwell/),
     ).toBeVisible();
@@ -31,7 +33,9 @@ test.describe.serial("research workflow", () => {
       path: "../artifacts/screenshots/compatibility-blocked.png",
       fullPage: true,
     });
-    await page.getByLabel("Execution format").selectOption("auto");
+    await page
+      .getByLabel("Execution format", { exact: true })
+      .selectOption("auto");
     await expect(
       page.getByText("Ready to explore on this server"),
     ).toBeVisible();

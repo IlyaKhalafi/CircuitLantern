@@ -136,8 +136,8 @@ test("capture only preserves prompt analysis and durable exports without a conti
     .fill("the capital of France");
   await page.getByLabel("Generated tokens").selectOption("0");
   await expect(
-    page.getByText(/Capture the prompt without generating a continuation/),
-  ).toBeVisible();
+    page.getByLabel("Generated tokens").locator("option:checked"),
+  ).toHaveText("Capture only");
   const response = page.waitForResponse(
     (response) => response.url().endsWith("/api/trace") && response.ok(),
   );

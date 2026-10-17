@@ -15,10 +15,14 @@ test("page titles follow client navigation through the workbench", async ({
   await expect(page).toHaveTitle("Model explorer · Circuit Lantern");
   await main.getByRole("link", { name: "Research lab", exact: true }).click();
   await expect(page).toHaveTitle("Activation lab · Circuit Lantern");
-  for (const title of ["Causal tracing", "Feature lab", "Activation lab"]) {
+  for (const [label, title] of [
+    ["Causal tracing", "Residual patching"],
+    ["Feature lab", "Feature lab"],
+    ["Activation lab", "Activation lab"],
+  ]) {
     await page
       .getByRole("navigation", { name: "Research workflow" })
-      .getByRole("link", { name: title, exact: true })
+      .getByRole("link", { name: label, exact: true })
       .click();
     await expect(page).toHaveTitle(title + " · Circuit Lantern");
   }

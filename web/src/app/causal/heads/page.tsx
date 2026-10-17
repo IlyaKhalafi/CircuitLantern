@@ -1,6 +1,7 @@
 "use client";
 import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
+import { ExecutionContext } from "@/components/execution-context";
 import { useEffect, useState } from "react";
 import { Download, FlaskConical, Play, RefreshCw, Square } from "lucide-react";
 import { CausalNavigation } from "@/components/causal-navigation";
@@ -74,8 +75,9 @@ export default function HeadSweepPage() {
     <>
       <PageHeader
         eyebrow={t("TEST INDIVIDUAL ATTENTION HEADS")}
-        title={t("Remove a head. Measure what changes.")}
-        description={t(
+        title={t("Head ablation")}
+        description={<ExecutionContext runtime={runtime} />}
+        help={t(
           "Zero each attention head independently and compare its effect on the next token prediction.",
         )}
         actions={
@@ -104,11 +106,6 @@ export default function HeadSweepPage() {
         }
       />
       <CausalNavigation />
-      <p className="control-note" style={{ marginBottom: 20 }}>
-        <Link className="button secondary" href="/causal/heads/induction">
-          {t("Explore induction heads")}
-        </Link>
-      </p>
       <ErrorNotice
         message={runtimeError || (error === result?.error ? null : error)}
       />
@@ -135,10 +132,15 @@ export default function HeadSweepPage() {
           )}
         </EmptyState>
       ) : !targets.length ? (
-        <div className="notice info">
-          {t(
-            "Head sweeps are unavailable for this architecture. Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.",
-          )}
+        <div className="notice warning method-unavailable" role="status">
+          <span>
+            {t(
+              "Head sweeps are unavailable for this architecture. Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.",
+            )}
+          </span>
+          <Link className="text-link" href="/">
+            {t("Open a supported model")}
+          </Link>
         </div>
       ) : (
         <Panel
@@ -276,7 +278,7 @@ export default function HeadSweepPage() {
         </div>
       ) : (
         !busy && (
-          <div className="guide-callout">
+          <div className="guide-callout method-explanation">
             <h2>{t("What the sweep measures")}</h2>
             <p>
               {t(

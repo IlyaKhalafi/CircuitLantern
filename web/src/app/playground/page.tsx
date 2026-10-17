@@ -1,5 +1,7 @@
 "use client";
 import { ResearchNavigation } from "@/components/research-navigation";
+import { ExecutionContext } from "@/components/execution-context";
+import { HelpTooltip } from "@/components/help-tooltip";
 import { useI18n } from "@/i18n/provider";
 import {
   Activity,
@@ -173,16 +175,11 @@ export default function PlaygroundPage() {
     <>
       <PageHeader
         eyebrow={t("FOLLOW THE COMPUTATION")}
-        title={t("From a prompt to a prediction.")}
-        description={
-          runtime?.loaded
-            ? t("{v0} \u00B7 live activations from your local model", {
-                v0: runtime.metadata?.id,
-              })
-            : t(
-                "Watch information move through the model, one layer at a time.",
-              )
-        }
+        title={t("Activation lab")}
+        description={<ExecutionContext runtime={runtime} />}
+        help={t(
+          "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.",
+        )}
         actions={
           <>
             <button
@@ -237,21 +234,7 @@ export default function PlaygroundPage() {
         <>
           <Panel
             title={t("Prompt your model")}
-            subtitle={
-              tokens === 0
-                ? t(
-                    "Capture the prompt without generating a continuation. Up to {v0} prompt tokens.",
-                    {
-                      v0: promptLimit,
-                    },
-                  )
-                : t(
-                    "Deterministic generation with bounded activation capture. Up to {v0} prompt tokens with this generation length.",
-                    {
-                      v0: promptLimit,
-                    },
-                  )
-            }
+            subtitle={t("Prompt limit {count} tokens", { count: promptLimit })}
           >
             <form className="prompt-box" onSubmit={run}>
               <label htmlFor="prompt" className="sr-only">
@@ -288,7 +271,7 @@ export default function PlaygroundPage() {
               <div className="prompt-toolbar">
                 <div className="prompt-controls">
                   <label>
-                    {t("Generate")}
+                    {t("Generated tokens")}
                     <select
                       aria-label={t("Generated tokens")}
                       disabled={busy || inspection.pending}
@@ -301,9 +284,12 @@ export default function PlaygroundPage() {
                           <option key={n} value={n}>
                             {n === 0
                               ? t("Capture only")
-                              : t("{v0} tokens", {
-                                  v0: n,
-                                })}
+                              : t(
+                                  "{count, plural, one {# token} other {# tokens}}",
+                                  {
+                                    count: n,
+                                  },
+                                )}
                           </option>
                         ))}
                     </select>
@@ -386,6 +372,11 @@ export default function PlaygroundPage() {
                     />
                     {t("Capture attention")}
                   </label>
+                  <HelpTooltip label="Capture attention">
+                    {t(
+                      "Capture attention routing alongside the residual stream. Turn this off for a lighter trace.",
+                    )}
+                  </HelpTooltip>
                 </div>
                 <button
                   type="submit"
@@ -475,41 +466,6 @@ export default function PlaygroundPage() {
                 defaultName={`${interventionLabel(trace)} · ${truncateText(trace.prompt, 45)}`}
                 disabled={busy || inspection.pending}
               />
-            </div>
-          )}
-          {!trace && !busy && (
-            <div className="how-it-works">
-              <div>
-                <span>
-                  <Activity size={15} />
-                </span>
-                <div>
-                  <h3>{t("Residual stream")}</h3>
-                  <p>{t("Track activation magnitudes across layers.")}</p>
-                </div>
-              </div>
-              <div>
-                <span>
-                  <Play size={15} />
-                </span>
-                <div>
-                  <h3>{t("Logit lens")}</h3>
-                  <p>{t("See the prediction at each stage of processing.")}</p>
-                </div>
-              </div>
-              <div>
-                <span>
-                  <RotateCcw size={15} />
-                </span>
-                <div>
-                  <h3>{t("Causal interventions")}</h3>
-                  <p>
-                    {t(
-                      "Bypass a block or zero a head and measure what changes.",
-                    )}
-                  </p>
-                </div>
-              </div>
             </div>
           )}
         </>

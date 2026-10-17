@@ -45,7 +45,9 @@ test("plan and run real repeated token probes, inspect heads and retain unloaded
   let savedId = "";
   try {
     await page.goto("/causal/heads");
-    await page.getByRole("link", { name: "Explore induction heads" }).click();
+    await page
+      .getByRole("link", { name: "Induction probe", exact: true })
+      .click();
     await expect(page).toHaveTitle("Induction probe · Circuit Lantern");
     await expect(
       page.getByRole("link", { name: "Head ablation", exact: true }),

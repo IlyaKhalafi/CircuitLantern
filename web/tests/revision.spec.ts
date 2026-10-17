@@ -50,7 +50,9 @@ test("a training revision is checked then loaded by its resolved commit", async 
   );
   await page.getByRole("button", { name: "Download & explore" }).click();
   await expect(page.getByLabel("Hub revision")).toBeDisabled();
-  await expect(page.getByLabel("Execution format")).toBeDisabled();
+  await expect(
+    page.getByLabel("Execution format", { exact: true }),
+  ).toBeDisabled();
   await expect(
     page.getByRole("button", { name: "Close compatibility check" }),
   ).toBeDisabled();
