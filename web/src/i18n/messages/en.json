@@ -1766,5 +1766,8 @@
   "Delete saved artifact": "Delete saved artifact",
   "This removes the selected artifact from the server. Export any evidence you want to keep first.": "This removes the selected artifact from the server. Export any evidence you want to keep first.",
   "Confirm deletion": "Confirm deletion",
-  "Model diffing": "Model diffing"
+  "Model diffing": "Model diffing",
+  "Integrity check failed": "Integrity check failed",
+  "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "The saved artifact summary failed its integrity check. You can delete this record from retained data.",
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection."
 }

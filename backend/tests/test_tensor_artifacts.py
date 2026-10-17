@@ -59,8 +59,18 @@ def test_changed_metadata_is_rejected(tmp_path, column):
             f"UPDATE artifacts SET {column} = ? WHERE id = ?",
             ('{"name":"changed"}', manifest["id"]),
         )
-    with pytest.raises(ValueError, match="checksum"):
-        store.get(manifest["id"]) if column == "manifest" else store.list("capture")
+    if column == "manifest":
+        with pytest.raises(ValueError, match="checksum"):
+            store.get(manifest["id"])
+    else:
+        issue = store.list("capture")[0]
+        assert issue["id"] == manifest["id"] and issue["integrity_error"]
+        assert issue["name"] == manifest["id"]
+    healthy, _ = save(store)
+    assert healthy["id"] in {row["id"] for row in store.list("capture")}
+    assert store.delete(manifest["id"], kind="capture")
+    assert store.get(manifest["id"]) is None
+    assert [row["id"] for row in store.list("capture")] == [healthy["id"]]
 
 
 def test_nonfinite_and_oversized_tensors_never_publish(tmp_path):
@@ -121,6 +131,7 @@ def test_startup_recovers_interrupted_deletion_and_unpublished_files(tmp_path):
     _, actual = recovered.load(manifest["id"], kind="capture")
     assert torch.equal(actual["activations"], values["activations"])
     assert not (tmp_path / (orphan + ".safetensors")).exists()
+    assert (tmp_path / "recovery" / (orphan + ".safetensors")).read_bytes() == b"orphan"
     assert not (tmp_path / ("." + orphan + ".partial")).exists()
 
 
@@ -201,3 +212,29 @@ def test_filtered_annotations_and_unicode_search(tmp_path):
     assert store.annotations(manifest["id"], []) == {}
     assert store.search_annotations(manifest["id"], "Straße") == {1}
     assert store.search_annotations(manifest["id"], "compared") == {2}
+
+
+def test_lost_database_preserves_retained_tensor_bytes_for_recovery(tmp_path):
+    store = TensorArtifactStore(tmp_path, 1024)
+    manifest, _ = save(store)
+    path = tmp_path / (manifest["id"] + ".safetensors")
+    original = path.read_bytes()
+    store.database.unlink()
+    reopened = TensorArtifactStore(tmp_path, 1024)
+    assert reopened.list("capture") == []
+    recovered = tmp_path / "recovery" / path.name
+    assert recovered.read_bytes() == original
+    path.write_bytes(b"second unknown file")
+    TensorArtifactStore(tmp_path, 1024)
+    assert recovered.read_bytes() == original
+    assert sorted(item.read_bytes() for item in recovered.parent.iterdir()) == sorted(
+        [original, b"second unknown file"]
+    )
+
+
+def test_wrong_kind_cannot_delete_a_retained_artifact(tmp_path):
+    store = TensorArtifactStore(tmp_path, 1024)
+    manifest, values = save(store)
+    assert not store.delete(manifest["id"], kind="crosscoder")
+    _, actual = store.load(manifest["id"], kind="capture")
+    assert torch.equal(actual["activations"], values["activations"])

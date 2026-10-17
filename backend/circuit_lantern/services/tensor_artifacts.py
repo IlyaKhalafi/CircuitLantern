@@ -85,7 +85,13 @@ class TensorArtifactStore:
                     and _IDENTIFIER.fullmatch(path.stem)
                     and path.stem not in known
                 ):
-                    path.unlink(missing_ok=True)
+                    recovery = directory / "recovery"
+                    recovery.mkdir(exist_ok=True)
+                    destination = recovery / path.name
+                    if destination.exists():
+                        destination = recovery / (path.stem + "-" + uuid.uuid4().hex + path.suffix)
+                    path.replace(destination)
+                    self._sync_directory()
 
     @contextmanager
     def connect(self):
@@ -150,10 +156,26 @@ class TensorArtifactStore:
     def list(self, kind: str) -> list[dict]:
         with self.connect() as connection:
             rows = connection.execute(
-                "SELECT summary, summary_sha256 FROM artifacts WHERE kind = ? ORDER BY created_at DESC, id",
+                "SELECT id, kind, created_at, summary, summary_sha256 FROM artifacts "
+                "WHERE kind = ? ORDER BY created_at DESC, id",
                 (kind,),
             ).fetchall()
-        return [self._decode(row["summary"], row["summary_sha256"]) for row in rows]
+        summaries = []
+        for row in rows:
+            try:
+                summary = self._decode(row["summary"], row["summary_sha256"])
+                if summary.get("id") != row["id"] or summary.get("kind") != row["kind"]:
+                    raise ValueError("The saved artifact metadata is invalid.")
+            except (ValueError, TypeError, AttributeError):
+                summary = {
+                    "id": row["id"],
+                    "kind": row["kind"],
+                    "created_at": row["created_at"],
+                    "name": row["id"],
+                    "integrity_error": "The saved artifact summary failed its integrity check. You can delete this record from retained data.",
+                }
+            summaries.append(summary)
+        return summaries
 
     def save(
         self, kind: str, manifest: dict, tensors: dict[str, torch.Tensor], summary: dict
@@ -307,11 +329,14 @@ class TensorArtifactStore:
                 stream.close()
                 raise
 
-    def delete(self, identifier: str) -> bool:
+    def delete(self, identifier: str, *, kind: str | None = None) -> bool:
         with self.operation():
             path = self._path(identifier)
-            manifest = self.get(identifier)
-            if manifest is None:
+            with self.connect() as connection:
+                row = connection.execute(
+                    "SELECT kind FROM artifacts WHERE id = ?", (identifier,)
+                ).fetchone()
+            if row is None or (kind is not None and row["kind"] != kind):
                 return False
             trash = self.directory / (".trash-" + identifier + ".safetensors")
             moved = False

@@ -1,3 +1,11 @@
+export interface DamagedArtifact {
+  id: string;
+  kind: "capture" | "crosscoder";
+  name: string;
+  created_at: string;
+  integrity_error: string;
+}
+
 import type { ExecutionProvenance } from "@/lib/types";
 import type { FeatureCapabilities, FeatureStatistic } from "@/lib/features";
 

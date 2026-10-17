@@ -1766,5 +1766,8 @@
   "Delete saved artifact": "حذف داده ذخیره‌شده",
   "This removes the selected artifact from the server. Export any evidence you want to keep first.": "این کار داده انتخاب‌شده را از سرور حذف می‌کند. ابتدا از شواهدی که می‌خواهید نگه دارید خروجی بگیرید.",
   "Confirm deletion": "تأیید حذف",
-  "Model diffing": "تفاوت مدل‌ها"
+  "Model diffing": "تفاوت مدل‌ها",
+  "Integrity check failed": "بررسی یکپارچگی ناموفق بود",
+  "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "بررسی یکپارچگی خلاصهٔ اثر ذخیره‌شده ناموفق بود. می‌توانید این رکورد را از داده‌های نگهداری‌شده حذف کنید.",
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "بررسی یکپارچگی بعضی خلاصه‌های ذخیره‌شده ناموفق بود. رکوردهای آسیب‌دیده را در مدیریت داده‌های نگهداری‌شده حذف کنید. این رکوردها در آموزش و انتخاب مقایسه استفاده نمی‌شوند."
 }

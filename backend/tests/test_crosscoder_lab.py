@@ -417,3 +417,35 @@ async def test_matched_capture_reuses_effective_reference_limit_with_larger_targ
         assert not forwards
     finally:
         handle.remove()
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("kind", ["capture", "crosscoder"])
+@pytest.mark.parametrize("column", ["manifest", "summary"])
+async def test_damaged_artifacts_remain_removable_without_hiding_healthy_records(
+    client, lab, kind, column
+):
+    store = lab.store
+    damaged = store.save(
+        kind, {"name": "Damaged", "features": 4}, {"values": torch.ones(4)}, {"features": 4}
+    )
+    healthy = store.save(
+        kind, {"name": "Healthy", "features": 4}, {"values": torch.ones(4)}, {"features": 4}
+    )
+    with store.connect() as connection:
+        connection.execute(
+            f"UPDATE artifacts SET {column} = ? WHERE id = ?", ('{"changed":true}', damaged["id"])
+        )
+    base = "/api/crosscoders" + ("/captures" if kind == "capture" else "")
+    listed = await client.get(base)
+    assert listed.status_code == 200
+    assert {row["id"] for row in listed.json()} == {damaged["id"], healthy["id"]}
+    if column == "summary":
+        broken = next(row for row in listed.json() if row["id"] == damaged["id"])
+        assert broken["integrity_error"] and "features" not in broken
+    wrong = "/api/crosscoders" + ("" if kind == "capture" else "/captures")
+    assert (await client.delete(wrong + "/" + damaged["id"])).status_code == 404
+    assert (await client.delete(base + "/" + damaged["id"])).status_code == 204
+    assert store.get(damaged["id"]) is None
+    assert store.get(healthy["id"]) == healthy
+    assert [row["id"] for row in (await client.get(base)).json()] == [healthy["id"]]

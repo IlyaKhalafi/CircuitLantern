@@ -70,8 +70,7 @@ def matching_capture(identifier: Identifier, payload: MatchedCaptureRequest, req
 @router.delete("/captures/{identifier}", status_code=204)
 def delete_capture(identifier: Identifier, request: Request):
     with request.app.state.runtime.operation():
-        required(request, identifier, "capture")
-        if not request.app.state.crosscoders.store.delete(identifier):
+        if not request.app.state.crosscoders.store.delete(identifier, kind="capture"):
             raise HTTPException(404, "The retained capture was not found.")
 
 
@@ -168,6 +167,5 @@ def export(identifier: Identifier, request: Request):
 @router.delete("/{identifier}", status_code=204)
 def delete_comparison(identifier: Identifier, request: Request):
     with request.app.state.runtime.operation():
-        required(request, identifier, "crosscoder")
-        if not request.app.state.crosscoders.store.delete(identifier):
+        if not request.app.state.crosscoders.store.delete(identifier, kind="crosscoder"):
             raise HTTPException(404, "The shared feature comparison was not found.")

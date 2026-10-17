@@ -1766,5 +1766,8 @@
   "Delete saved artifact": "保存済み成果物を削除",
   "This removes the selected artifact from the server. Export any evidence you want to keep first.": "選択した成果物をサーバーから削除します。必要なエビデンスは先に書き出してください。",
   "Confirm deletion": "削除を確定",
-  "Model diffing": "モデル差分"
+  "Model diffing": "モデル差分",
+  "Integrity check failed": "整合性チェックに失敗",
+  "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "保存済みデータの概要が整合性チェックに失敗しました。保持データの管理からこの記録を削除できます。",
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "一部の保存済みデータの概要が整合性チェックに失敗しました。保持データの管理から対象の記録を削除してください。これらは学習と比較の選択肢から除外されています。"
 }

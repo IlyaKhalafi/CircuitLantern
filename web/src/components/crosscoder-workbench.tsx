@@ -23,6 +23,7 @@ import {
 import type {
   CaptureJobResult,
   CaptureSummary,
+  DamagedArtifact,
   CrosscoderCapabilities,
   CrosscoderJobResult,
   CrosscoderSummary,
@@ -32,8 +33,12 @@ export function CrosscoderWorkbench() {
   const { t } = useI18n();
   const [capabilities, setCapabilities] =
     useState<CrosscoderCapabilities | null>(null);
-  const [captures, setCaptures] = useState<CaptureSummary[]>([]);
-  const [comparisons, setComparisons] = useState<CrosscoderSummary[]>([]);
+  const [captureRecords, setCaptures] = useState<
+    (CaptureSummary | DamagedArtifact)[]
+  >([]);
+  const [comparisonRecords, setComparisons] = useState<
+    (CrosscoderSummary | DamagedArtifact)[]
+  >([]);
   const [selection, setSelection, restored] = useSessionDraft(
     "lantern-crosscoder-selection",
     { reference: "", compared: "", comparison: "", mode: "prepare" },
@@ -46,8 +51,8 @@ export function CrosscoderWorkbench() {
     const sequence = ++request.current;
     const results = await Promise.allSettled([
       api<CrosscoderCapabilities>("/crosscoders/capabilities"),
-      api<CaptureSummary[]>("/crosscoders/captures"),
-      api<CrosscoderSummary[]>("/crosscoders"),
+      api<(CaptureSummary | DamagedArtifact)[]>("/crosscoders/captures"),
+      api<(CrosscoderSummary | DamagedArtifact)[]>("/crosscoders"),
     ]);
     if (sequence !== request.current) return;
     const errors: string[] = [];
@@ -122,6 +127,15 @@ export function CrosscoderWorkbench() {
     "lantern-crosscoder-training-delivered",
     trained,
   );
+  const captures = captureRecords.filter(
+    (item): item is CaptureSummary => !("integrity_error" in item),
+  );
+  const comparisons = comparisonRecords.filter(
+    (item): item is CrosscoderSummary => !("integrity_error" in item),
+  );
+  const damaged =
+    captureRecords.length !== captures.length ||
+    comparisonRecords.length !== comparisons.length;
   const reference =
     captures.find((item) => item.id === selection.reference) || null;
   const compared =
@@ -162,6 +176,13 @@ export function CrosscoderWorkbench() {
         }
       />
       <ErrorNotice message={error} />
+      {damaged && (
+        <ErrorNotice
+          message={t(
+            "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.",
+          )}
+        />
+      )}
       <div
         className="crosscoder-modes"
         role="group"
@@ -260,8 +281,8 @@ export function CrosscoderWorkbench() {
         )}
       </div>
       <CrosscoderStorage
-        captures={captures}
-        comparisons={comparisons}
+        captures={captureRecords}
+        comparisons={comparisonRecords}
         blocked={captureTask.busy || trainingTask.busy}
         onDeleted={(kind, identifier) => {
           if (kind === "capture")

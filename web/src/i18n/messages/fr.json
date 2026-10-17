@@ -1766,5 +1766,8 @@
   "Delete saved artifact": "Supprimer l’artefact conservé",
   "This removes the selected artifact from the server. Export any evidence you want to keep first.": "Cette action supprime l’artefact sélectionné du serveur. Exportez d’abord les preuves à conserver.",
   "Confirm deletion": "Confirmer la suppression",
-  "Model diffing": "Différences de modèles"
+  "Model diffing": "Différences de modèles",
+  "Integrity check failed": "Échec du contrôle d’intégrité",
+  "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "Le résumé des données enregistrées a échoué au contrôle d’intégrité. Vous pouvez supprimer cet enregistrement dans la gestion des données conservées.",
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "Certains résumés ont échoué au contrôle d’intégrité. Supprimez les enregistrements concernés dans la gestion des données conservées. Ils sont exclus de l’entraînement et des choix de comparaison."
 }

@@ -66,3 +66,10 @@ Each capture records its checkpoint revision, execution identity, precision, lay
 **Export evidence** downloads the immutable comparison manifest together with current annotations. **Download weights** downloads the joint encoder and decoder banks as safetensors. Tensor and manifest checksums are verified independently. Labels and notes are stored separately and do not change the immutable manifest checksum.
 
 Use **Manage retained data** to export capture metadata and tensors or delete saved artifacts. Deleting a source capture leaves existing comparison evidence available. Training another comparison requires its activation captures to remain available.
+
+
+## Storage recovery
+
+A damaged summary does not hide healthy captures or comparisons. The affected record appears under **Manage retained data** with its identifier and an integrity warning. It is excluded from research selection and can still be deleted without bypassing tensor or manifest checks for normal reads and exports.
+
+On startup, complete tensor files without matching database records move to the storage directory's recovery folder. They are preserved rather than deleted. Recovery files alone do not include the immutable manifest and cannot reconstruct a scientific capture without its original database. Back up artifacts.sqlite3 together with its tensor files.

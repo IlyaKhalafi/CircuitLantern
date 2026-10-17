@@ -4,7 +4,11 @@ import { Download, Trash2 } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { api, downloadJSON } from "@/lib/api";
 import { ErrorNotice } from "@/components/ui";
-import type { CaptureSummary, CrosscoderSummary } from "@/lib/crosscoders";
+import type {
+  CaptureSummary,
+  CrosscoderSummary,
+  DamagedArtifact,
+} from "@/lib/crosscoders";
 
 export function CrosscoderStorage({
   captures,
@@ -12,8 +16,8 @@ export function CrosscoderStorage({
   blocked,
   onDeleted,
 }: {
-  captures: CaptureSummary[];
-  comparisons: CrosscoderSummary[];
+  captures: (CaptureSummary | DamagedArtifact)[];
+  comparisons: (CrosscoderSummary | DamagedArtifact)[];
   blocked: boolean;
   onDeleted: (kind: string, identifier: string) => void;
 }) {
@@ -32,6 +36,8 @@ export function CrosscoderStorage({
   }, []);
   const choices = kind === "capture" ? captures : comparisons;
   const selected = choices.find((item) => item.id === identifier);
+  const damaged =
+    selected && "integrity_error" in selected ? selected.integrity_error : null;
   const path =
     "/crosscoders/" + (kind === "capture" ? "captures/" : "") + identifier;
   async function exportEvidence() {
@@ -106,35 +112,43 @@ export function CrosscoderStorage({
               <option value="">{t("Select a saved artifact")}</option>
               {choices.map((item) => (
                 <option key={item.id} value={item.id}>
-                  {item.name}
+                  {"integrity_error" in item
+                    ? t("Integrity check failed") + " · " + item.id
+                    : item.name}
                 </option>
               ))}
             </select>
           </label>
         </div>
-        <ErrorNotice message={error} />
+        <ErrorNotice message={error || damaged} />
         {selected && (
           <>
             <div className="feature-toolbar">
               <button
                 className="button secondary"
-                disabled={working || blocked}
+                disabled={working || blocked || !!damaged}
                 onClick={exportEvidence}
               >
                 <Download size={14} />
                 {t("Export evidence")}
               </button>
-              <a
-                className="button secondary"
-                href={
-                  "/api" + path + (kind === "capture" ? "/tensors" : "/weights")
-                }
-                download
-              >
-                {t(
-                  kind === "capture" ? "Download tensors" : "Download weights",
-                )}
-              </a>
+              {!damaged && (
+                <a
+                  className="button secondary"
+                  href={
+                    "/api" +
+                    path +
+                    (kind === "capture" ? "/tensors" : "/weights")
+                  }
+                  download
+                >
+                  {t(
+                    kind === "capture"
+                      ? "Download tensors"
+                      : "Download weights",
+                  )}
+                </a>
+              )}
               <button
                 className="button secondary"
                 disabled={working || blocked}

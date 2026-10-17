@@ -727,3 +727,61 @@ test("a delayed annotation cannot overwrite another shared feature draft", async
       await request.delete("/api/crosscoders/captures/" + identifier);
   }
 });
+
+test("damaged summaries stay outside research selection and can be removed from retained data", async ({
+  page,
+}) => {
+  const identifier = "f".repeat(32);
+  let removed = false;
+  const issue = {
+    id: identifier,
+    kind: "capture",
+    name: identifier,
+    created_at: "2026-10-17T00:00:00Z",
+    integrity_error:
+      "The saved artifact summary failed its integrity check. You can delete this record from retained data.",
+  };
+  await page.route("**/api/crosscoders/captures", (route) =>
+    route.fulfill({ json: removed ? [] : [issue] }),
+  );
+  await page.route("**/api/crosscoders", (route) =>
+    route.fulfill({ json: [] }),
+  );
+  await page.route("**/api/crosscoders/captures/" + identifier, (route) => {
+    expect(route.request().method()).toBe("DELETE");
+    removed = true;
+    return route.fulfill({ status: 204 });
+  });
+  await page.goto("/features/compare");
+  await expect(
+    page.locator(".crosscoder-workbench > .notice.error"),
+  ).toContainText("Some saved artifact summaries failed integrity checks.");
+  await expect(page.getByLabel("Reference capture", { exact: true })).toHaveCount(0);
+  await page.getByText("Manage retained data", { exact: true }).click();
+  await page
+    .getByLabel("Saved artifact", { exact: true })
+    .selectOption(identifier);
+  await expect(page.locator(".crosscoder-storage .notice.error")).toContainText(
+    "failed its integrity check",
+  );
+  await expect(
+    page.getByRole("button", { name: "Export evidence", exact: true }),
+  ).toBeDisabled();
+  await expect(
+    page.getByRole("link", { name: "Download tensors", exact: true }),
+  ).toHaveCount(0);
+  await page
+    .getByRole("button", { name: "Delete saved artifact", exact: true })
+    .click();
+  await page
+    .getByRole("button", { name: "Confirm deletion", exact: true })
+    .click();
+  await expect.poll(() => removed).toBe(true);
+  await expect(
+    page.getByText("Manage retained data", { exact: true }),
+  ).toHaveCount(0);
+  await expect(
+    page.locator(".crosscoder-workbench > .notice.error"),
+  ).toHaveCount(0);
+  await screenshot(page, "crosscoder-recovered-summary");
+});
