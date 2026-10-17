@@ -85,7 +85,7 @@ PY
 
 (
   cd backend
-  exec .venv/bin/python tests/serve_ui.py --port "$backend_port"
+  HF_HUB_CACHE="$run_dir/hub" exec .venv/bin/python tests/serve_ui.py --port "$backend_port"
 ) > "$run_dir/backend.log" 2>&1 &
 backend_pid=$!
 wait_for_service "http://127.0.0.1:$backend_port/api/health" "$run_dir/backend.log" "$backend_pid"

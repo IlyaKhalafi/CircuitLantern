@@ -111,12 +111,21 @@ class TensorArtifactStore:
 
     @contextmanager
     def connect(self):
-        connection = sqlite3.connect(self.database, timeout=10)
+        connection = sqlite3.connect(self.database, timeout=0.1)
         connection.row_factory = sqlite3.Row
         connection.execute("PRAGMA foreign_keys = ON")
         try:
             with connection:
                 yield connection
+        except sqlite3.OperationalError as error:
+            if getattr(error, "sqlite_errorcode", 0) & 255 in (
+                sqlite3.SQLITE_BUSY,
+                sqlite3.SQLITE_LOCKED,
+            ):
+                raise ArtifactBusyError(
+                    "The saved tensor artifacts are busy. Try again shortly."
+                ) from error
+            raise
         finally:
             connection.close()
 
@@ -135,20 +144,9 @@ class TensorArtifactStore:
 
     @contextmanager
     def _read_connection(self):
-        try:
-            with self.connect() as connection:
-                connection.execute("PRAGMA busy_timeout = 100")
-                connection.execute("BEGIN")
-                yield connection
-        except sqlite3.OperationalError as error:
-            if getattr(error, "sqlite_errorcode", 0) & 255 in (
-                sqlite3.SQLITE_BUSY,
-                sqlite3.SQLITE_LOCKED,
-            ):
-                raise ArtifactBusyError(
-                    "The saved tensor artifacts are busy. Try again shortly."
-                ) from error
-            raise
+        with self.connect() as connection:
+            connection.execute("BEGIN")
+            yield connection
 
     def _path(self, identifier: str) -> Path:
         if not isinstance(identifier, str) or not _IDENTIFIER.fullmatch(identifier):
@@ -204,18 +202,24 @@ class TensorArtifactStore:
             yield loaded
 
     @contextmanager
-    def _decode_manifest(self, identifier: str, loaded: ManifestSnapshot, *, serializing=False):
-        # Keep cold parsing and full-response serialization bounded across mutable and cached reads.
+    def _decode_manifest(
+        self, identifier: str, loaded: ManifestSnapshot, *, serializing=False, freezing=False
+    ):
         multiplier = METADATA_JSON_RAM_MULTIPLIER if serializing else METADATA_DECODE_RAM_MULTIPLIER
         with (
-            self._metadata_memory.decode_lock,
+            ExitStack() as parsing,
             self._metadata_memory.reserve(
                 loaded.size * (multiplier - METADATA_TEXT_RAM_MULTIPLIER)
             ),
         ):
+            parsing.enter_context(self._metadata_memory.decode_lock)
             payload = self._decode(loaded.encoded, loaded.digest)
             if payload.get("id") != identifier or payload["kind"] != loaded.kind:
                 raise ValueError("The saved artifact metadata is invalid.")
+            # Freeze under the cold-parse lock, but let exports encode independently.
+            # Both paths retain their memory reservation through the caller's work.
+            if not freezing:
+                parsing.close()
             yield dict(payload, manifest_sha256=loaded.digest)
 
     @contextmanager
@@ -235,12 +239,12 @@ class TensorArtifactStore:
         return self._views.read(
             identifier,
             lambda: self._read_manifest(identifier, kind),
-            lambda loaded: self._decode_manifest(identifier, loaded),
+            lambda loaded: self._decode_manifest(identifier, loaded, freezing=True),
             kind=kind,
         )
 
     def list(self, kind: str) -> list[dict]:
-        with self.connect() as connection:
+        with self._read_connection() as connection:
             rows = connection.execute(
                 "SELECT id, kind, created_at, summary, summary_sha256 FROM artifacts "
                 "WHERE kind = ? ORDER BY created_at DESC, id",
@@ -276,13 +280,24 @@ class TensorArtifactStore:
             not isinstance(value, torch.Tensor)
             or value.dtype != torch.float32
             or value.device.type == "meta"
-            or not torch.isfinite(value).all()
+            or value.layout != torch.strided
             for value in tensors.values()
         ):
             raise ValueError("Saved artifacts require finite float32 tensors.")
         tensor_bytes = sum(value.numel() * value.element_size() for value in tensors.values())
         if tensor_bytes > self.max_bytes:
             raise ValueError("The tensor artifact exceeds the configured size limit.")
+        validation_bytes = max(
+            (
+                value.numel() * value.element_size() * 2
+                for value in tensors.values()
+                if value.device.type == "cpu"
+            ),
+            default=0,
+        )
+        with self._metadata_memory.reserve(validation_bytes):
+            if any(not torch.isfinite(value).all() for value in tensors.values()):
+                raise ValueError("Saved artifacts require finite float32 tensors.")
         with self.operation(), ExitStack() as reservations:
             identifier = uuid.uuid4().hex
             destination = self._path(identifier)
@@ -472,7 +487,12 @@ class TensorArtifactStore:
 
     @contextmanager
     def read_annotations(
-        self, identifier: str, features: list[int] | None = None, *, serializing=False
+        self,
+        identifier: str,
+        features: list[int] | None = None,
+        *,
+        serializing=False,
+        require_artifact=False,
     ):
         self._path(identifier)
         if features == []:
@@ -485,6 +505,14 @@ class TensorArtifactStore:
             arguments.extend(features)
         with ExitStack() as reservations:
             with self._read_connection() as connection:
+                if (
+                    require_artifact
+                    and connection.execute(
+                        "SELECT 1 FROM artifacts WHERE id = ?", (identifier,)
+                    ).fetchone()
+                    is None
+                ):
+                    raise ArtifactNotFoundError("The saved artifact was not found.")
                 size, count = connection.execute(
                     "SELECT COALESCE(SUM(length(CAST(label AS BLOB)) + "
                     "length(CAST(notes AS BLOB))), 0), COUNT(*) "
@@ -511,7 +539,7 @@ class TensorArtifactStore:
     def search_annotations(self, identifier: str, query: str) -> set[int]:
         self._path(identifier)
         needle = query.casefold()
-        with self.connect() as connection:
+        with self._read_connection() as connection:
             rows = connection.execute(
                 "SELECT feature, label, notes FROM labels WHERE artifact_id = ?",
                 (identifier,),
