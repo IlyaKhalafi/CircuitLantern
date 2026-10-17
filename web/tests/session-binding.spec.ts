@@ -112,9 +112,11 @@ for (const precision of ["int4", "float32"] as const) {
     expect(trace.ablate_layer).toBe(0);
     await expect(page.locator(".recharts-legend-wrapper")).toHaveCount(0);
     await expect(
-      page.getByText(precision === "int4" ? "NF4 · 4 bit" : "FP32", {
-        exact: true,
-      }),
+      page
+        .locator(".trace-meta")
+        .getByText(precision === "int4" ? "NF4 · 4 bit" : "FP32", {
+          exact: true,
+        }),
     ).toBeVisible();
     await expect(
       page.getByText(/This capture belongs to a previous model session/),
