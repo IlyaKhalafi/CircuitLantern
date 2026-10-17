@@ -127,6 +127,7 @@ def test_unsupported_execution_has_useful_capabilities_without_forward(lab, runt
 def test_worker_rechecks_exact_probe_fingerprint_before_any_forward(lab, runtime):
     batch, _, _ = lab._prepare(request())
     payload = request().model_dump()
+    payload["expected_comparison_identity"] = lab.plan(request())["comparison_identity_sha256"]
     payload["expected_probe_fingerprint"] = "0" * 64
     assert batch.fingerprint != payload["expected_probe_fingerprint"]
     with (
@@ -140,6 +141,7 @@ def test_worker_rechecks_exact_probe_fingerprint_before_any_forward(lab, runtime
 def test_queued_probe_rejects_replaced_execution_without_forward(lab, runtime):
     batch, _, _ = lab._prepare(request())
     payload = request().model_dump()
+    payload["expected_comparison_identity"] = lab.plan(request())["comparison_identity_sha256"]
     payload["expected_probe_fingerprint"] = batch.fingerprint
     job = JobRecord(
         {

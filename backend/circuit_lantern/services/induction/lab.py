@@ -5,6 +5,7 @@ from circuit_lantern.services.execution import execution_provenance
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.head_sweep import select_head_targets
 from circuit_lantern.services.induction.engine import REFERENCES, measure_induction
+from circuit_lantern.services.induction.identity import comparison_identity, identity_digest
 from circuit_lantern.services.induction.planning import output_vocabulary_size, probe_plan
 from circuit_lantern.services.induction.probes import ProbeConfig, build_probe_batch
 from circuit_lantern.services.interventions import attention_head_targets
@@ -43,16 +44,15 @@ class InductionLab:
             raise ValueError("The configured start token is outside the input vocabulary.")
         return token
 
-    def _vocabulary(self, start):
+    def _vocabulary(self, start, vocabulary=None):
         runtime = self.runtime
         limit = min(
             int(runtime.model.get_input_embeddings().weight.shape[0]),
             output_vocabulary_size(runtime.model),
         )
+        vocabulary = runtime.tokenizer.get_vocab() if vocabulary is None else vocabulary
         vocabulary = {
-            token
-            for token in runtime.tokenizer.get_vocab().values()
-            if type(token) is int and 0 <= token < limit
+            token for token in vocabulary.values() if type(token) is int and 0 <= token < limit
         }
         # Some tokenizers omit a model supplied start token from their vocabulary map.
         if start is not None:
@@ -151,14 +151,20 @@ class InductionLab:
         plan.update(**execution_provenance(runtime.metadata), selected_layers=selected)
         if not plan["compatible"]:
             return None, selected, plan
+        vocabulary = runtime.tokenizer.get_vocab()
         batch = build_probe_batch(
-            self._vocabulary(start),
+            self._vocabulary(start, vocabulary),
             runtime.tokenizer.all_special_ids,
             start,
             config,
             context_limit=limit,
         )
+        identity = comparison_identity(
+            runtime.model, runtime.tokenizer, blocks, batch, vocabulary=vocabulary
+        )
         plan.update(
+            comparison_identity=identity,
+            comparison_identity_sha256=identity_digest(identity),
             dataset_fingerprint=batch.fingerprint,
             vocabulary_pool_size=batch.vocabulary_pool_size,
             start_token_id=start,
@@ -178,18 +184,24 @@ class InductionLab:
             payload.update(
                 expected_execution_id=self.runtime.metadata["execution_id"],
                 expected_probe_fingerprint=batch.fingerprint,
+                expected_comparison_identity=plan["comparison_identity_sha256"],
             )
         return self.runtime._start_sweep("induction_probe", payload, self._measure)
 
     def _measure(self, payload: dict, job) -> dict:
         values = dict(payload)
         expected = values.pop("expected_probe_fingerprint")
+        expected_identity = values.pop("expected_comparison_identity")
         request = InductionProbeRequest(**values)
         batch, targets, plan = self._prepare(request)
         if not plan["compatible"]:
             raise ValueError(" ".join(plan["blockers"]))
         if batch.fingerprint != expected:
             raise ValueError("The probe vocabulary changed. Start the measurement again.")
+        if plan["comparison_identity_sha256"] != expected_identity:
+            raise ValueError(
+                "The probe token mapping or layout changed. Start the measurement again."
+            )
         runtime = self.runtime
         return measure_induction(
             runtime.model,

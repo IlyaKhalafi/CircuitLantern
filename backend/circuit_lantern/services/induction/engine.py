@@ -7,6 +7,7 @@ from datetime import UTC, datetime
 import torch
 
 from circuit_lantern.services.execution import execution_provenance
+from circuit_lantern.services.induction.identity import comparison_identity, identity_digest
 from circuit_lantern.services.induction.patterns import score_repeated_attention
 from circuit_lantern.services.induction.probes import ProbeBatch
 from circuit_lantern.services.interventions import install_head_ablation
@@ -40,6 +41,9 @@ def aggregate_heads(
                     "prefix_std": float(deviations[index, 0]),
                     "duplicate_attention": float(means[index, 1]),
                     "previous_attention": float(means[index, 2]),
+                    "prefix_by_probe": values[:, index, 0].tolist(),
+                    "duplicate_by_probe": values[:, index, 1].tolist(),
+                    "previous_by_probe": values[:, index, 2].tolist(),
                     "representative_attention": representative[(item["layer"], head)],
                 }
             )
@@ -63,9 +67,15 @@ def measure_induction(
     started = time.perf_counter()
     if model.training:
         raise ValueError("Repeated token probes require the model in evaluation mode.")
+    identity = plan.get("comparison_identity") or comparison_identity(
+        model, tokenizer, blocks, batch
+    )
     result = {
         **execution_provenance(metadata),
-        "format": "circuit-lantern-induction-probe-v1",
+        "format": "circuit-lantern-induction-probe-v2",
+        "comparison_identity": identity,
+        "comparison_identity_sha256": identity_digest(identity),
+        "attention_probe_indices": [],
         "captured_at": datetime.now(UTC).isoformat(),
         "device": device,
         "dataset": batch.description(),
@@ -196,6 +206,7 @@ def measure_induction(
             result["failed_at"] = {"stage": "patterns", "probe": index}
             break
     result["heads"] = aggregate_heads(scores, targets, representative)
+    result["attention_probe_indices"] = list(range(len(scores)))
     metrics = result["probe_metrics"]
     if metrics:
         result["mean_first_repeat_nll"] = sum(row["first_repeat_nll"] for row in metrics) / len(

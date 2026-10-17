@@ -48,6 +48,9 @@ def test_engine_agrees_with_independent_full_sequence_attention_and_ablation(run
     assert result["forward_attempts"] == result["completed_forwards"] == 4
     assert result["dataset"] == batch.description()
     assert result["dataset_fingerprint"] == batch.fingerprint
+    assert result["format"] == "circuit-lantern-induction-probe-v2"
+    assert result["attention_probe_indices"] == [0, 1]
+    assert len(result["comparison_identity"]["decoded_probe_sha256"]) == 2
     assert result["representative_probe"] == 0
     assert result["representative_query_position"] == 8
     assert result["logits_dtype"] == "float32"
@@ -91,6 +94,10 @@ def test_engine_agrees_with_independent_full_sequence_attention_and_ablation(run
         for row in result["heads"]:
             expected = sum(per_head[(row["layer"], row["head"])]) / 2
             assert row["prefix_attention"] == pytest.approx(expected, abs=1e-12)
+            assert row["prefix_by_probe"] == pytest.approx(
+                per_head[(row["layer"], row["head"])], abs=1e-12
+            )
+            assert len(row["duplicate_by_probe"]) == len(row["previous_by_probe"]) == 2
         candidate = result["causal_results"][0]
         projection = runtime._blocks()[candidate["layer"]].attn.c_proj
         start = candidate["head"] * 8
@@ -150,6 +157,8 @@ def test_failed_forward_retains_completed_examples_and_removes_hooks(
     assert result["error"] == "Induced forward failure"
     assert result["failed_at"]["stage"] == stage
     assert result["measured_examples"] == measured
+    assert result["attention_probe_indices"] == list(range(measured))
+    assert all(len(row["prefix_by_probe"]) == measured for row in result["heads"])
     assert len(result["heads"]) == 4
     assert sum(row["completed_examples"] for row in result["causal_results"]) == pairs
     assert result["completed_causal_heads"] == 0
@@ -176,6 +185,8 @@ def test_cancellation_is_observed_between_forwards_and_retains_completed_pairs(
     assert result["forward_attempts"] == after
     assert not result["complete"] and result["error"] is None
     assert result["measured_examples"] == measured
+    assert result["attention_probe_indices"] == list(range(measured))
+    assert all(len(row["prefix_by_probe"]) == measured for row in result["heads"])
     assert sum(row["completed_examples"] for row in result["causal_results"]) == pairs
     job.finish(result, label="Induction probe", unit="measurements")
     assert job["status"] == "cancelled" and job["result"]["cancelled"]
