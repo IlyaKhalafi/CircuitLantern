@@ -200,9 +200,9 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     await expect(
       reference.getByText("Reference {raw}", { exact: true }),
     ).toBeVisible();
-    await expect(page.locator(".crosscoder-session strong")).toHaveText(
-      "circuit-lantern-test/finetuned",
-    );
+    await expect(
+      page.locator(".crosscoder-session .execution-context bdi").first(),
+    ).toHaveText("circuit-lantern-test/finetuned");
     await matched
       .getByLabel("Capture name", { exact: true })
       .fill("Compared {raw}");
@@ -248,9 +248,9 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     ).toBe(referenceId);
     await request.delete("/api/runtime");
     await page.getByRole("button", { name: "Refresh", exact: true }).click();
-    await expect(page.locator(".crosscoder-session strong")).toHaveText(
-      "No model loaded",
-    );
+    await expect(
+      page.locator(".crosscoder-session .execution-context bdi").first(),
+    ).toHaveText("No model loaded");
     await training
       .getByLabel("Comparison name", { exact: true })
       .fill("Joint comparison {raw}");
