@@ -30,7 +30,11 @@ def probe(runtime, *, job=None, examples=2, causal_heads=1, start=0):
         targets,
         causal_heads,
         job if job is not None else {},
-        {"requested_forward_passes": examples * (1 + causal_heads)},
+        {
+            "requested_forward_passes": examples * (1 + causal_heads)
+            if type(causal_heads) is int
+            else 1
+        },
     )
     return result, batch
 
@@ -48,6 +52,9 @@ def test_engine_agrees_with_independent_full_sequence_attention_and_ablation(run
     assert result["forward_attempts"] == result["completed_forwards"] == 4
     assert result["dataset"] == batch.description()
     assert result["dataset_fingerprint"] == batch.fingerprint
+    assert result["format"] == "circuit-lantern-induction-probe-v2"
+    assert result["attention_probe_indices"] == [0, 1]
+    assert len(result["comparison_identity"]["decoded_probe_sha256"]) == 2
     assert result["representative_probe"] == 0
     assert result["representative_query_position"] == 8
     assert result["logits_dtype"] == "float32"
@@ -91,6 +98,10 @@ def test_engine_agrees_with_independent_full_sequence_attention_and_ablation(run
         for row in result["heads"]:
             expected = sum(per_head[(row["layer"], row["head"])]) / 2
             assert row["prefix_attention"] == pytest.approx(expected, abs=1e-12)
+            assert row["prefix_by_probe"] == pytest.approx(
+                per_head[(row["layer"], row["head"])], abs=1e-12
+            )
+            assert len(row["duplicate_by_probe"]) == len(row["previous_by_probe"]) == 2
         candidate = result["causal_results"][0]
         projection = runtime._blocks()[candidate["layer"]].attn.c_proj
         start = candidate["head"] * 8
@@ -150,6 +161,8 @@ def test_failed_forward_retains_completed_examples_and_removes_hooks(
     assert result["error"] == "Induced forward failure"
     assert result["failed_at"]["stage"] == stage
     assert result["measured_examples"] == measured
+    assert result["attention_probe_indices"] == list(range(measured))
+    assert all(len(row["prefix_by_probe"]) == measured for row in result["heads"])
     assert len(result["heads"]) == 4
     assert sum(row["completed_examples"] for row in result["causal_results"]) == pairs
     assert result["completed_causal_heads"] == 0
@@ -176,6 +189,8 @@ def test_cancellation_is_observed_between_forwards_and_retains_completed_pairs(
     assert result["forward_attempts"] == after
     assert not result["complete"] and result["error"] is None
     assert result["measured_examples"] == measured
+    assert result["attention_probe_indices"] == list(range(measured))
+    assert all(len(row["prefix_by_probe"]) == measured for row in result["heads"])
     assert sum(row["completed_examples"] for row in result["causal_results"]) == pairs
     job.finish(result, label="Induction probe", unit="measurements")
     assert job["status"] == "cancelled" and job["result"]["cancelled"]
@@ -279,6 +294,15 @@ def test_resource_plan_blocks_missing_headroom(runtime, constraint):
         hardware=hardware,
     )
     assert not plan["compatible"] and plan["blockers"]
+
+
+@pytest.mark.parametrize("invalid", [-1, 13, True, "1"])
+def test_engine_rejects_unbounded_or_untyped_causal_work_before_forward(runtime, invalid):
+    with (
+        patch.object(runtime.model, "forward", side_effect=AssertionError("Unexpected forward")),
+        pytest.raises(ValueError, match="zero to twelve"),
+    ):
+        probe(runtime, causal_heads=invalid)
 
 
 def test_kl_direction_matches_a_fixed_asymmetric_probability_example(runtime):

@@ -4,11 +4,13 @@ from typing import Annotated
 
 from pydantic import ConfigDict, Field
 
-from circuit_lantern.schemas import BoundExecutionRequest
+from circuit_lantern.schemas import BoundExecutionRequest, ExecutionId
 
 
 class InductionProbeRequest(BoundExecutionRequest):
     model_config = ConfigDict(extra="forbid")
+
+    reference_experiment_id: ExecutionId | None = None
 
     block_length: int = Field(default=25, strict=True, ge=4, le=64)
     repeats: int = Field(default=4, strict=True, ge=2, le=4)

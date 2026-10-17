@@ -5,6 +5,15 @@ from circuit_lantern.services.execution import execution_provenance
 MAX_PREVIEW_TOKENS = 256
 
 
+def special_token_ids(tokenizer) -> set[int]:
+    """Include special added tokens even when the public special-token map omits them."""
+    return set(tokenizer.all_special_ids) | {
+        int(identifier)
+        for identifier, token in getattr(tokenizer, "added_tokens_decoder", {}).items()
+        if token.special
+    }
+
+
 def capture_token_limit(metadata: dict, max_prompt_tokens: int, reserved_tokens: int = 0) -> int:
     context = min(
         metadata["context_length"],
@@ -17,7 +26,7 @@ def preview_tokens(
     tokenizer, metadata: dict, prompts: list[str], max_prompt_tokens: int, reserved_tokens: int = 0
 ) -> dict:
     limit = capture_token_limit(metadata, max_prompt_tokens, reserved_tokens)
-    special = set(tokenizer.all_special_ids)
+    special = special_token_ids(tokenizer)
     previews = []
     for prompt in prompts:
         ids = tokenizer.encode(prompt, add_special_tokens=True, truncation=False)

@@ -25,10 +25,12 @@ export function SaveExperiment({
   source,
   defaultName,
   disabled = false,
+  compareId,
 }: {
   source: ExperimentSource;
   defaultName: string;
   disabled?: boolean;
+  compareId?: string;
 }) {
   const { t } = useI18n();
   const [name, setName] = useState(truncateText(defaultName, 100));
@@ -98,7 +100,10 @@ export function SaveExperiment({
         {saved && (
           <Link
             className="button secondary"
-            href={`/experiments?experiment=${saved.id}`}
+            href={
+              `/experiments?experiment=${saved.id}` +
+              (compareId ? "&compare=" + encodeURIComponent(compareId) : "")
+            }
           >
             {t("View saved experiment")}
           </Link>
