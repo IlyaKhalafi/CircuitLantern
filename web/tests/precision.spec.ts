@@ -70,7 +70,9 @@ test("NF4 selection loads packed weights, traces and exports logical statistics"
   await expect(
     page.getByText("Capture complete", { exact: true }),
   ).toBeVisible();
-  await expect(page.getByText("NF4 · 4 bit", { exact: true })).toBeVisible();
+  await expect(
+    page.locator(".trace-meta").getByText("NF4 · 4 bit", { exact: true }),
+  ).toBeVisible();
   await capturePage(page, {
     path: "../artifacts/screenshots/activation-nf4.png",
     fullPage: true,
