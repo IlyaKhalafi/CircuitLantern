@@ -1,6 +1,9 @@
 """Durability and integrity checks for retained activation and crosscoder tensors."""
 
+import hashlib
 import sqlite3
+from concurrent.futures import ThreadPoolExecutor
+from threading import Event
 
 import pytest
 import torch
@@ -238,3 +241,36 @@ def test_wrong_kind_cannot_delete_a_retained_artifact(tmp_path):
     assert not store.delete(manifest["id"], kind="crosscoder")
     _, actual = store.load(manifest["id"], kind="capture")
     assert torch.equal(actual["activations"], values["activations"])
+
+
+def test_download_verification_allows_annotations_and_deletion(tmp_path, monkeypatch):
+    store = TensorArtifactStore(tmp_path, 1024)
+    manifest, _ = save(store, "crosscoder")
+    original = hashlib.file_digest
+    hashing = Event()
+    resume = Event()
+
+    def delayed_digest(stream, algorithm):
+        hashing.set()
+        assert resume.wait(5), "Concurrent annotation did not finish"
+        return original(stream, algorithm)
+
+    monkeypatch.setattr(
+        "circuit_lantern.services.tensor_artifacts.hashlib.file_digest", delayed_digest
+    )
+    with ThreadPoolExecutor(max_workers=1) as executor:
+        opening = executor.submit(store.open_tensors, manifest["id"], kind="crosscoder")
+        try:
+            assert hashing.wait(5), "Download verification did not start"
+            annotation = store.label(manifest["id"], 2, "Retained context", "Still editable")
+            assert annotation["label"] == "Retained context"
+            assert store.delete(manifest["id"], kind="crosscoder")
+        finally:
+            resume.set()
+        stream, length = opening.result(timeout=5)
+        try:
+            raw = stream.read()
+            assert len(raw) == length
+            assert digest_bytes(raw) == manifest["tensors_sha256"]
+        finally:
+            stream.close()

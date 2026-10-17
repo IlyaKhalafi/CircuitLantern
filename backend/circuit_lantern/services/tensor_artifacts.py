@@ -317,17 +317,17 @@ class TensorArtifactStore:
                 stream = self._path(identifier).open("rb")
             except FileNotFoundError as error:
                 raise ArtifactNotFoundError("The saved tensor file was not found.") from error
-            try:
-                size = os.fstat(stream.fileno()).st_size
-                if size > self.max_bytes + _HEADER_ALLOWANCE:
-                    raise ValueError("The saved artifact exceeds the configured file size limit.")
-                if hashlib.file_digest(stream, "sha256").hexdigest() != manifest["tensors_sha256"]:
-                    raise ValueError("The saved tensor artifact checksum does not match.")
-                stream.seek(0)
-                return stream, size
-            except BaseException:
-                stream.close()
-                raise
+        try:
+            size = os.fstat(stream.fileno()).st_size
+            if size > self.max_bytes + _HEADER_ALLOWANCE:
+                raise ValueError("The saved artifact exceeds the configured file size limit.")
+            if hashlib.file_digest(stream, "sha256").hexdigest() != manifest["tensors_sha256"]:
+                raise ValueError("The saved tensor artifact checksum does not match.")
+            stream.seek(0)
+            return stream, size
+        except BaseException:
+            stream.close()
+            raise
 
     def delete(self, identifier: str, *, kind: str | None = None) -> bool:
         with self.operation():
