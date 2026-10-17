@@ -104,3 +104,53 @@ def test_current_schema_reopens_without_taking_a_write_lock(tmp_path):
         assert reopened.list() == []
     with sqlite3.connect(path) as connection:
         assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+
+
+def test_v3_upgrade_preserves_literal_payload_bytes_and_accepts_prompt_sets(tmp_path):
+    path = tmp_path / "v3.db"
+    payload = '{ "model_id" : "ancien", "prompt" : "سلام 日本語 {raw}" }'
+    with sqlite3.connect(path) as connection:
+        connection.execute("""CREATE TABLE experiments (
+            id TEXT PRIMARY KEY, name TEXT NOT NULL, notes TEXT NOT NULL,
+            created_at TEXT NOT NULL, model_id TEXT NOT NULL, payload TEXT NOT NULL,
+            kind TEXT NOT NULL DEFAULT 'trace'
+              CHECK (kind IN ('trace', 'causal', 'head_sweep', 'matrix', 'induction_probe')),
+            source_job_id TEXT, source_analysis_id TEXT
+        )""")
+        connection.execute(
+            "CREATE UNIQUE INDEX experiments_source_job ON experiments(source_job_id)"
+        )
+        connection.execute(
+            "CREATE UNIQUE INDEX experiments_source_analysis ON experiments(source_analysis_id)"
+        )
+        connection.execute("PRAGMA user_version = 3")
+        connection.execute(
+            "INSERT INTO experiments VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (
+                "original",
+                "Title {raw}",
+                "Notes",
+                "2026-01-01",
+                "ancien",
+                payload,
+                "trace",
+                "source",
+                None,
+            ),
+        )
+    store = ExperimentStore(path)
+    saved = store.create_artifact(
+        "Set", "", "causal_batch", {"model_id": "new", "pairs": []}, source_job_id="new-source"
+    )
+    assert ExperimentStore(path).get(saved["id"])["kind"] == "causal_batch"
+    with sqlite3.connect(path) as connection:
+        assert (
+            connection.execute("SELECT payload FROM experiments WHERE id='original'").fetchone()[0]
+            == payload
+        )
+        assert connection.execute("PRAGMA user_version").fetchone()[0] == SCHEMA_VERSION
+        assert {row[1] for row in connection.execute("PRAGMA index_list(experiments)")} >= {
+            "experiments_source_job",
+            "experiments_source_analysis",
+        }
+    assert store.get("original")["trace"]["prompt"] == "سلام 日本語 {raw}"

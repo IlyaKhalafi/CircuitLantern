@@ -317,6 +317,7 @@ class ModelRuntime:
                 "activation_capture",
                 "crosscoder_training",
                 "induction_probe",
+                "causal_batch",
             ):
                 raise ValueError(
                     "Only research jobs can be cancelled. Model downloads must finish before another operation starts."
@@ -331,6 +332,7 @@ class ModelRuntime:
             "activation_capture": "Residual capture",
             "crosscoder_training": "Crosscoder training",
             "induction_probe": "Induction probe",
+            "causal_batch": "Prompt-set sweep",
         }.get(job["kind"], "Head sweep" if is_head_sweep else "Causal sweep")
         result = None
         failure = None

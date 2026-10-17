@@ -11,6 +11,7 @@ from circuit_lantern.api.checkpoints import router as checkpoint_router
 from circuit_lantern.api.crosscoders import router as crosscoder_router
 from circuit_lantern.api.features import router as feature_router
 from circuit_lantern.api.induction import router as induction_router
+from circuit_lantern.api.prompt_sets import router as prompt_set_router
 from circuit_lantern.config import get_settings
 from circuit_lantern.schemas import (
     CausalRequest,
@@ -84,6 +85,7 @@ app.include_router(feature_router)
 app.include_router(checkpoint_router)
 app.include_router(crosscoder_router)
 app.include_router(induction_router)
+app.include_router(prompt_set_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,
@@ -287,7 +289,7 @@ def save_job_experiment(payload: ExperimentFromJobRequest, request: Request):
     job = request.app.state.runtime.job(payload.job_id)
     if job is None:
         raise HTTPException(404, "The sweep job was not found. Its result may have expired.")
-    if job.get("kind") not in ("causal", "head_sweep", "induction_probe"):
+    if job.get("kind") not in ("causal", "head_sweep", "induction_probe", "causal_batch"):
         raise HTTPException(400, "Only research sweeps can be saved from a job.")
     result = job.get("result")
     if job["status"] not in ("ready", "cancelled", "failed") or not isinstance(result, dict):

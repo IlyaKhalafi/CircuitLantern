@@ -153,3 +153,5 @@ export function useBackgroundJob<T>(storageKey: string) {
       (!!jobId && (!job || !terminalStates.has(job.status))),
   };
 }
+
+export type BackgroundJob<T> = ReturnType<typeof useBackgroundJob<T>>;

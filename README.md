@@ -54,6 +54,7 @@
 - **Checkpoint changes.** Compare a base model with a finetuned version using retained weights, layer activations and final output distributions. Keep both revisions and execution settings with the results.
 - **Sparse features.** Train ReLU or TopK sparse autoencoders from a text corpus. Inspect held out reconstruction, activating contexts and feature interventions, then save graphs of measured downstream effects.
 - **Causal interventions.** Residual patching reports target score changes and normalized recovery. Attention head ablation reports target score changes and KL divergence. Repeated token probes investigate candidate induction heads. Completed measurements remain available when a sweep stops.
+- **Evidence across prompts.** Patch a set of clean and corrupted examples, compare target and alternative logits, inspect contradictory effects and retain pointwise bootstrap intervals. [Prompt-set guide](docs/prompt-sets.md).
 - **Research notebook.** Save traces, matrix analyses and sweeps with checkpoint revisions, execution settings and observations. Compare saved evidence and export the source records after unloading the model.
 
 ## Run locally
