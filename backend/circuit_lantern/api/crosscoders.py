@@ -2,12 +2,14 @@
 
 import asyncio
 import sqlite3
+from contextlib import ExitStack
 from functools import partial
 from threading import Event
 from typing import Annotated, Literal
 
 import torch
 from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
+from fastapi.encoders import jsonable_encoder
 from fastapi.responses import JSONResponse, StreamingResponse
 from starlette.types import Receive, Scope, Send
 
@@ -27,11 +29,24 @@ FeatureIndex = Annotated[int, Path(ge=0, le=65535)]
 _DOWNLOAD_SEND_TIMEOUT = 30
 
 
-def required(request: Request, identifier: str, kind: str):
-    value = request.app.state.crosscoders.store.get(identifier, kind=kind)
-    if value is None:
-        raise HTTPException(404, "The saved artifact was not found.")
-    return value
+def artifact_json(request: Request, identifier: str, kind: str, *, bundle=False):
+    store = request.app.state.crosscoders.store
+    with (
+        store.read_metadata(identifier, kind=kind, serializing=True) as value,
+        ExitStack() as reservations,
+    ):
+        if value is None:
+            raise HTTPException(404, "The saved artifact was not found.")
+        if bundle:
+            value = {
+                "format": "circuit-lantern-crosscoder-bundle-v1",
+                "artifact": value,
+                "annotations": reservations.enter_context(
+                    store.read_annotations(identifier, serializing=True)
+                ),
+            }
+        # JSONResponse renders eagerly while the shared memory reservation is still held.
+        return JSONResponse(jsonable_encoder(value))
 
 
 @router.get("/capabilities")
@@ -60,7 +75,7 @@ def capture(payload: ActivationCaptureRequest, request: Request):
 
 @router.get("/captures/{identifier}")
 def retained_capture(identifier: Identifier, request: Request):
-    return required(request, identifier, "capture")
+    return artifact_json(request, identifier, "capture")
 
 
 @router.post("/captures/{identifier}/match/plan")
@@ -292,11 +307,7 @@ async def weights(identifier: Identifier, request: Request):
 
 @router.get("/{identifier}/export")
 def export(identifier: Identifier, request: Request):
-    return {
-        "format": "circuit-lantern-crosscoder-bundle-v1",
-        "artifact": required(request, identifier, "crosscoder"),
-        "annotations": request.app.state.crosscoders.store.annotations(identifier),
-    }
+    return artifact_json(request, identifier, "crosscoder", bundle=True)
 
 
 @router.delete("/{identifier}", status_code=204)

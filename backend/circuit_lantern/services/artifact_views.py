@@ -4,14 +4,23 @@ import hashlib
 import sys
 from collections import OrderedDict
 from collections.abc import Callable, Mapping
-from threading import Lock
+from contextlib import AbstractContextManager, contextmanager
+from dataclasses import dataclass, field
+from threading import Lock, RLock
 from types import MappingProxyType
 from typing import Any
 
 from circuit_lantern.services.resources import available_memory_bytes
 
 MAX_ARTIFACT_METADATA_BYTES = 128 * 1024**2
+METADATA_TEXT_RAM_MULTIPLIER = 5
+METADATA_DECODE_RAM_MULTIPLIER = 64
+METADATA_JSON_RAM_MULTIPLIER = 96
 _METADATA_RAM_ERROR = "Insufficient available RAM to read saved artifact metadata."
+
+
+class MetadataMemoryError(ValueError):
+    """Transient memory pressure while reading retained evidence."""
 
 
 def checked_metadata_size(encoded: str, expected: str) -> int:
@@ -23,9 +32,40 @@ def checked_metadata_size(encoded: str, expected: str) -> int:
     return len(raw)
 
 
-def require_metadata_ram(size: int, multiplier: int):
-    if size * multiplier > available_memory_bytes() * 0.75:
-        raise ValueError(_METADATA_RAM_ERROR)
+class MetadataMemoryBudget:
+    """Reserve transient allocations across readers before copying or decoding."""
+
+    def __init__(self):
+        self._lock = Lock()
+        self._reserved = 0
+        self.decode_lock = RLock()
+
+    @contextmanager
+    def reserve(self, size: int):
+        with self._lock:
+            if self._reserved + size > available_memory_bytes() * 0.75:
+                raise MetadataMemoryError(_METADATA_RAM_ERROR)
+            self._reserved += size
+        try:
+            yield
+        finally:
+            with self._lock:
+                self._reserved -= size
+
+
+@dataclass(frozen=True)
+class ManifestSnapshot:
+    kind: str
+    encoded: str | None = None
+    digest: str | None = None
+    size: int = 0
+
+
+@dataclass
+class _Flight:
+    lock: Lock = field(default_factory=Lock)
+    users: int = 0
+    invalidated: bool = False
 
 
 def _freeze(value: dict) -> tuple[Mapping, int]:
@@ -80,6 +120,7 @@ class ArtifactManifestViews:
         self._entries = OrderedDict()
         self._retained_bytes = 0
         self._lock = Lock()
+        self._flights = {}
 
     def _remove(self, key):
         _, size = self._entries.pop(key)
@@ -93,6 +134,22 @@ class ArtifactManifestViews:
     def discard(self, identifier: str):
         with self._lock:
             self._discard(identifier)
+            if identifier in self._flights:
+                self._flights[identifier].invalidated = True
+
+    @contextmanager
+    def _flight(self, identifier: str):
+        with self._lock:
+            flight = self._flights.setdefault(identifier, _Flight())
+            flight.users += 1
+        try:
+            with flight.lock:
+                yield flight
+        finally:
+            with self._lock:
+                flight.users -= 1
+                if not flight.users:
+                    del self._flights[identifier]
 
     def _budget(self):
         return min(self.max_bytes, available_memory_bytes() // 10)
@@ -106,31 +163,38 @@ class ArtifactManifestViews:
     def read(
         self,
         identifier: str,
-        loader: Callable[[], tuple[str, str, str] | None],
-        decoder: Callable[[str, str, str], dict[str, Any]],
+        loader: Callable[[], AbstractContextManager[ManifestSnapshot | None]],
+        decoder: Callable[[ManifestSnapshot], AbstractContextManager[dict[str, Any]]],
+        *,
+        kind: str | None = None,
     ) -> Mapping[str, Any] | None:
-        with self._lock:
-            self._trim(self._budget())
-            loaded = loader()
-            if loaded is None:
-                self._discard(identifier)
-                return None
-            encoded, expected, kind = loaded
-            try:
-                checked_metadata_size(encoded, expected)
-            except ValueError:
-                self._discard(identifier)
-                raise
-            key = identifier, expected, kind
-            if key in self._entries:
-                self._entries.move_to_end(key)
-                return self._entries[key][0]
-            self._discard(identifier)
-            decoded = decoder(encoded, expected, kind)
-            view, size = _freeze(decoded)
+        with self._flight(identifier) as flight:
             budget = self._budget()
-            if size <= budget:
-                self._entries[key] = view, size
-                self._retained_bytes += size
-            self._trim(budget)
-            return view
+            with self._lock:
+                self._trim(budget)
+            with loader() as loaded:
+                if loaded is None:
+                    self.discard(identifier)
+                    return None
+                if kind is not None and loaded.kind != kind:
+                    return None
+                try:
+                    checked_metadata_size(loaded.encoded, loaded.digest)
+                except ValueError:
+                    self.discard(identifier)
+                    raise
+                key = identifier, loaded.digest, loaded.kind
+                with self._lock:
+                    if key in self._entries:
+                        self._entries.move_to_end(key)
+                        return self._entries[key][0]
+                    self._discard(identifier)
+                with decoder(loaded) as decoded:
+                    view, size = _freeze(decoded)
+                    budget = self._budget()
+                    with self._lock:
+                        if size <= budget and not flight.invalidated:
+                            self._entries[key] = view, size
+                            self._retained_bytes += size
+                        self._trim(budget)
+                    return view

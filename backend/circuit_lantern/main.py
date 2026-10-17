@@ -26,6 +26,7 @@ from circuit_lantern.schemas import (
     TokenizeRequest,
     TraceRequest,
 )
+from circuit_lantern.services.artifact_views import MetadataMemoryError
 from circuit_lantern.services.checkpoint_store import CheckpointStore
 from circuit_lantern.services.checkpoints import CheckpointLab
 from circuit_lantern.services.crosscoders.lab import CrosscoderLab
@@ -104,6 +105,13 @@ async def artifact_conflict(request: Request, error: ArtifactBusyError | Downloa
 @app.exception_handler(ArtifactNotFoundError)
 async def artifact_missing(request: Request, error: ArtifactNotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(error)})
+
+
+@app.exception_handler(MetadataMemoryError)
+async def metadata_memory_pressure(request: Request, error: MetadataMemoryError):
+    return JSONResponse(
+        status_code=503, content={"detail": str(error)}, headers={"Retry-After": "2"}
+    )
 
 
 @app.exception_handler(ReferenceProbeNotFoundError)

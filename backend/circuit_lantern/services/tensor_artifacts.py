@@ -10,7 +10,7 @@ import shutil
 import sqlite3
 import uuid
 from collections.abc import Callable, Mapping
-from contextlib import contextmanager
+from contextlib import ExitStack, contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
@@ -23,9 +23,13 @@ from circuit_lantern.services.artifact_views import (
     MAX_ARTIFACT_METADATA_BYTES as _MAX_METADATA_BYTES,
 )
 from circuit_lantern.services.artifact_views import (
+    METADATA_DECODE_RAM_MULTIPLIER,
+    METADATA_JSON_RAM_MULTIPLIER,
+    METADATA_TEXT_RAM_MULTIPLIER,
     ArtifactManifestViews,
+    ManifestSnapshot,
+    MetadataMemoryBudget,
     checked_metadata_size,
-    require_metadata_ram,
 )
 from circuit_lantern.services.prepared_downloads import DownloadCancelledError
 from circuit_lantern.services.resources import available_memory_bytes
@@ -60,6 +64,7 @@ class TensorArtifactStore:
         self.database = directory / "artifacts.sqlite3"
         self.file_lock = FileLock(directory / ".artifacts.lock")
         self._views = ArtifactManifestViews()
+        self._metadata_memory = MetadataMemoryBudget()
         with self.file_lock:
             with self.connect() as connection:
                 connection.executescript("""
@@ -128,6 +133,23 @@ class TensorArtifactStore:
         finally:
             self.file_lock.release()
 
+    @contextmanager
+    def _read_connection(self):
+        try:
+            with self.connect() as connection:
+                connection.execute("PRAGMA busy_timeout = 100")
+                connection.execute("BEGIN")
+                yield connection
+        except sqlite3.OperationalError as error:
+            if getattr(error, "sqlite_errorcode", 0) & 255 in (
+                sqlite3.SQLITE_BUSY,
+                sqlite3.SQLITE_LOCKED,
+            ):
+                raise ArtifactBusyError(
+                    "The saved tensor artifacts are busy. Try again shortly."
+                ) from error
+            raise
+
     def _path(self, identifier: str) -> Path:
         if not isinstance(identifier, str) or not _IDENTIFIER.fullmatch(identifier):
             raise ValueError("The tensor artifact identifier is invalid.")
@@ -149,48 +171,72 @@ class TensorArtifactStore:
             raise ValueError("The saved artifact metadata is invalid.")
         return value
 
-    def _read_manifest(self, identifier: str, kind: str | None) -> tuple[str, str, str] | None:
+    @contextmanager
+    def _read_manifest(self, identifier: str, kind: str | None):
         self._path(identifier)
-        with self.connect() as connection:
-            # Keep the size check and payload in one SQLite read snapshot.
-            connection.execute("BEGIN")
-            metadata = connection.execute(
-                "SELECT rowid, kind FROM artifacts WHERE id = ?",
-                (identifier,),
-            ).fetchone()
-            if metadata is None or (kind is not None and metadata["kind"] != kind):
-                return None
-            with connection.blobopen(
-                "artifacts", "manifest", metadata["rowid"], readonly=True
-            ) as manifest:
-                size = len(manifest)
-            if size > _MAX_METADATA_BYTES:
-                raise ValueError("The saved artifact metadata checksum does not match.")
-            # One astral character can widen the whole Python string to four bytes.
-            require_metadata_ram(size, 5)
-            row = connection.execute(
-                "SELECT manifest, manifest_sha256 FROM artifacts WHERE id = ?", (identifier,)
-            ).fetchone()
-            return row["manifest"], row["manifest_sha256"], metadata["kind"]
+        with ExitStack() as reservations:
+            loaded = None
+            # Size and payload belong to one SQLite snapshot. Close it before decoding.
+            with self._read_connection() as connection:
+                metadata = connection.execute(
+                    "SELECT rowid, kind FROM artifacts WHERE id = ?", (identifier,)
+                ).fetchone()
+                if metadata is not None:
+                    loaded = ManifestSnapshot(metadata["kind"])
+                    if kind is None or metadata["kind"] == kind:
+                        with connection.blobopen(
+                            "artifacts", "manifest", metadata["rowid"], readonly=True
+                        ) as manifest:
+                            size = len(manifest)
+                        if size > _MAX_METADATA_BYTES:
+                            raise ValueError("The saved artifact metadata checksum does not match.")
+                        # Astral text can widen the whole Python string to four bytes.
+                        reservations.enter_context(
+                            self._metadata_memory.reserve(size * METADATA_TEXT_RAM_MULTIPLIER)
+                        )
+                        row = connection.execute(
+                            "SELECT manifest, manifest_sha256 FROM artifacts WHERE id = ?",
+                            (identifier,),
+                        ).fetchone()
+                        loaded = ManifestSnapshot(
+                            metadata["kind"], row["manifest"], row["manifest_sha256"], size
+                        )
+            yield loaded
 
-    def _decode_manifest(self, identifier: str, encoded: str, expected: str, kind: str) -> dict:
-        if not isinstance(encoded, str):
-            raise ValueError("The saved artifact metadata is invalid.")  # noqa: TRY004 - stored data errors use API validation
-        require_metadata_ram(len(encoded.encode()), 16)
-        payload = self._decode(encoded, expected)
-        if payload.get("id") != identifier or payload["kind"] != kind:
-            raise ValueError("The saved artifact metadata is invalid.")
-        return dict(payload, manifest_sha256=expected)
+    @contextmanager
+    def _decode_manifest(self, identifier: str, loaded: ManifestSnapshot, *, serializing=False):
+        # Keep cold parsing and full-response serialization bounded across mutable and cached reads.
+        multiplier = METADATA_JSON_RAM_MULTIPLIER if serializing else METADATA_DECODE_RAM_MULTIPLIER
+        with (
+            self._metadata_memory.decode_lock,
+            self._metadata_memory.reserve(
+                loaded.size * (multiplier - METADATA_TEXT_RAM_MULTIPLIER)
+            ),
+        ):
+            payload = self._decode(loaded.encoded, loaded.digest)
+            if payload.get("id") != identifier or payload["kind"] != loaded.kind:
+                raise ValueError("The saved artifact metadata is invalid.")
+            yield dict(payload, manifest_sha256=loaded.digest)
+
+    @contextmanager
+    def read_metadata(self, identifier: str, *, kind: str | None = None, serializing=False):
+        with self._read_manifest(identifier, kind) as loaded:
+            if loaded is None or (kind is not None and loaded.kind != kind):
+                yield None
+            else:
+                with self._decode_manifest(identifier, loaded, serializing=serializing) as value:
+                    yield value
 
     def get(self, identifier: str, *, kind: str | None = None) -> dict | None:
-        loaded = self._read_manifest(identifier, kind)
-        return None if loaded is None else self._decode_manifest(identifier, *loaded)
+        with self.read_metadata(identifier, kind=kind) as value:
+            return value
 
     def get_readonly(self, identifier: str, *, kind: str | None = None) -> Mapping | None:
         return self._views.read(
             identifier,
             lambda: self._read_manifest(identifier, kind),
-            lambda *loaded: self._decode_manifest(identifier, *loaded),
+            lambda loaded: self._decode_manifest(identifier, loaded),
+            kind=kind,
         )
 
     def list(self, kind: str) -> list[dict]:
@@ -237,7 +283,7 @@ class TensorArtifactStore:
         tensor_bytes = sum(value.numel() * value.element_size() for value in tensors.values())
         if tensor_bytes > self.max_bytes:
             raise ValueError("The tensor artifact exceeds the configured size limit.")
-        with self.operation():
+        with self.operation(), ExitStack() as reservations:
             identifier = uuid.uuid4().hex
             destination = self._path(identifier)
             temporary = self.directory / ("." + identifier + ".partial")
@@ -258,8 +304,12 @@ class TensorArtifactStore:
                 for value in tensors.values()
                 if value.device.type != "cpu" or not value.is_contiguous()
             )
-            if copy_bytes + len(initial.encode()) * 4 > available_memory_bytes() * 0.75:
-                raise ValueError("Insufficient available RAM to publish the tensor artifact.")
+            # Publish only when the same process can also browse and export the result.
+            reservations.enter_context(
+                self._metadata_memory.reserve(
+                    copy_bytes + (len(initial.encode()) + 128) * METADATA_JSON_RAM_MULTIPLIER
+                )
+            )
             if tensor_bytes * 2 + len(initial.encode()) * 2 + _HEADER_ALLOWANCE > (
                 shutil.disk_usage(self.directory).free * 0.9
             ):
@@ -420,22 +470,43 @@ class TensorArtifactStore:
             self._views.discard(identifier)
             return True
 
-    def annotations(self, identifier: str, features: list[int] | None = None) -> dict[int, dict]:
+    @contextmanager
+    def read_annotations(
+        self, identifier: str, features: list[int] | None = None, *, serializing=False
+    ):
         self._path(identifier)
         if features == []:
-            return {}
+            yield {}
+            return
         suffix = ""
         arguments = [identifier]
         if features is not None:
             suffix = " AND feature IN (" + ",".join("?" for _ in features) + ")"
             arguments.extend(features)
-        with self.connect() as connection:
-            rows = connection.execute(
-                "SELECT feature, label, notes, updated_at FROM labels WHERE artifact_id = ?"
-                + suffix,
-                arguments,
-            ).fetchall()
-        return {row["feature"]: dict(row) for row in rows}
+        with ExitStack() as reservations:
+            with self._read_connection() as connection:
+                size, count = connection.execute(
+                    "SELECT COALESCE(SUM(length(CAST(label AS BLOB)) + "
+                    "length(CAST(notes AS BLOB))), 0), COUNT(*) "
+                    "FROM labels WHERE artifact_id = ?" + suffix,
+                    arguments,
+                ).fetchone()
+                # Text volume is independent of manifest size. Reserve before fetching any notes.
+                reservations.enter_context(
+                    self._metadata_memory.reserve(
+                        size * (24 if serializing else 8) + count * (2048 if serializing else 1024)
+                    )
+                )
+                rows = connection.execute(
+                    "SELECT feature, label, notes, updated_at FROM labels WHERE artifact_id = ?"
+                    + suffix,
+                    arguments,
+                ).fetchall()
+            yield {row["feature"]: dict(row) for row in rows}
+
+    def annotations(self, identifier: str, features: list[int] | None = None) -> dict[int, dict]:
+        with self.read_annotations(identifier, features) as value:
+            return value
 
     def search_annotations(self, identifier: str, query: str) -> set[int]:
         self._path(identifier)
@@ -453,7 +524,7 @@ class TensorArtifactStore:
 
     def label(self, identifier: str, feature: int, label: str, notes: str) -> dict:
         with self.operation():
-            manifest = self.get(identifier, kind="crosscoder")
+            manifest = self.get_readonly(identifier, kind="crosscoder")
             if manifest is None:
                 raise ArtifactNotFoundError("The crosscoder was not found.")
             if type(feature) is not int or not 0 <= feature < manifest["features"]:
