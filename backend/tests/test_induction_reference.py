@@ -329,3 +329,68 @@ def test_replayed_block_can_retain_an_id_newly_designated_special_without_changi
     assert compared["shared_examples"] == 3
     assert compared["repeated_loss_difference"] == pytest.approx(0, abs=1e-12)
     assert compared["shared_causal_heads"] == 1
+
+
+def test_unmapped_added_special_tokens_are_excluded_from_fresh_probes_but_retained_on_replay(
+    setup, runtime
+):
+    from tokenizers import AddedToken
+
+    lab, _, _, source, request = setup
+    sampled = {
+        token
+        for probe in source["dataset"]["probes"]
+        for token in probe["token_ids"]
+        if token not in runtime.tokenizer.all_special_ids
+    }
+    identifier = min(sampled)
+    token = runtime.tokenizer.convert_ids_to_tokens(identifier)
+    original_mapping = runtime.tokenizer.get_vocab()
+    runtime.tokenizer.add_tokens([AddedToken(token, special=True)], special_tokens=True)
+    assert identifier not in runtime.tokenizer.all_special_ids
+    assert runtime.tokenizer.get_vocab() == original_mapping
+    assert (
+        lab.capabilities()["vocabulary_pool_size"] == source["dataset"]["vocabulary_pool_size"] - 1
+    )
+    fresh, _, _ = lab._prepare(request.model_copy(update={"reference_experiment_id": None}))
+    assert all(identifier not in probe.token_ids[1:] for probe in fresh.probes)
+    plan = lab.plan(request)
+    payload = request.model_dump()
+    payload.update(
+        expected_probe_fingerprint=plan["dataset_fingerprint"],
+        expected_comparison_identity=plan["comparison_identity_sha256"],
+        expected_reference_signature=plan["reference_signature"],
+    )
+    matched = lab._measure(payload, {})
+    assert matched["dataset"]["probes"] == source["dataset"]["probes"]
+    assert identifier in matched["active_tokenizer_special_ids"]
+    assert matched["mean_repeated_nll"] == pytest.approx(source["mean_repeated_nll"], abs=1e-10)
+
+
+@pytest.mark.parametrize("count", [0, 1, 3])
+def test_reference_candidate_policy_reports_retained_and_ranked_sources(setup, count):
+    lab, _, _, _, request = setup
+    plan = lab.plan(request.model_copy(update={"causal_heads": count}))
+    summary = plan["reference_probe"]
+    assert summary["retained_candidate_count"] == min(1, count)
+    assert summary["ranked_candidate_count"] == max(0, count - 1)
+    expected = (
+        "reference_prefix_ranking"
+        if count == 0
+        else "retained_reference_coordinates"
+        if count == 1
+        else "retained_reference_coordinates_with_ranked_tail"
+    )
+    assert summary["candidate_policy"] == expected
+    assert len(plan["causal_candidates"]) == count
+
+
+def test_layer_filter_excludes_retained_candidates_from_policy_counts(setup):
+    lab, _, _, source, request = setup
+    retained_layer = source["causal_results"][0]["layer"]
+    plan = lab.plan(request.model_copy(update={"causal_heads": 2, "layers": [1 - retained_layer]}))
+    summary = plan["reference_probe"]
+    assert summary["candidate_policy"] == "reference_prefix_ranking"
+    assert summary["retained_candidate_count"] == 0
+    assert summary["ranked_candidate_count"] == 2
+    assert all(row["layer"] != retained_layer for row in plan["causal_candidates"])

@@ -110,6 +110,8 @@ class ProbeReferences:
         )
         chosen = prioritized[:candidate_count]
         candidates = [{"layer": row["layer"], "head": row["head"]} for row in chosen]
+        retained_count = sum((row["layer"], row["head"]) in retained_coordinates for row in chosen)
+        ranked_count = len(chosen) - retained_count
         summary = {
             "experiment_id": identifier,
             "name": record["name"],
@@ -119,9 +121,13 @@ class ProbeReferences:
             "comparison_identity_sha256": evidence.result["comparison_identity_sha256"],
             "measured_examples": evidence.result["measured_examples"],
             "requested_examples": evidence.result["requested_examples"],
-            "candidate_policy": "retained_reference_coordinates"
-            if retained
+            "candidate_policy": "retained_reference_coordinates_with_ranked_tail"
+            if retained_count and ranked_count
+            else "retained_reference_coordinates"
+            if retained_count
             else "reference_prefix_ranking",
+            "retained_candidate_count": retained_count,
+            "ranked_candidate_count": ranked_count,
             "candidate_scores": [
                 {
                     "layer": row["layer"],

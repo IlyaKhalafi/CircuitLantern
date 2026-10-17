@@ -12,6 +12,7 @@ from circuit_lantern.services.induction.patterns import score_repeated_attention
 from circuit_lantern.services.induction.probes import ProbeBatch
 from circuit_lantern.services.interventions import install_head_ablation
 from circuit_lantern.services.scoring import log_probabilities
+from circuit_lantern.services.tokens import special_token_ids
 
 REFERENCES = [
     {
@@ -116,7 +117,7 @@ def measure_induction(
         "captured_at": datetime.now(UTC).isoformat(),
         "device": device,
         "dataset": batch.description(),
-        "active_tokenizer_special_ids": sorted(set(tokenizer.all_special_ids)),
+        "active_tokenizer_special_ids": sorted(special_token_ids(tokenizer)),
         "dataset_fingerprint": batch.fingerprint,
         "layer_targets": targets,
         "requested_examples": batch.config.examples,

@@ -10,7 +10,7 @@ from circuit_lantern.services.induction.planning import output_vocabulary_size, 
 from circuit_lantern.services.induction.probes import ProbeConfig, build_probe_batch
 from circuit_lantern.services.induction.reference import ProbeReferences
 from circuit_lantern.services.interventions import attention_head_targets
-from circuit_lantern.services.tokens import capture_token_limit
+from circuit_lantern.services.tokens import capture_token_limit, special_token_ids
 
 MAX_PATTERN_HEADS = 8192
 
@@ -94,7 +94,7 @@ class InductionLab:
                 if not minimal["compatible"]:
                     raise ValueError(" ".join(minimal["blockers"]))
                 vocabulary = self._vocabulary(start)
-                excluded = set(runtime.tokenizer.all_special_ids)
+                excluded = special_token_ids(runtime.tokenizer)
                 if start is not None:
                     excluded.add(start)
                 pool = len(vocabulary - excluded)
@@ -171,7 +171,7 @@ class InductionLab:
         else:
             batch = build_probe_batch(
                 self._vocabulary(start, vocabulary),
-                runtime.tokenizer.all_special_ids,
+                special_token_ids(runtime.tokenizer),
                 start,
                 config,
                 context_limit=limit,
