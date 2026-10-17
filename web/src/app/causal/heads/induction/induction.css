@@ -1,0 +1,138 @@
+.induction-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--muted);
+  font-size: 12px;
+  margin-bottom: 20px;
+}
+[dir="rtl"] .induction-back svg {
+  transform: rotate(180deg);
+}
+.induction-form {
+  padding: 24px;
+}
+.induction-sequence {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.induction-sequence > div {
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: linear-gradient(135deg, var(--hero-start), var(--hero-end));
+  display: grid;
+  gap: 8px;
+}
+.induction-sequence > div > span,
+.induction-sequence small {
+  font-size: 11px;
+  color: var(--muted);
+}
+.induction-sequence strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 18px;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.induction-advanced {
+  margin-block: 20px;
+  border-block: 1px solid var(--line);
+  padding-block: 16px;
+}
+.induction-advanced summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+}
+.induction-fields {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  margin-block: 20px;
+}
+.induction-fields label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+}
+.induction-check {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 12px;
+}
+.induction-check input {
+  accent-color: var(--blue);
+  width: 17px;
+  height: 17px;
+}
+.induction-actions {
+  display: flex;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 20px;
+}
+.induction-plan {
+  background: var(--blue-tint);
+  border: 1px solid var(--blue-border);
+  border-radius: 9px;
+  padding: 16px;
+  margin-top: 16px;
+  font-size: 12px;
+}
+.induction-plan p {
+  color: var(--muted);
+  margin-top: 6px;
+}
+@media (max-width: 600px) {
+  .induction-form {
+    padding: 16px;
+  }
+  .induction-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .induction-sequence > div {
+    padding: 12px;
+  }
+}
+@media (max-width: 380px) {
+  .induction-fields {
+    grid-template-columns: 1fr;
+  }
+  .induction-actions {
+    flex-direction: column;
+  }
+}
+
+.induction-form .inline-note {
+  border: 0;
+  padding: 0;
+  margin-top: 10px;
+}
+
+.induction-sequence strong span {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+@media (max-width: 380px) {
+  .induction-sequence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .induction-sequence strong {
+    font-size: 16px;
+    letter-spacing: 1px;
+    gap: 5px;
+  }
+  .induction-sequence strong span {
+    font-size: 12px;
+  }
+}
