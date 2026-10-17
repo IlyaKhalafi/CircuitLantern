@@ -481,6 +481,13 @@ test("capture preparation remains readable in all locales and themes", async ({
   for (const locale of ["en", "fa", "ar", "ja", "fr"]) {
     await page.locator(".language-select select").selectOption(locale);
     await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    expect(
+      await page
+        .locator(".crosscoder-workbench textarea")
+        .first()
+        .evaluate((element) => getComputedStyle(element).direction),
+    ).toBe("ltr");
+
     for (const theme of ["light", "dark"]) {
       await page
         .locator(".theme-select button")

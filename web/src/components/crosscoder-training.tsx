@@ -109,6 +109,7 @@ export function CrosscoderTraining({
           <label>
             {t("Comparison name")}
             <input
+              dir="auto"
               maxLength={100}
               value={draft.name}
               placeholder={t("Shared feature comparison")}

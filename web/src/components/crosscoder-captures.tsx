@@ -264,6 +264,7 @@ export function CrosscoderCaptures({
                 <label>
                   {t("Capture name")}
                   <input
+                    dir="auto"
                     maxLength={100}
                     disabled={busy}
                     value={draft.referenceName}
@@ -278,6 +279,7 @@ export function CrosscoderCaptures({
               <label>
                 {t("Training corpus")}
                 <textarea
+                  dir="auto"
                   aria-label={t("Training corpus")}
                   rows={7}
                   value={draft.documents}
@@ -387,6 +389,7 @@ export function CrosscoderCaptures({
                   <label>
                     {t("Capture name")}
                     <input
+                      dir="auto"
                       maxLength={100}
                       value={draft.comparedName}
                       placeholder={t("Compared capture")}

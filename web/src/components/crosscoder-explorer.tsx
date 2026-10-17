@@ -180,6 +180,7 @@ function SharedFeatureInspector({
             <label>
               {t("Feature label")}
               <input
+                dir="auto"
                 maxLength={100}
                 value={value.label}
                 disabled={saving}
@@ -191,6 +192,7 @@ function SharedFeatureInspector({
             <label>
               {t("Research notes")}
               <textarea
+                dir="auto"
                 aria-label={t("Research notes")}
                 rows={3}
                 maxLength={10000}
@@ -524,6 +526,7 @@ export function CrosscoderExplorer({
                 <label>
                   {t("Search features")}
                   <input
+                    dir="auto"
                     maxLength={100}
                     value={search}
                     onChange={(event) => {
