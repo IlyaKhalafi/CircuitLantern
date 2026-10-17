@@ -160,6 +160,19 @@ test("hybrid graph remains usable in both themes and on a narrow screen", async 
   await capturePage(page, {
     path: "../artifacts/screenshots/hybrid-deltanet-mobile.png",
   });
+  await page.locator(".block-dataflow").scrollIntoViewIfNeeded();
+  const canvas = (await page.locator(".block-dataflow").boundingBox())!;
+  const projection = page.locator(".flow-weight").first();
+  const before = (await projection.boundingBox())!;
+  await page.mouse.move(canvas.x + 50, canvas.y + 15);
+  await page.mouse.down();
+  await page.mouse.move(canvas.x + 300, canvas.y + 15, { steps: 12 });
+  await page.mouse.up();
+  await expect
+    .poll(
+      async () => ((await projection.boundingBox())?.x ?? before.x) - before.x,
+    )
+    .toBeGreaterThan(200);
 });
 
 test("unresolved layer kinds never masquerade as full attention", async ({
@@ -200,3 +213,62 @@ test("larger source-derived architectures open directly on readable connections"
   expect(matrix!.x).toBeGreaterThan(canvas!.x);
   expect(matrix!.x + matrix!.width).toBeLessThan(canvas!.x + canvas!.width);
 });
+
+for (const locale of ["en", "fa", "ar", "ja", "fr"]) {
+  test(`hybrid mixer descriptions and mobile controls remain usable in ${locale}`, async ({
+    page,
+    context,
+  }) => {
+    const { readFileSync } = await import("node:fs");
+    const messages = JSON.parse(
+      readFileSync(`src/i18n/messages/${locale}.json`, "utf8"),
+    );
+    await context.addCookies([
+      {
+        name: "lantern_locale",
+        value: locale,
+        url: new URL(test.info().project.use.baseURL as string).origin,
+      },
+    ]);
+    await hybridFixture(page, 12);
+    await page.goto("/workspace");
+    await expect(page.locator("html")).toHaveAttribute("lang", locale);
+    await expect(
+      page
+        .locator(".flow-operation")
+        .getByText(messages["Gated DeltaNet recurrence"], { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator(".flow-operation")
+        .getByText(
+          messages[
+            "Chunked gated delta rule · recurrent state · not softmax attention"
+          ],
+          { exact: true },
+        ),
+    ).toBeVisible();
+    await page.setViewportSize({ width: 390, height: 844 });
+    await expect
+      .poll(() =>
+        page.evaluate(() => document.documentElement.scrollWidth <= innerWidth),
+      )
+      .toBe(true);
+    await page.locator(".graph-toolbar select").selectOption("3");
+    await expect(
+      page
+        .locator(".flow-operation")
+        .getByText(messages["Multiply output gate"], { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page
+        .locator(".flow-operation")
+        .getByText(messages["Attention output × sigmoid(gate)"], {
+          exact: true,
+        }),
+    ).toBeVisible();
+    await capturePage(page, {
+      path: `../artifacts/screenshots/hybrid-locale-${locale}-mobile.png`,
+    });
+  });
+}

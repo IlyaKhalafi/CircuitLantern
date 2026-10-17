@@ -1995,5 +1995,14 @@
   "Other": "Autre",
   "Unmapped matrices": "Matrices non reliées",
   "These weights were not mapped to the selected output path. They remain available for inspection.": "Ces poids ne sont pas reliés au chemin de sortie sélectionné. Ils restent disponibles pour inspection.",
-  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "Les connexions de ce bloc n’ont pas pu être déterminées avec certitude. Examinez ses poids dans l’inventaire."
+  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "Les connexions de ce bloc n’ont pas pu être déterminées avec certitude. Examinez ses poids dans l’inventaire.",
+  "Depthwise convolution · SiLU · uncached sequence": "Convolution par canal · SiLU · séquence sans cache",
+  "Split QKV · reshape heads · L2 normalization in kernel": "Séparation QKV · mise en forme des têtes · normalisation L2 dans le noyau",
+  "Split QKV · reshape value heads": "Séparation QKV · mise en forme des têtes de valeurs",
+  "Chunked gated delta rule · recurrent state · not softmax attention": "Règle delta par blocs avec portes · état récurrent · sans attention softmax",
+  "Split query · Q RMSNorm · RoPE": "Séparation de requête · RMSNorm de Q · RoPE",
+  "Split gate · sigmoid": "Séparation de porte · sigmoïde",
+  "K RMSNorm · RoPE": "RMSNorm de K · RoPE",
+  "Attention probabilities × V · concatenate heads": "Probabilités d’attention × V · concaténation des têtes",
+  "Attention output × sigmoid(gate)": "Sortie d’attention × sigmoid(gate)"
 }

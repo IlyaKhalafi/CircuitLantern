@@ -1995,5 +1995,14 @@
   "Other": "آخر",
   "Unmapped matrices": "مصفوفات غير موصولة",
   "These weights were not mapped to the selected output path. They remain available for inspection.": "لم تُربط هذه الأوزان بمسار الخرج المحدد. وتظل متاحة للفحص.",
-  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "تعذّر تحديد اتصالات هذه الكتلة بشكل موثوق. افحص أوزانها في القائمة."
+  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "تعذّر تحديد اتصالات هذه الكتلة بشكل موثوق. افحص أوزانها في القائمة.",
+  "Depthwise convolution · SiLU · uncached sequence": "التفاف عمقي · SiLU · تسلسل دون ذاكرة مؤقتة",
+  "Split QKV · reshape heads · L2 normalization in kernel": "فصل QKV · إعادة تشكيل الرؤوس · تطبيع L2 داخل النواة",
+  "Split QKV · reshape value heads": "فصل QKV · إعادة تشكيل رؤوس القيم",
+  "Chunked gated delta rule · recurrent state · not softmax attention": "قاعدة دلتا مجزأة ذات بوابات · حالة تكرارية · دون انتباه softmax",
+  "Split query · Q RMSNorm · RoPE": "فصل الاستعلام · RMSNorm لـ Q · RoPE",
+  "Split gate · sigmoid": "فصل البوابة · سيغمويد",
+  "K RMSNorm · RoPE": "RMSNorm لـ K · RoPE",
+  "Attention probabilities × V · concatenate heads": "احتمالات الانتباه × V · دمج الرؤوس",
+  "Attention output × sigmoid(gate)": "خرج الانتباه × سيغمويد البوابة"
 }

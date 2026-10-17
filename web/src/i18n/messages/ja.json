@@ -1995,5 +1995,14 @@
   "Other": "その他",
   "Unmapped matrices": "未対応の行列",
   "These weights were not mapped to the selected output path. They remain available for inspection.": "これらの重みは選択した出力経路に対応づけられていません。引き続き調べることができます。",
-  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "このブロックの接続は確実に特定できませんでした。一覧で重みを調べてください。"
+  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "このブロックの接続は確実に特定できませんでした。一覧で重みを調べてください。",
+  "Depthwise convolution · SiLU · uncached sequence": "深さ方向の畳み込み · SiLU · キャッシュなしの系列",
+  "Split QKV · reshape heads · L2 normalization in kernel": "QKV 分割 · ヘッド整形 · カーネル内の L2 正規化",
+  "Split QKV · reshape value heads": "QKV 分割 · 値ヘッドの整形",
+  "Chunked gated delta rule · recurrent state · not softmax attention": "チャンク単位のゲート付きデルタ則 · 再帰状態 · softmax 注意なし",
+  "Split query · Q RMSNorm · RoPE": "クエリ分割 · Q の RMSNorm · RoPE",
+  "Split gate · sigmoid": "ゲート分割 · シグモイド",
+  "K RMSNorm · RoPE": "K の RMSNorm · RoPE",
+  "Attention probabilities × V · concatenate heads": "注意確率 × V · ヘッドの連結",
+  "Attention output × sigmoid(gate)": "注意出力 × sigmoid(gate)"
 }

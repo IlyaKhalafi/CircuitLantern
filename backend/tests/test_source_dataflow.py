@@ -323,3 +323,40 @@ def test_optional_discovery_failure_keeps_inventory_accessible(monkeypatch):
     flow, weights = diagram(MisleadingBlock())
     assert not flow["supported"]
     assert len(weights) == 2
+
+
+class UnusedWeight(nn.Module):
+    def __init__(self):
+        super().__init__()
+        self.weight = nn.Parameter(torch.ones(8, 8))
+
+    def forward(self, x):
+        return x
+
+
+class IgnoredLinear(nn.Linear):
+    def __init__(self):
+        super().__init__(8, 8)
+
+    def forward(self, x):
+        return x
+
+
+class DecoyWeightBlock(nn.Module):
+    def __init__(self, leaf):
+        super().__init__()
+        self.actual = nn.Linear(8, 8)
+        self.decoy = leaf
+
+    def forward(self, x):
+        return self.decoy(self.actual(x))
+
+
+@pytest.mark.parametrize("leaf", [UnusedWeight, IgnoredLinear])
+def test_unused_weight_and_overridden_linear_are_not_claimed_as_connected(leaf):
+    flow, weights = diagram(DecoyWeightBlock(leaf()))
+    assert_graph(flow, weights)
+    assert flow["mapped_matrices"] == 1
+    assert flow["total_matrices"] == 2
+    assert flow["unmapped_matrices"] == ["blocks.0.decoy.weight"]
+    assert not any(node["weight"] == "blocks.0.decoy.weight" for node in flow["nodes"])

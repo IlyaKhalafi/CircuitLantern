@@ -1995,5 +1995,14 @@
   "Other": "دیگر",
   "Unmapped matrices": "ماتریس‌های نگاشت‌نشده",
   "These weights were not mapped to the selected output path. They remain available for inspection.": "این وزن‌ها به مسیر خروجی انتخاب‌شده نگاشت نشدند. همچنان می‌توانید آن‌ها را بررسی کنید.",
-  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "اتصال‌های این بلوک با اطمینان مشخص نشدند. وزن‌های آن را در فهرست بررسی کنید."
+  "Connections could not be resolved safely for this block. Inspect its weights in the inventory.": "اتصال‌های این بلوک با اطمینان مشخص نشدند. وزن‌های آن را در فهرست بررسی کنید.",
+  "Depthwise convolution · SiLU · uncached sequence": "کانولوشن عمقی · SiLU · دنبالهٔ بدون حافظهٔ نهان",
+  "Split QKV · reshape heads · L2 normalization in kernel": "تفکیک QKV · تغییر شکل سرها · نرمال‌سازی L2 در کرنل",
+  "Split QKV · reshape value heads": "تفکیک QKV · تغییر شکل سرهای مقدار",
+  "Chunked gated delta rule · recurrent state · not softmax attention": "قاعدهٔ دلتای دروازه‌دار قطعه‌ای · حالت بازگشتی · بدون توجه سافت‌مکس",
+  "Split query · Q RMSNorm · RoPE": "تفکیک پرسش · RMSNorm برای Q · RoPE",
+  "Split gate · sigmoid": "تفکیک دروازه · سیگموید",
+  "K RMSNorm · RoPE": "RMSNorm برای K · RoPE",
+  "Attention probabilities × V · concatenate heads": "احتمال‌های توجه × V · الحاق سرها",
+  "Attention output × sigmoid(gate)": "خروجی توجه × سیگموید دروازه"
 }
