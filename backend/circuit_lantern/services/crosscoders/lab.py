@@ -21,6 +21,7 @@ from circuit_lantern.services.features.corpus import (
 )
 from circuit_lantern.services.features.planning import forward_memory
 from circuit_lantern.services.hardware import hardware_snapshot
+from circuit_lantern.services.prepared_downloads import PreparedDownloads
 from circuit_lantern.services.tensor_artifacts import ArtifactNotFoundError, TensorArtifactStore
 
 REFERENCES = [
@@ -94,6 +95,7 @@ class CrosscoderLab:
     def __init__(self, runtime, store: TensorArtifactStore):
         self.runtime = runtime
         self.store = store
+        self.downloads = PreparedDownloads()
 
     def _capture(self, identifier: str) -> dict:
         result = self.store.get(identifier, kind="capture")

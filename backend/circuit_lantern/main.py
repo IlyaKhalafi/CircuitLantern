@@ -34,6 +34,7 @@ from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
 from circuit_lantern.services.induction.lab import InductionLab
+from circuit_lantern.services.prepared_downloads import DownloadBusyError
 from circuit_lantern.services.runtime import ModelChangedError, ModelRuntime, RuntimeBusyError
 from circuit_lantern.services.store import ExperimentStore
 from circuit_lantern.services.tensor_artifacts import (
@@ -66,6 +67,7 @@ async def lifespan(app: FastAPI):
         app.state.runtime, CheckpointStore(settings.data_dir / "checkpoints")
     )
     yield
+    app.state.crosscoders.downloads.close()
     with app.state.runtime.job_lock:
         for job in app.state.runtime.jobs.values():
             if job.get("kind") != "download":
@@ -93,7 +95,8 @@ async def runtime_conflict(request: Request, error: RuntimeBusyError | ModelChan
 
 
 @app.exception_handler(ArtifactBusyError)
-async def artifact_conflict(request: Request, error: ArtifactBusyError):
+@app.exception_handler(DownloadBusyError)
+async def artifact_conflict(request: Request, error: ArtifactBusyError | DownloadBusyError):
     return JSONResponse(status_code=409, content={"detail": str(error)})
 
 

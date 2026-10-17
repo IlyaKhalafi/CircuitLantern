@@ -9,6 +9,7 @@ import re
 import shutil
 import sqlite3
 import uuid
+from collections.abc import Callable
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
@@ -18,6 +19,8 @@ import torch
 from filelock import FileLock, Timeout
 from safetensors import SafetensorError
 from safetensors.torch import load, save_file
+
+from circuit_lantern.services.prepared_downloads import DownloadCancelledError
 
 _IDENTIFIER = re.compile(r"^[a-f0-9]{32}$")
 _MAX_METADATA_BYTES = 128 * 1024**2
@@ -308,11 +311,22 @@ class TensorArtifactStore:
                 raise ValueError("The saved artifact contains invalid tensor values.")
             return manifest, tensors
 
-    def open_tensors(self, identifier: str, *, kind: str):
+    def open_tensors(
+        self,
+        identifier: str,
+        *,
+        kind: str,
+        cancelled: Callable[[], bool] | None = None,
+    ):
+        if cancelled and cancelled():
+            raise DownloadCancelledError()
         with self.operation():
             manifest = self.get(identifier, kind=kind)
             if manifest is None:
                 raise ArtifactNotFoundError("The saved tensor artifact was not found.")
+            expected = manifest.get("tensors_sha256")
+            if not isinstance(expected, str) or not re.fullmatch(r"[a-f0-9]{64}", expected):
+                raise ValueError("The saved artifact metadata is invalid.")
             try:
                 stream = self._path(identifier).open("rb")
             except FileNotFoundError as error:
@@ -321,7 +335,19 @@ class TensorArtifactStore:
             size = os.fstat(stream.fileno()).st_size
             if size > self.max_bytes + _HEADER_ALLOWANCE:
                 raise ValueError("The saved artifact exceeds the configured file size limit.")
-            if hashlib.file_digest(stream, "sha256").hexdigest() != manifest["tensors_sha256"]:
+            if cancelled is None:
+                actual = hashlib.file_digest(stream, "sha256").hexdigest()
+            else:
+                digest = hashlib.sha256()
+                while True:
+                    if cancelled():
+                        raise DownloadCancelledError()
+                    chunk = stream.read(1024**2)
+                    if not chunk:
+                        break
+                    digest.update(chunk)
+                actual = digest.hexdigest()
+            if actual != expected:
                 raise ValueError("The saved tensor artifact checksum does not match.")
             stream.seek(0)
             return stream, size

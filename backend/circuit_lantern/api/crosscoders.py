@@ -1,11 +1,14 @@
 """Retained activation captures and joint feature comparison endpoints."""
 
+import asyncio
+from functools import partial
+from threading import Event
 from typing import Annotated, Literal
 
 import torch
-from fastapi import APIRouter, HTTPException, Path, Query, Request
+from fastapi import APIRouter, HTTPException, Path, Query, Request, Response
 from fastapi.responses import StreamingResponse
-from starlette.background import BackgroundTask
+from starlette.types import Receive, Scope, Send
 
 from circuit_lantern.crosscoder_schemas import (
     ActivationCaptureRequest,
@@ -14,6 +17,8 @@ from circuit_lantern.crosscoder_schemas import (
     MatchedCaptureRequest,
 )
 from circuit_lantern.services.crosscoders.lab import REFERENCES
+from circuit_lantern.services.prepared_downloads import DownloadCancelledError
+from circuit_lantern.services.tensor_artifacts import ArtifactNotFoundError
 
 router = APIRouter(prefix="/api/crosscoders", tags=["crosscoders"])
 Identifier = Annotated[str, Path(pattern=r"^[a-f0-9]{32}$")]
@@ -73,21 +78,100 @@ def delete_capture(identifier: Identifier, request: Request):
             raise HTTPException(404, "The retained capture was not found.")
 
 
+class PinnedDownloadResponse(StreamingResponse):
+    def __init__(self, stream, length: int, filename: str):
+        self.stream = stream
+        super().__init__(
+            iter(lambda: stream.read(1024**2), b""),
+            media_type="application/octet-stream",
+            headers={
+                "Content-Disposition": 'attachment; filename="' + filename + '"',
+                "Content-Length": str(length),
+                "Cache-Control": "no-store",
+            },
+        )
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            self.stream.close()
+
+
+def stream_download(stream, length: int, filename: str):
+    return PinnedDownloadResponse(stream, length, filename)
+
+
+def open_artifact(request: Request, identifier: str, kind: str, cancelled=None):
+    try:
+        return request.app.state.crosscoders.store.open_tensors(
+            identifier, kind=kind, cancelled=cancelled
+        )
+    except ArtifactNotFoundError:
+        raise
+    except OSError as error:
+        raise HTTPException(
+            503, "The saved tensor file could not be read. Check server storage and try again."
+        ) from error
+
+
 def tensors(request: Request, identifier: str, kind: str):
-    stream, length = request.app.state.crosscoders.store.open_tensors(identifier, kind=kind)
-    return StreamingResponse(
-        iter(lambda: stream.read(1024**2), b""),
-        media_type="application/octet-stream",
-        headers={
-            "Content-Disposition": 'attachment; filename="'
-            + kind
-            + "-"
-            + identifier
-            + '.safetensors"',
-            "Content-Length": str(length),
-        },
-        background=BackgroundTask(stream.close),
+    stream, length = open_artifact(request, identifier, kind)
+    return stream_download(stream, length, kind + "-" + identifier + ".safetensors")
+
+
+async def prepare_download(request: Request, identifier: str, kind: str):
+    lab = request.app.state.crosscoders
+    cancelled = Event()
+    handoff = False
+    work = asyncio.create_task(
+        asyncio.to_thread(
+            lab.downloads.prepare,
+            partial(open_artifact, request, identifier, kind, cancelled.is_set),
+            kind + "-" + identifier + ".safetensors",
+            cancelled.is_set,
+        )
     )
+
+    def cleanup(completed):
+        if not completed.done() or completed.cancelled():
+            return
+        if completed.exception() is not None:
+            return
+        ticket, _ = completed.result()
+        if cancelled.is_set():
+            lab.downloads.discard(ticket)
+
+    work.add_done_callback(cleanup)
+    try:
+        while not work.done():
+            if await request.is_disconnected():
+                return Response(status_code=499)
+            await asyncio.wait({work}, timeout=0.05)
+        ticket, length = work.result()
+        if await request.is_disconnected():
+            return Response(status_code=499)
+        handoff = True
+        return {"ticket": ticket, "size": length}
+    except DownloadCancelledError:
+        return Response(status_code=499)
+    finally:
+        if not handoff:
+            cancelled.set()
+            cleanup(work)
+
+
+@router.post("/captures/{identifier}/download")
+async def prepare_capture_download(identifier: Identifier, request: Request):
+    return await prepare_download(request, identifier, "capture")
+
+
+@router.get("/downloads/{ticket}")
+def prepared_download(ticket: Annotated[str, Path(pattern=r"^[a-f0-9]{64}$")], request: Request):
+    lease = request.app.state.crosscoders.downloads.take(ticket)
+    if lease is None:
+        raise HTTPException(410, "The prepared download expired. Prepare the download again.")
+    return stream_download(lease.stream, lease.length, lease.filename)
 
 
 @router.get("/captures/{identifier}/tensors")
@@ -147,6 +231,11 @@ def label(
     return request.app.state.crosscoders.store.label(
         identifier, feature, payload.label, payload.notes
     )
+
+
+@router.post("/{identifier}/download")
+async def prepare_weights_download(identifier: Identifier, request: Request):
+    return await prepare_download(request, identifier, "crosscoder")
 
 
 @router.get("/{identifier}/weights")

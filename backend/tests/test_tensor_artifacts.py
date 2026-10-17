@@ -274,3 +274,31 @@ def test_download_verification_allows_annotations_and_deletion(tmp_path, monkeyp
             assert digest_bytes(raw) == manifest["tensors_sha256"]
         finally:
             stream.close()
+
+
+def test_cancelled_checksum_releases_the_pinned_file(tmp_path, monkeypatch):
+    from circuit_lantern.services.prepared_downloads import DownloadCancelledError
+
+    store = TensorArtifactStore(tmp_path, 1024)
+    manifest, _ = save(store)
+    opened = []
+    original = type(tmp_path).open
+
+    def tracking(path, *args, **kwargs):
+        stream = original(path, *args, **kwargs)
+        if path.suffix == ".safetensors":
+            opened.append(stream)
+        return stream
+
+    monkeypatch.setattr(type(tmp_path), "open", tracking)
+    calls = 0
+
+    def cancelled():
+        nonlocal calls
+        calls += 1
+        return calls >= 2
+
+    with pytest.raises(DownloadCancelledError):
+        store.open_tensors(manifest["id"], kind="capture", cancelled=cancelled)
+    assert opened and all(stream.closed for stream in opened)
+    assert store.delete(manifest["id"])

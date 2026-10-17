@@ -68,7 +68,10 @@ async def client(lab, monkeypatch):
     async with httpx.AsyncClient(
         transport=httpx.ASGITransport(app=app), base_url="http://test"
     ) as value:
-        yield value
+        try:
+            yield value
+        finally:
+            lab.downloads.close()
 
 
 async def finished(client, job):
@@ -545,3 +548,93 @@ async def test_unequal_width_teachers_train_without_claiming_cosine_ranking(clie
     manifest, model = lab.load_model(identifier)
     assert [bank["input_dim"] for bank in manifest["banks"]] == [16, 12]
     assert model.config.features == 16
+
+
+@pytest.mark.anyio
+async def test_prepared_capture_download_checks_integrity_and_survives_source_deletion(client, lab):
+    reference, compared = await capture_pair(client, lab)
+    path = "/api/crosscoders/captures/" + reference["id"]
+    prepared = await client.post(path + "/download")
+    assert prepared.status_code == 200, prepared.text
+    ticket = prepared.json()["ticket"]
+    assert len(ticket) == 64
+    assert (await client.delete(path)).status_code == 204
+    response = await client.get("/api/crosscoders/downloads/" + ticket)
+    assert response.status_code == 200
+    assert len(response.content) == prepared.json()["size"]
+    assert hashlib.sha256(response.content).hexdigest() == reference["tensors_sha256"]
+    assert reference["id"] in response.headers["content-disposition"]
+    assert (await client.get("/api/crosscoders/downloads/" + ticket)).status_code == 410
+    assert (await client.post(path + "/download")).status_code == 404
+
+    tensor_file = lab.store.directory / (compared["id"] + ".safetensors")
+    raw = bytearray(tensor_file.read_bytes())
+    raw[-1] ^= 1
+    tensor_file.write_bytes(raw)
+    invalid = await client.post("/api/crosscoders/captures/" + compared["id"] + "/download")
+    assert invalid.status_code == 400
+    assert "checksum" in invalid.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_abandoned_preparation_releases_capacity_and_fifth_live_ticket_returns_409(
+    client, lab, monkeypatch
+):
+    import threading
+    import time
+
+    from circuit_lantern.services.prepared_downloads import DownloadCancelledError
+
+    reference, _ = await capture_pair(client, lab)
+    path = "/api/crosscoders/captures/" + reference["id"] + "/download"
+    entered, stopped = threading.Event(), threading.Event()
+    original = lab.store.open_tensors
+
+    def waiting(identifier, *, kind, cancelled=None):
+        entered.set()
+        while not cancelled():
+            time.sleep(0.005)
+        stopped.set()
+        raise DownloadCancelledError()
+
+    monkeypatch.setattr(lab.store, "open_tensors", waiting)
+    posting = asyncio.create_task(client.post(path))
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        posting.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await posting
+        assert await asyncio.to_thread(stopped.wait, 5)
+    finally:
+        if not posting.done():
+            posting.cancel()
+        monkeypatch.setattr(lab.store, "open_tensors", original)
+    tickets = []
+    for _ in range(4):
+        response = await client.post(path)
+        assert response.status_code == 200, response.text
+        tickets.append(response.json()["ticket"])
+    blocked = await client.post(path)
+    assert blocked.status_code == 409
+    assert blocked.json()["detail"] == "Downloads are busy. Try again shortly."
+    consumed = await client.get("/api/crosscoders/downloads/" + tickets[0])
+    assert consumed.status_code == 200
+    replacement = await client.post(path)
+    assert replacement.status_code == 200
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("code", [5, 24])
+async def test_unreadable_tensor_preparation_reports_storage_failure(
+    client, lab, monkeypatch, code
+):
+    def unreadable(*args, **kwargs):
+        raise OSError(code, "Internal storage details")
+
+    monkeypatch.setattr(lab.store, "open_tensors", unreadable)
+    response = await client.post("/api/crosscoders/captures/" + "a" * 32 + "/download")
+    assert response.status_code == 503
+    assert response.json()["detail"] == (
+        "The saved tensor file could not be read. Check server storage and try again."
+    )
+    assert "Internal storage details" not in response.text
