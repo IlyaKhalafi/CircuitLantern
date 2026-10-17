@@ -138,7 +138,11 @@ export function Panel({
         <div>
           <div className="heading-with-help">
             <h2>{translateTitle ? t(title) : title}</h2>
-            {help && <HelpTooltip label={title}>{help}</HelpTooltip>}
+            {help && (
+              <HelpTooltip label={title} translateLabel={translateTitle}>
+                {help}
+              </HelpTooltip>
+            )}
           </div>
           {subtitle && <p>{t(subtitle)}</p>}
         </div>

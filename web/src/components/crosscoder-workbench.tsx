@@ -188,12 +188,11 @@ export function CrosscoderWorkbench() {
         />
       )}
       <div
-        className="crosscoder-modes"
+        className="crosscoder-modes feature-tabs"
         role="group"
         aria-label={t("Shared feature workflow")}
       >
         <button
-          className={"button " + (mode === "prepare" ? "primary" : "secondary")}
           aria-pressed={mode === "prepare"}
           onClick={() =>
             setSelection((current) => ({ ...current, mode: "prepare" }))
@@ -202,7 +201,6 @@ export function CrosscoderWorkbench() {
           {t("Prepare comparison")}
         </button>
         <button
-          className={"button " + (mode === "explore" ? "primary" : "secondary")}
           aria-pressed={mode === "explore"}
           onClick={() =>
             setSelection((current) => ({ ...current, mode: "explore" }))
