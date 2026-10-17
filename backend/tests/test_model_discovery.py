@@ -17,6 +17,8 @@ def model(name, likes=20, age=2):
         created_at=datetime.now(UTC) - timedelta(days=age + 10),
         safetensors=SimpleNamespace(total=135000000),
         library_name="transformers",
+        pipeline_tag="text-generation",
+        tags=["transformers"],
     )
 
 
@@ -43,8 +45,9 @@ def test_hub_ranking_is_delegated_to_hugging_face(sort, expected):
         api.return_value.list_models.return_value = [model("author/model")]
         results = search_models("", sort=sort)
     kwargs = api.return_value.list_models.call_args.kwargs
-    assert kwargs["sort"] == expected and kwargs["direction"] == -1
-    assert kwargs["pipeline_tag"] == "text-generation"
+    assert kwargs["sort"] == expected
+    assert "direction" not in kwargs
+    assert kwargs["filter"] == "transformers"
     assert results[0]["likes"] == 20 and results[0]["parameters"] == "135.0M"
 
 
@@ -66,6 +69,29 @@ def test_newest_time_window_uses_creation_date():
     with patch("circuit_lantern.services.hub.HfApi") as api:
         api.return_value.list_models.return_value = [model("a/recently-updated")]
         assert not search_models("", sort="newest", days=7)
+
+
+def test_modern_text_backbones_are_discoverable_without_unsupported_formats():
+    modern = model("Qwen/Qwen3.5-4B")
+    modern.pipeline_tag = "image-text-to-text"
+    gguf = model("test/gguf")
+    gguf.tags = ["transformers", "gguf"]
+    mlx = model("test/mlx")
+    mlx.library_name = "mlx"
+    image = model("test/image")
+    image.pipeline_tag = "image-classification"
+    adapter = model("test/adapter")
+    adapter.tags = ["peft"]
+    with patch("circuit_lantern.services.hub.HfApi") as api:
+        api.return_value.list_models.return_value = [gguf, mlx, modern, image, adapter]
+        results = search_models("Qwen", sort="downloads")
+    assert [entry["id"] for entry in results] == [modern.id]
+
+
+def test_discovery_calls_the_current_hub_sdk_without_removed_arguments():
+    with patch("huggingface_hub.hf_api.paginate", return_value=iter([])) as paginate:
+        assert search_models("Qwen", sort="trending") == []
+    assert paginate.call_args.kwargs["params"]["filter"] == ["transformers"]
 
 
 @pytest.mark.parametrize(

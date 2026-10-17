@@ -5,6 +5,7 @@ from unittest.mock import patch
 import httpx
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.feature_schemas import DictionaryTrainingRequest
 from circuit_lantern.main import app
@@ -113,7 +114,7 @@ async def test_real_dictionary_training_api_preserves_teacher_and_restores_artif
     torch.testing.assert_close(torch.random.get_rng_state(), random_state, rtol=0, atol=0)
     for name, tensor in lab.runtime.model.state_dict().items():
         torch.testing.assert_close(tensor, before[name], rtol=0, atol=0)
-    assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    assert_no_forward_hooks(lab.runtime._blocks())
 
 
 @pytest.mark.anyio
@@ -258,7 +259,7 @@ async def test_feature_graph_uses_only_later_layer_edges_and_persists_after_unlo
                 observed[0][identifier][positions, feature].mean()
             )
             assert edge["activation_change"] == pytest.approx(expected, abs=1e-8)
-    assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    assert_no_forward_hooks(lab.runtime._blocks())
     lab.runtime.unload()
     durable = (await client.get("/api/features/runs/" + result["id"])).json()
     assert result == durable
@@ -520,7 +521,7 @@ async def test_empty_feature_graph_fails_without_publishing_a_complete_run(clien
     assert job["status"] == "failed"
     assert "No selected feature is active" in job["message"]
     assert not lab.store.runs()
-    assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    assert_no_forward_hooks(lab.runtime._blocks())
 
 
 @pytest.mark.anyio
@@ -581,7 +582,7 @@ async def test_prompt_feature_pair_uses_one_baseline_forward_and_validates_befor
             )
             assert invalid.status_code == 422
     forward.assert_not_called()
-    assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    assert_no_forward_hooks(lab.runtime._blocks())
 
 
 @pytest.mark.anyio
@@ -631,7 +632,7 @@ async def test_pair_statistics_use_baseline_with_an_interior_special_token_and_i
     else:
         assert result["pearson_correlation"] is None
     assert captured[1][1] == {}
-    assert all(not block._forward_hooks for block in lab.runtime._blocks())
+    assert_no_forward_hooks(lab.runtime._blocks())
 
 
 @pytest.mark.anyio
@@ -670,7 +671,7 @@ async def test_fixed_coefficient_api_records_exact_intervention_and_keeps_teache
         assert record["eligible_positions"] == [1, 3, 4]
         assert evidence["rounding"]["residual_dtype"] == "float32"
         assert record["dictionary_source"]["id"] == identifier
-        assert all(not block._forward_hooks for block in lab.runtime._blocks())
+        assert_no_forward_hooks(lab.runtime._blocks())
     with patch.object(lab.runtime.model, "forward") as forward:
         invalid = await client.post(
             path + "/inspect",

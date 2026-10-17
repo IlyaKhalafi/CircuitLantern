@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 
 
 @pytest.mark.parametrize("tracked_tokens", [[], ["France", "Poland"]])
@@ -48,7 +49,7 @@ def test_prompt_capture_tensors_are_released_before_continuation(
     assert result["generated_token_ids"] == [runtime.tokenizer.eos_token_id]
     assert result["predictions"] and result["layers"]
     assert bool(result["attention"]) == capture_attention
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())
 
 
@@ -89,5 +90,5 @@ def test_block_bypass_stays_active_without_retaining_generation_residuals(runtim
         result = runtime.trace("the capital", 1, True, 0)
     assert result["ablate_layer"] == 0
     assert result["generated_token_ids"] == [runtime.tokenizer.eos_token_id]
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())

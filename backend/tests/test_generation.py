@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 from tokenizers import Tokenizer, decoders, models
 from transformers import PreTrainedTokenizerFast
 
@@ -142,7 +143,7 @@ def test_prompt_capture_skips_generation_and_retains_predictions_and_interventio
     if head is not None:
         assert result["ablate_head"]["scope"] == "all_prompt_tokens"
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_capture_only_uses_the_full_prompt_allowance_and_matches_token_preview(runtime):
@@ -167,7 +168,7 @@ def test_failed_prompt_capture_removes_intervention_and_capture_hooks(runtime):
     ):
         runtime.trace("the capital", 0, True, None, {"layer": 0, "head": 0})
     assert all(not module._forward_pre_hooks for module in runtime.model.modules())
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_capture_only_request_is_valid_and_generation_bounds_remain_enforced():

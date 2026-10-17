@@ -37,11 +37,13 @@ export function TokenPreview({
   const truncated = data.prompts.some((prompt) => prompt.truncated);
   return (
     <div className="token-preview">
-      <details
-        open={expanded}
-        onToggle={(event) => setExpanded(event.currentTarget.open)}
-      >
-        <summary>
+      <details open={expanded}>
+        <summary
+          onClick={(event) => {
+            event.preventDefault();
+            setExpanded((value) => !value);
+          }}
+        >
           <ChevronRight size={12} aria-hidden="true" />
           <span>{t("Inspect tokenization")}</span>
           {data.prompts.map((prompt, i) => (

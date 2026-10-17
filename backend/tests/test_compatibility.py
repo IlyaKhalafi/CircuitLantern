@@ -405,6 +405,13 @@ def test_fixed_causal_masks_and_their_creation_workspace_cannot_fit_a_tiny_check
         model = GPT2LMHeadModel(
             GPT2Config(vocab_size=16, n_positions=32768, n_embd=16, n_layer=2, n_head=2)
         )
+        # Current GPT-2 creates masks per forward. Retain a fixed-buffer model
+        # regression without depending on the library's former mask layout.
+        for block in model.transformer.h:
+            block.attn.register_buffer(
+                "legacy_bias", torch.empty(1, 1, 32768, 32768, dtype=torch.bool)
+            )
+            block.attn.register_buffer("legacy_masked_bias", torch.empty(()))
     model.tie_weights()
     logical = describe_model_layout(model)
     checkpoint = dict(

@@ -5,6 +5,16 @@ from tokenizers.pre_tokenizers import Whitespace
 from transformers import GPT2Config, GPT2LMHeadModel, PreTrainedTokenizerFast
 
 
+def assert_no_forward_hooks(modules):
+    """Allow native output recorders while rejecting leaked research hooks."""
+    for module in modules:
+        for hook in module._forward_hooks.values():
+            assert (
+                hook.__module__ == "transformers.utils.output_capturing"
+                and hook.__name__ == "output_capturing_hook"
+            ), f"Unexpected retained hook {hook}"
+
+
 def tiny_gpt2(*, vocab_size=16, context_length=64, hidden_size=16, layers=2, heads=2):
     """Build deterministic real weights and a small tokenizer without Hub access."""
     torch.manual_seed(42)
