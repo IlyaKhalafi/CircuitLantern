@@ -163,7 +163,13 @@ export function ModelGraphView({
   onInspect: (name: string) => void;
 }) {
   const { t, rich } = useI18n();
-  const [mode, setMode] = useState("overview");
+  const [mode, setMode] = useState(
+    selectedLayer !== null &&
+      graph.dataflow?.find((item) => item.layer === selectedLayer)
+        ?.provenance === "source"
+      ? "flow"
+      : "overview",
+  );
   useEffect(() => {
     if (selectedLayer === null && mode === "flow") setMode("overview");
   }, [selectedLayer, mode]);
@@ -308,6 +314,50 @@ export function ModelGraphView({
           </button>
         </div>
       </div>
+      {mode === "flow" && !!graph.dataflow?.some((item) => item.mixer_type) && (
+        <div
+          className="flow-layer-pattern"
+          role="group"
+          aria-label={t("Layer pattern")}
+        >
+          {graph.dataflow.map((item) => (
+            <button
+              key={item.layer}
+              className={
+                (item.layer === (selectedLayer ?? 0) ? "active " : "") +
+                (item.mixer_type === "linear_attention"
+                  ? "linear"
+                  : item.mixer_type === "full_attention"
+                    ? "full"
+                    : "neutral")
+              }
+              aria-pressed={item.layer === (selectedLayer ?? 0)}
+              aria-label={t("Block {layer} · {kind}", {
+                layer: item.layer,
+                kind: t(
+                  item.mixer_type === "linear_attention"
+                    ? "Gated DeltaNet"
+                    : item.mixer_type === "full_attention"
+                      ? "Full attention"
+                      : "Other mixer",
+                ),
+              })}
+              onClick={() => onSelect(item.layer)}
+            >
+              {item.layer}
+              <small>
+                {t(
+                  item.mixer_type === "linear_attention"
+                    ? "Linear"
+                    : item.mixer_type === "full_attention"
+                      ? "Full"
+                      : "Other",
+                )}
+              </small>
+            </button>
+          ))}
+        </div>
+      )}
       {mode === "flow" ? (
         <BlockDataflow
           flow={graph.dataflow?.find(
