@@ -322,10 +322,51 @@ test("train, inspect, annotate and measure sparse feature circuits without code"
     }
     await audit("features-reconstruction-" + locale + "-mobile");
   }
-  await page.reload();
-  await page
-    .getByRole("tab", { name: "Feature circuits", exact: true })
-    .click();
+  const trainingId = await page.evaluate(() =>
+    sessionStorage.getItem("lantern-feature-training-job"),
+  );
+  expect(trainingId).toMatch(/^[a-f0-9]{32}$/);
+  let release = () => {};
+  let observed = () => {};
+  let completed = () => {};
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const intercepted = new Promise<void>((resolve) => {
+    observed = resolve;
+  });
+  const restored = new Promise<void>((resolve) => {
+    completed = resolve;
+  });
+  await page.route("**/api/jobs/" + trainingId, async (route) => {
+    observed();
+    await gate;
+    const response = await route.fetch();
+    await route.fulfill({ response });
+    completed();
+  });
+  try {
+    await page.reload();
+    await intercepted;
+    await page
+      .getByRole("tab", { name: "Feature circuits", exact: true })
+      .click();
+  } finally {
+    release();
+  }
+  await restored;
+  await expect(
+    page.locator("#feature-tab-train .feature-job strong"),
+  ).not.toBeEmpty();
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) =>
+        requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+      ),
+  );
+  await expect(
+    page.getByRole("tab", { name: "Feature circuits", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
   const saved = page.getByLabel("Open saved feature circuit", { exact: true });
   await expect(saved.locator("option")).toHaveCount(2);
   const id = await saved.locator("option").nth(1).getAttribute("value");
