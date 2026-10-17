@@ -4,6 +4,7 @@ import hashlib
 import json
 import time
 
+import numpy as np
 import torch
 
 from circuit_lantern.prompt_set_schemas import (
@@ -12,7 +13,11 @@ from circuit_lantern.prompt_set_schemas import (
     SIGN_EPSILON,
     PromptSetRequest,
 )
-from circuit_lantern.services.causal import MIN_RECOVERY_GAP, activation_patch_sweep
+from circuit_lantern.services.causal import (
+    MIN_RECOVERY_GAP,
+    SMALL_RECOVERY_GAP,
+    activation_patch_sweep,
+)
 from circuit_lantern.services.execution import execution_provenance
 from circuit_lantern.services.features.planning import forward_memory
 from circuit_lantern.services.hardware import hardware_snapshot
@@ -77,7 +82,10 @@ def prepare_set(runtime, request: PromptSetRequest) -> tuple[dict, list[dict]]:
             errors.append({"index": index, "label": pair.label, "message": str(error)})
     longest = max((item["token_count"] for item in prepared), default=1)
     positions = max((len(item["positions"]) for item in prepared), default=1)
-    width = int(runtime.model.get_input_embeddings().weight.shape[1])
+    width = int(
+        getattr(runtime.model.config, "hidden_size", None)
+        or runtime.model.get_input_embeddings().weight.shape[1]
+    )
     cache = len(layers) * positions * width * 8
     teacher = forward_memory(runtime.model, longest)
     result_bytes = len(request.pairs) * (len(layers) * 1024 + longest * 128 + 20_000)
@@ -103,7 +111,7 @@ def prepare_set(runtime, request: PromptSetRequest) -> tuple[dict, list[dict]]:
         blockers.append("Insufficient disk space for the saved prompt set.")
     fingerprint = hashlib.sha256(
         json.dumps(
-            request.model_dump(exclude={"expected_execution_id"}),
+            dict(request.model_dump(exclude={"expected_execution_id"}), layers=layers),
             sort_keys=True,
             ensure_ascii=False,
         ).encode()
@@ -143,6 +151,7 @@ class PairProgress:
 def measure_set(runtime, request: PromptSetRequest, job) -> dict:
     started = time.perf_counter()
     plan, prepared = prepare_set(runtime, request)
+    provenance = execution_provenance(runtime.metadata)
     if not plan["compatible"]:
         detail = " ".join(item["message"] for item in plan["pair_errors"])
         raise ValueError(" ".join(plan["blockers"]) + (" " + detail if detail else ""))
@@ -151,6 +160,9 @@ def measure_set(runtime, request: PromptSetRequest, job) -> dict:
         if job.get("cancel_requested"):
             break
         index = item["index"]
+        if runtime.metadata.get("execution_id") != request.expected_execution_id:
+            failure, failed_pair = "The active model changed during the prompt set.", index
+            break
         try:
             result = activation_patch_sweep(
                 runtime.model,
@@ -170,6 +182,16 @@ def measure_set(runtime, request: PromptSetRequest, job) -> dict:
         except Exception as error:  # noqa: BLE001 - publish earlier pairs on forward failure
             failure, failed_pair = str(error)[:1000] or type(error).__name__, index
             break
+        if (
+            result.get("execution_id") != request.expected_execution_id
+            or result["target_token_id"] != item["target_token_id"]
+            or result.get("alternative_token_id") != item["alternative_token_id"]
+        ):
+            failure, failed_pair = (
+                "Captured source or token IDs differ from the validated plan.",
+                index,
+            )
+            break
         gap = result["clean"][request.metric] - result["corrupted"][request.metric]
         for layer in result["layers"]:
             delta = layer[request.metric] - result["corrupted"][request.metric]
@@ -183,6 +205,10 @@ def measure_set(runtime, request: PromptSetRequest, job) -> dict:
                 "positions": item["positions"],
                 "changed_positions": item["changed_positions"],
                 "baseline_gap": gap,
+                "metric_recovery_defined": gap > MIN_RECOVERY_GAP,
+                "metric_recovery_warning": "Small clean to corrupted score gap. Interpret normalized recovery cautiously."
+                if MIN_RECOVERY_GAP < gap < SMALL_RECOVERY_GAP
+                else None,
                 "clean_score": result["clean"][request.metric],
                 "corrupted_score": result["corrupted"][request.metric],
                 "result": result,
@@ -196,7 +222,7 @@ def measure_set(runtime, request: PromptSetRequest, job) -> dict:
     if request.metric != "logit_difference":
         summary["clean_target_preferred_pairs"] = None
     return {
-        **execution_provenance(runtime.metadata),
+        **provenance,
         "device": runtime.device,
         "metric": request.metric,
         "position_mode": request.position_mode,
@@ -216,8 +242,11 @@ def measure_set(runtime, request: PromptSetRequest, job) -> dict:
             "confidence": 0.95,
             "sign_epsilon": SIGN_EPSILON,
             "minimum_recovery_gap": MIN_RECOVERY_GAP,
+            "small_recovery_gap": SMALL_RECOVERY_GAP,
+            "generator": "PCG64",
+            "numpy_version": np.__version__,
             "cohort": "Completed pairs only, identical for every selected layer",
             "interval_method": "Pointwise paired percentile bootstrap. Recovery resamples only positive-gap eligible pairs.",
         },
-        "method": "Clean block outputs are restored in corrupted runs, one pair at a time. Effects are differences from each pair's corrupted baseline. Recovery is the ratio of summed effects to summed positive baseline gaps. Block-output patching localizes where information is present, not where it was first computed. Intervals resample supplied pairs, do not correct for multiple layers and do not establish generalization. Correlated templates can produce overconfident intervals.",
+        "method": "Clean block outputs are restored in corrupted runs, one pair at a time. Raw delta and sign summaries include all completed pairs, even pairs with nonpositive baseline gaps. Recovery is the ratio of summed effects to summed positive baseline gaps. Block-output patching localizes where information is present, not where it was first computed. Intervals resample supplied pairs, do not correct for multiple layers and do not establish generalization. Correlated templates can produce overconfident intervals.",
     }

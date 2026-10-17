@@ -9,6 +9,7 @@ from circuit_lantern.services.targets import single_target_id
 from circuit_lantern.services.tokens import capture_token_limit
 
 MIN_RECOVERY_GAP = 0.001
+SMALL_RECOVERY_GAP = 0.05
 
 
 def normalized_recovery(clean: float, corrupted: float, patched: float) -> float | None:
@@ -188,7 +189,7 @@ def activation_patch_sweep(
         "baseline_log_probability_gap": denominator,
         "recovery_minimum_gap": MIN_RECOVERY_GAP,
         "recovery_warning": "Small clean to corrupted score gap. Interpret normalized recovery cautiously."
-        if recovery_defined and denominator < 0.05
+        if recovery_defined and denominator < SMALL_RECOVERY_GAP
         else None,
         "total_layers": len(selected),
         "complete": len(results) == len(selected),

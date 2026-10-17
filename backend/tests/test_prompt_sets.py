@@ -70,9 +70,106 @@ def test_contrastive_last_layer_restores_each_clean_score_and_keeps_pair_provena
 def test_all_position_patching_restores_every_selected_layer(session):
     result = measure_set(session, request_for(session, position_mode="all", layers=[1, 0]), job())
     assert result["selected_layers"] == [0, 1]
+    eligible = sum(pair["baseline_gap"] > 0.001 for pair in result["pairs"])
+    assert result["recovery_pairs"] == eligible
+    if eligible:
+        assert all(layer["recovery"] == pytest.approx(1, abs=1e-5) for layer in result["layers"])
     for pair in result["pairs"]:
         for layer in pair["result"]["layers"]:
             assert layer["metric_delta"] == pytest.approx(pair["baseline_gap"], abs=1e-6)
+
+
+def test_validated_source_tokens_and_rng_are_retained(session):
+    request = request_for(session)
+    plan, _ = prepare_set(session, request)
+    measured = measure_set(session, request, job())
+    for expected, pair in zip(plan["pairs"], measured["pairs"], strict=True):
+        assert pair["result"]["target_token_id"] == expected["target_token_id"]
+        assert pair["result"]["alternative_token_id"] == expected["alternative_token_id"]
+    assert measured["statistics"]["generator"] == "PCG64"
+    assert measured["statistics"]["numpy_version"]
+    assert (
+        prepare_set(session, request_for(session, layers=[1, 0]))[0]["input_fingerprint"]
+        == prepare_set(session, request_for(session, layers=[0, 1]))[0]["input_fingerprint"]
+    )
+
+
+@pytest.mark.parametrize("metric", ["log_probability", "logit_difference"])
+def test_empty_partial_cohort_has_consistent_finite_fields(session, metric):
+    task = job()
+    task.request_cancel()
+    result = measure_set(session, request_for(session, metric=metric), task)
+    assert result["completed_pairs"] == 0 and result["layers"] == []
+    assert "clean_target_preferred_pairs" in result
+    json.dumps(result, allow_nan=False)
+
+
+def test_full_restoration_recovery_interval_for_a_positive_gap_cohort(session):
+    request = request_for(session, position_mode="all")
+    pair = request.pairs[0].model_copy(deep=True)
+    pair.clean_prompt = "the capital of France"
+    pair.corrupted_prompt = "the capital of Poland"
+    request.pairs = [pair]
+    initial = measure_set(session, request, job())
+    gap = initial["pairs"][0]["baseline_gap"]
+    assert abs(gap) > 0.001
+    if gap < 0:
+        pair.target, pair.alternative = pair.alternative, pair.target
+    request.pairs = [pair.model_copy(deep=True) for _ in range(3)]
+    result = measure_set(session, request, job())
+    assert result["recovery_pairs"] == 3
+    for layer in result["layers"]:
+        assert layer["recovery"] == pytest.approx(1, abs=1e-5)
+        assert layer["recovery_interval"] == pytest.approx([1, 1], abs=1e-5)
+
+
+def test_projected_embedding_models_use_residual_width_for_cache_planning(session):
+    base = prepare_set(session, request_for(session))[0]["cache_bytes"]
+    session.model.config.hidden_size *= 2
+    assert prepare_set(session, request_for(session))[0]["cache_bytes"] == base * 2
+
+
+def test_changed_provenance_is_rejected_and_original_set_identity_preserved(session):
+    from circuit_lantern.services.prompt_sets import activation_patch_sweep as actual
+
+    calls = 0
+
+    def change_after_first(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        result = actual(*args, **kwargs)
+        if calls == 1:
+            session.metadata["execution_id"] = "b" * 32
+        return result
+
+    with patch(
+        "circuit_lantern.services.prompt_sets.activation_patch_sweep",
+        side_effect=change_after_first,
+    ):
+        result = measure_set(session, request_for(session), job())
+    assert result["execution_id"] == "a" * 32
+    assert result["completed_pairs"] == 1 and result["failed_pair"] == 1
+
+
+def test_different_scored_token_ids_never_enter_an_aggregate(session):
+    from circuit_lantern.services.prompt_sets import activation_patch_sweep as actual
+
+    calls = 0
+
+    def different_second(*args, **kwargs):
+        nonlocal calls
+        calls += 1
+        result = actual(*args, **kwargs)
+        if calls == 2:
+            result["target_token_id"] = result["alternative_token_id"]
+        return result
+
+    with patch(
+        "circuit_lantern.services.prompt_sets.activation_patch_sweep", side_effect=different_second
+    ):
+        result = measure_set(session, request_for(session), job())
+    assert result["failed_pair"] == 1 and result["completed_pairs"] == 1
+    assert len(result["pairs"]) == 1
 
 
 def test_changed_position_mode_uses_each_pairs_actual_changed_token_ids(session):
@@ -249,3 +346,19 @@ def test_bootstrap_is_reproducible_and_recovery_uses_ratio_of_sums():
     for pair in pairs:
         pair["result"]["layers"][0]["metric_delta"] = 0.5
     assert summarize_pairs(pairs, [3], 42)["layers"][0]["mean_interval"] == [0.5, 0.5]
+
+
+def test_raw_direction_and_normalized_restoration_have_distinct_cohorts():
+    pairs = [
+        {
+            "baseline_gap": gap,
+            "clean_score": gap,
+            "result": {"complete": True, "layers": [{"metric_delta": gap}]},
+        }
+        for gap in (2, -2)
+    ]
+    result = summarize_pairs(pairs, [0], 0)
+    assert result["layers"][0]["mean_delta"] == 0
+    assert result["layers"][0]["negative_fraction"] == 0.5
+    assert result["layers"][0]["recovery"] == 1
+    assert result["recovery_pairs"] == 1

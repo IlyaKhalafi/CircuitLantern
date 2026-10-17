@@ -14,11 +14,16 @@ def summarize_pairs(pairs: list[dict], layers: list[int], seed: int) -> dict:
     completed = [pair for pair in pairs if pair["result"]["complete"]]
     count = len(completed)
     if not count:
-        return {"completed_pairs": 0, "recovery_pairs": 0, "layers": []}
+        return {
+            "completed_pairs": 0,
+            "recovery_pairs": 0,
+            "layers": [],
+            "clean_target_preferred_pairs": 0,
+        }
     gaps = np.array([pair["baseline_gap"] for pair in completed], dtype=np.float64)
     eligible = gaps > MIN_RECOVERY_GAP
     recovery_count = int(eligible.sum())
-    rng = np.random.default_rng(seed)
+    rng = np.random.Generator(np.random.PCG64(seed))
     samples = rng.integers(count, size=(BOOTSTRAP_SAMPLES, count)) if count >= 2 else None
     recovery_samples = (
         rng.integers(recovery_count, size=(BOOTSTRAP_SAMPLES, recovery_count))
