@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { RefreshCw, Sparkles } from "lucide-react";
 import { ResearchNavigation } from "@/components/research-navigation";
@@ -114,16 +115,21 @@ export default function FeaturesPage() {
           "Train sparse autoencoders, inspect their features and test causal effects without writing code.",
         )}
         actions={
-          <button
-            className="button secondary"
-            onClick={() => {
-              setError(null);
-              refresh();
-            }}
-          >
-            <RefreshCw size={14} />
-            {t("Refresh")}
-          </button>
+          <>
+            <Link className="button secondary" href="/features/compare">
+              {t("Compare shared features")}
+            </Link>
+            <button
+              className="button secondary"
+              onClick={() => {
+                setError(null);
+                refresh();
+              }}
+            >
+              <RefreshCw size={14} />
+              {t("Refresh")}
+            </button>
+          </>
         }
       />
       <ResearchNavigation />

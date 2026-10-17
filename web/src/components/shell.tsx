@@ -68,18 +68,22 @@ export function Shell({ children }: { children: React.ReactNode }) {
     path === href ||
     (href !== "/" && path.startsWith(href + "/")) ||
     (href === "/playground" &&
-      (path === "/features" || path.startsWith("/causal")));
+      (path === "/features" ||
+        path.startsWith("/features/") ||
+        path.startsWith("/causal")));
   const current = navigation.find((item) => activeRoute(item.href));
   const currentLabel =
     path === "/causal/heads"
       ? "Head ablation"
       : path === "/causal"
         ? "Causal tracing"
-        : path === "/features"
-          ? "Feature lab"
-          : path === "/playground"
-            ? "Activation lab"
-            : current?.label;
+        : path === "/features/compare"
+          ? "Shared feature comparisons"
+          : path === "/features"
+            ? "Feature lab"
+            : path === "/playground"
+              ? "Activation lab"
+              : current?.label;
   useEffect(() => {
     document.title =
       t(
@@ -208,8 +212,10 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <ChevronRight size={13} />
             <strong>
               {t(
-                currentLabel ||
-                  (path === "/guide" ? "Field guide" : "Page not found"),
+                mobile && path === "/features/compare"
+                  ? "Model diffing"
+                  : currentLabel ||
+                      (path === "/guide" ? "Field guide" : "Page not found"),
               )}
             </strong>
           </div>
