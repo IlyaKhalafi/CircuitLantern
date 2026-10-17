@@ -46,31 +46,7 @@ export function useSessionDraft<T extends Record<string, string | boolean>>(
   return [draft, setDraft, ready] as const;
 }
 
-export function useCompletedJob<T>(
-  task: ReturnType<typeof useBackgroundJob<T>>,
-  key: string,
-  onComplete: (result: T) => void,
-) {
-  const delivered = useRef<string | null>(null);
-  useEffect(() => {
-    const job = task.job;
-    if (
-      !job ||
-      !["ready", "cancelled", "failed"].includes(job.status) ||
-      !job.result ||
-      delivered.current === job.id
-    )
-      return;
-    delivered.current = job.id;
-    try {
-      if (sessionStorage.getItem(key) === job.id) return;
-      sessionStorage.setItem(key, job.id);
-    } catch {
-      /* Optional persistence. */
-    }
-    onComplete(job.result);
-  }, [task.job, key, onComplete]);
-}
+export { useCompletedJob } from "@/hooks/use-completed-job";
 
 export function CrosscoderProgress<T>({
   task,
