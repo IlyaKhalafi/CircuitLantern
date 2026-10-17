@@ -290,3 +290,13 @@
 .crosscoder-balance-track.unavailable {
   background: var(--line);
 }
+
+@media (min-width: 1151px) and (min-height: 720px) {
+  .crosscoder-explorer > .panel:first-child {
+    position: sticky;
+    top: 24px;
+  }
+  .crosscoder-feature-list {
+    max-height: min(600px, calc(100dvh - 400px));
+  }
+}

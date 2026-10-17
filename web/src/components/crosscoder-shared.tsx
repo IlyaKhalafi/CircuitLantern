@@ -5,6 +5,7 @@ import { Square } from "lucide-react";
 import { ErrorNotice, Metric } from "@/components/ui";
 import { useI18n } from "@/i18n/provider";
 import { bytes, number } from "@/lib/api";
+import { executionLabel } from "@/lib/execution";
 import { useBackgroundJob } from "@/lib/jobs";
 import type { CaptureEvidence, CrosscoderPlan } from "@/lib/crosscoders";
 
@@ -124,7 +125,13 @@ export function CaptureCard({
         {t("{v0} token positions", { v0: capture.sample_count })}
       </span>
       <small dir="ltr">
-        {capture.source.revision} · {capture.source.execution_precision}
+        {capture.source.revision} ·{" "}
+        {t(
+          executionLabel(
+            capture.source.execution_precision,
+            capture.source.execution_config,
+          ),
+        )}
       </small>
     </div>
   );
