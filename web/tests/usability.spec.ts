@@ -267,6 +267,7 @@ test("unsupported head methods offer a clear route back to the model library", a
   await expect(page.locator(".method-unavailable")).toContainText(
     "no complete verified attention head layout",
   );
+  await page.unrouteAll({ behavior: "wait" });
   await page
     .getByRole("link", { name: "Open a supported model", exact: true })
     .click();
