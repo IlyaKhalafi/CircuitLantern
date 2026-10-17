@@ -75,3 +75,5 @@ Each edge is a total downstream intervention effect. It can include indirect pat
 This graph is a prompt-specific ablation study. It does not implement the gradient edge attribution algorithm from [Sparse Feature Circuits](https://arxiv.org/abs/2403.19647) or the cross layer transcoder replacement model in [Circuit Tracing](https://transformer-circuits.pub/2025/attribution-graphs/methods.html). Those papers motivate feature-level causal investigation but use different methods for direct edges.
 
 Completed graph measurements are saved automatically. Cancelling a sweep retains its completed ablations and marks the stored run incomplete. Cancelling training retains a dictionary only after at least one completed optimizer step and records the partial training state. Model hooks are removed before a job reports its terminal state.
+
+For a shared latent dictionary across model versions, see [Shared feature comparisons](crosscoders.md).
