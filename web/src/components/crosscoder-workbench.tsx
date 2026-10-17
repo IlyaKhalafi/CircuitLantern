@@ -152,8 +152,8 @@ export function CrosscoderWorkbench() {
     <div className="crosscoder-workbench">
       <PageHeader
         eyebrow={t("MODEL DIFFING")}
-        title={t("Compare models through shared features.")}
-        description={t(
+        title={t("Shared feature comparisons")}
+        help={t(
           "Retain matching activations from two checkpoints, train a sparse crosscoder and inspect the evidence without writing code.",
         )}
         actions={

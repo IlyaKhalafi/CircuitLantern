@@ -191,10 +191,8 @@ export function Shell({ children }: { children: React.ReactNode }) {
             <ChevronRight size={13} />
             <strong>
               {t(
-                mobile && path === "/features/compare"
-                  ? "Model diffing"
-                  : currentLabel ||
-                      (path === "/guide" ? "Field guide" : "Page not found"),
+                currentLabel ||
+                  (path === "/guide" ? "Field guide" : "Page not found"),
               )}
             </strong>
           </div>

@@ -124,6 +124,12 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
       .getByRole("link", { name: "Compare shared features", exact: true })
       .click();
     await expect(page).toHaveURL(/\/features\/compare$/);
+    await expect(page.getByRole("heading", { level: 1 })).toHaveText(
+      "Shared feature comparisons",
+    );
+    await expect(page.locator(".breadcrumb strong")).toHaveText(
+      "Shared feature comparisons",
+    );
     await expect(page.locator(".sidebar nav a.active")).toHaveAttribute(
       "href",
       "/playground",
