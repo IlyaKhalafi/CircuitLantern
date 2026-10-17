@@ -1844,5 +1844,11 @@
   "Activations": "Activations",
   "CPU": "CPU",
   "Prompt limit {count} tokens": "Prompt limit {count} tokens",
-  "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.": "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation."
+  "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.": "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.",
+  "Training is running.": "Training is running.",
+  "Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.": "Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.",
+  "{count, plural, one {# token} other {# tokens}}": "{count, plural, one {# token} other {# tokens}}",
+  "{amount} GPU free": "{amount} GPU free",
+  "{amount} RAM free": "{amount} RAM free",
+  "{amount} disk free": "{amount} disk free"
 }

@@ -113,13 +113,15 @@ export function FeatureTraining({
   const requirementId = useId();
   const requirement = !capabilities?.supported
     ? t("Load a supported model to train a dictionary.")
-    : planning
-      ? t("Checking training resources")
-      : !plan
-        ? t("Check training resources before training.")
-        : !plan.compatible
-          ? t("Resolve the resource blockers below before training.")
-          : null;
+    : task.busy
+      ? t("Training is running.")
+      : planning
+        ? t("Checking training resources")
+        : !plan
+          ? t("Check training resources before training.")
+          : !plan.compatible
+            ? t("Resolve the resource blockers below before training.")
+            : null;
   return (
     <Panel
       title={t("Train a sparse dictionary")}
@@ -382,8 +384,13 @@ export function FeatureTraining({
           <button
             className={plan?.compatible ? "button primary" : "button secondary"}
             aria-describedby={requirement ? requirementId : undefined}
-            disabled={busy || !plan?.compatible || !capabilities?.supported}
-            onClick={() => task.start("/features/train", payload())}
+            aria-disabled={
+              busy || !plan?.compatible || !capabilities?.supported
+            }
+            onClick={() => {
+              if (!busy && plan?.compatible && capabilities?.supported)
+                task.start("/features/train", payload());
+            }}
           >
             <Play size={15} />
             {t("Train dictionary")}

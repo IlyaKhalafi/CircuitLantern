@@ -194,7 +194,7 @@ for (const locale of ["fa", "ar"] as const)
 test("execution settings and unmet training requirements remain visible without help", async ({
   page,
 }) => {
-  for (const path of ["/playground", "/causal", "/causal/heads"]) {
+  for (const path of ["/playground", "/causal", "/causal/heads", "/features"]) {
     await page.goto(path);
     const execution = page.locator(".page-header .execution-context");
     await expect(execution).toContainText("FP32");
@@ -208,6 +208,18 @@ test("execution settings and unmet training requirements remain visible without 
     exact: true,
   });
   await expect(train).toBeDisabled();
+  let trainingRequests = 0;
+  page.on("request", (request) => {
+    if (request.url().endsWith("/api/features/train")) trainingRequests++;
+  });
+  await train.focus();
+  await expect(train).toBeFocused();
+  await expect(train).toHaveAccessibleDescription(
+    "Check training resources before training.",
+  );
+  await train.press("Enter");
+  await train.click({ force: true });
+  expect(trainingRequests).toBe(0);
   const requirement = await train.getAttribute("aria-describedby");
   await expect(page.locator(`[id="${requirement}"]`)).toHaveText(
     "Check training resources before training.",

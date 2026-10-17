@@ -183,7 +183,23 @@ export function Shell({ children }: { children: React.ReactNode }) {
               width={24}
               height={24}
             />
-            <span className="breadcrumb-root">{t("Workbench")}</span>
+            <span className="breadcrumb-root">
+              {t(
+                current?.href === "/playground" ? "Research lab" : "Workbench",
+              )}
+            </span>
+            {path.startsWith("/causal") && (
+              <>
+                <ChevronRight className="breadcrumb-parent" size={13} />
+                <span className="breadcrumb-parent">{t("Causal tracing")}</span>
+              </>
+            )}
+            {path.startsWith("/features/") && (
+              <>
+                <ChevronRight className="breadcrumb-parent" size={13} />
+                <span className="breadcrumb-parent">{t("Feature lab")}</span>
+              </>
+            )}
             <ChevronRight size={13} />
             <strong>
               {t(

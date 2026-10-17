@@ -1844,5 +1844,11 @@
   "Activations": "Activations",
   "CPU": "CPU",
   "Prompt limit {count} tokens": "Limite d’entrée de {count} tokens",
-  "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.": "Tracez les activations de l’entrée avec une génération gloutonne. Choisissez Capture seule pour ne pas générer de continuation."
+  "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.": "Tracez les activations de l’entrée avec une génération gloutonne. Choisissez Capture seule pour ne pas générer de continuation.",
+  "Training is running.": "Entraînement en cours.",
+  "Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.": "Les structures d’attention vérifiées de GPT-2, Llama, Qwen2 et GPT-NeoX sont prises en charge.",
+  "{count, plural, one {# token} other {# tokens}}": "{count, plural, one {# jeton} other {# jetons}}",
+  "{amount} GPU free": "{amount} de GPU libre",
+  "{amount} RAM free": "{amount} de RAM libre",
+  "{amount} disk free": "{amount} de disque libre"
 }

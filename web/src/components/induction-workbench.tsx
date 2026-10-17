@@ -99,10 +99,15 @@ export function InductionWorkbench() {
           <Loading label={t("Checking probe capabilities")} />
         )
       ) : !capabilities.supported ? (
-        <div className="notice info method-unavailable" role="status">
+        <div className="notice warning method-unavailable" role="status">
           <span>
             {capabilities.reason ||
-              t("Repeated token probes are unavailable for this execution.")}
+              t(
+                "Repeated token probes are unavailable for this execution.",
+              )}{" "}
+            {t(
+              "Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.",
+            )}
           </span>
           <Link className="text-link" href="/">
             {t("Open a supported model")}
@@ -335,7 +340,7 @@ export function InductionWorkbench() {
         </div>
       )}
       {!result && (
-        <div className="guide-callout">
+        <div className="guide-callout method-explanation">
           <h2>{t("Evidence for a hypothesis")}</h2>
           <p>
             {t(

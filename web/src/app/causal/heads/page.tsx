@@ -106,11 +106,6 @@ export default function HeadSweepPage() {
         }
       />
       <CausalNavigation />
-      <p className="control-note" style={{ marginBottom: 20 }}>
-        <Link className="button secondary" href="/causal/heads/induction">
-          {t("Explore induction heads")}
-        </Link>
-      </p>
       <ErrorNotice
         message={runtimeError || (error === result?.error ? null : error)}
       />
@@ -137,7 +132,7 @@ export default function HeadSweepPage() {
           )}
         </EmptyState>
       ) : !targets.length ? (
-        <div className="notice info method-unavailable" role="status">
+        <div className="notice warning method-unavailable" role="status">
           <span>
             {t(
               "Head sweeps are unavailable for this architecture. Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.",
@@ -283,7 +278,7 @@ export default function HeadSweepPage() {
         </div>
       ) : (
         !busy && (
-          <div className="guide-callout">
+          <div className="guide-callout method-explanation">
             <h2>{t("What the sweep measures")}</h2>
             <p>
               {t(
