@@ -24,6 +24,7 @@ from circuit_lantern.services.tensor_artifacts import ArtifactNotFoundError
 router = APIRouter(prefix="/api/crosscoders", tags=["crosscoders"])
 Identifier = Annotated[str, Path(pattern=r"^[a-f0-9]{32}$")]
 FeatureIndex = Annotated[int, Path(ge=0, le=65535)]
+_DOWNLOAD_SEND_TIMEOUT = 30
 
 
 def required(request: Request, identifier: str, kind: str):
@@ -82,8 +83,15 @@ def delete_capture(identifier: Identifier, request: Request):
 class PinnedDownloadResponse(StreamingResponse):
     def __init__(self, stream, length: int, filename: str):
         self.stream = stream
+
+        def read_chunk():
+            try:
+                return stream.read(1024**2)
+            except OSError as error:
+                raise RuntimeError("The verified tensor file could not be streamed.") from error
+
         super().__init__(
-            iter(lambda: stream.read(1024**2), b""),
+            iter(read_chunk, b""),
             media_type="application/octet-stream",
             headers={
                 "Content-Disposition": 'attachment; filename="' + filename + '"',
@@ -93,8 +101,12 @@ class PinnedDownloadResponse(StreamingResponse):
         )
 
     async def __call__(self, scope: Scope, receive: Receive, send: Send):
+        async def bounded_send(message):
+            async with asyncio.timeout(_DOWNLOAD_SEND_TIMEOUT):
+                await send(message)
+
         try:
-            await super().__call__(scope, receive, send)
+            await super().__call__(scope, receive, bounded_send)
         finally:
             self.stream.close()
 
@@ -117,9 +129,13 @@ class PreparedDownloadResponse(Response):
                 status_code=410,
                 headers={"Cache-Control": "no-store"},
             )
-        else:
+            await response(scope, receive, send)
+            return
+        try:
             response = stream_download(lease.stream, lease.length, lease.filename)
-        await response(scope, receive, send)
+            await response(scope, receive, send)
+        finally:
+            self.downloads.release(self.ticket)
 
 
 def open_artifact(request: Request, identifier: str, kind: str, cancelled=None):
@@ -135,21 +151,27 @@ def open_artifact(request: Request, identifier: str, kind: str, cancelled=None):
         ) from error
 
 
-def tensors(request: Request, identifier: str, kind: str):
-    stream, length = open_artifact(request, identifier, kind)
-    return stream_download(stream, length, kind + "-" + identifier + ".safetensors")
+async def tensors(request: Request, identifier: str, kind: str):
+    prepared = await prepare_download(request, identifier, kind)
+    if isinstance(prepared, Response):
+        return prepared
+    return PreparedDownloadResponse(request.app.state.crosscoders.downloads, prepared["ticket"])
 
 
 async def prepare_download(request: Request, identifier: str, kind: str):
     lab = request.app.state.crosscoders
     cancelled = Event()
     handoff = False
+
+    def should_cancel():
+        return cancelled.is_set() or lab.downloads.closed
+
     work = asyncio.create_task(
         asyncio.to_thread(
             lab.downloads.prepare,
-            partial(open_artifact, request, identifier, kind, cancelled.is_set),
+            partial(open_artifact, request, identifier, kind, should_cancel),
             kind + "-" + identifier + ".safetensors",
-            cancelled.is_set,
+            should_cancel,
         )
     )
 
@@ -174,6 +196,12 @@ async def prepare_download(request: Request, identifier: str, kind: str):
         handoff = True
         return {"ticket": ticket, "size": length}
     except DownloadCancelledError:
+        if lab.downloads.closed:
+            return JSONResponse(
+                {"detail": "Downloads are busy. Try again shortly."},
+                status_code=503,
+                headers={"Cache-Control": "no-store"},
+            )
         return Response(status_code=499)
     finally:
         if not handoff:
@@ -182,7 +210,8 @@ async def prepare_download(request: Request, identifier: str, kind: str):
 
 
 @router.post("/captures/{identifier}/download")
-async def prepare_capture_download(identifier: Identifier, request: Request):
+async def prepare_capture_download(identifier: Identifier, request: Request, response: Response):
+    response.headers["Cache-Control"] = "no-store"
     return await prepare_download(request, identifier, "capture")
 
 
@@ -192,8 +221,8 @@ def prepared_download(ticket: Annotated[str, Path(pattern=r"^[a-f0-9]{64}$")], r
 
 
 @router.get("/captures/{identifier}/tensors")
-def capture_tensors(identifier: Identifier, request: Request):
-    return tensors(request, identifier, "capture")
+async def capture_tensors(identifier: Identifier, request: Request):
+    return await tensors(request, identifier, "capture")
 
 
 @router.get("")
@@ -251,13 +280,14 @@ def label(
 
 
 @router.post("/{identifier}/download")
-async def prepare_weights_download(identifier: Identifier, request: Request):
+async def prepare_weights_download(identifier: Identifier, request: Request, response: Response):
+    response.headers["Cache-Control"] = "no-store"
     return await prepare_download(request, identifier, "crosscoder")
 
 
 @router.get("/{identifier}/weights")
-def weights(identifier: Identifier, request: Request):
-    return tensors(request, identifier, "crosscoder")
+async def weights(identifier: Identifier, request: Request):
+    return await tensors(request, identifier, "crosscoder")
 
 
 @router.get("/{identifier}/export")

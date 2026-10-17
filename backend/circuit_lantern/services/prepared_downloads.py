@@ -32,8 +32,13 @@ class PreparedDownloads:
         self.lifetime = lifetime
         self._lock = threading.Lock()
         self._pending = 0
-        self._closed = False
+        self._closing = threading.Event()
         self._leases: dict[str, tuple[PreparedDownload, threading.Timer]] = {}
+        self._active: dict[str, PreparedDownload] = {}
+
+    @property
+    def closed(self) -> bool:
+        return self._closing.is_set()
 
     def prepare(
         self,
@@ -44,16 +49,20 @@ class PreparedDownloads:
         if cancelled and cancelled():
             raise DownloadCancelledError()
         with self._lock:
-            if self._closed or len(self._leases) + self._pending >= self.capacity:
+            if (
+                self.closed
+                or len(self._leases) + len(self._active) + self._pending >= self.capacity
+            ):
                 raise DownloadBusyError("Downloads are busy. Try again shortly.")
             self._pending += 1
         stream = None
+        reserved = True
         try:
             stream, length = opener()
             with self._lock:
                 if cancelled and cancelled():
                     raise DownloadCancelledError()
-                if self._closed:
+                if self.closed:
                     raise DownloadBusyError("Downloads are busy. Try again shortly.")
                 identifier = secrets.token_hex(32)
                 lease = PreparedDownload(stream, length, filename, time.monotonic() + self.lifetime)
@@ -65,13 +74,16 @@ class PreparedDownloads:
                 except BaseException:
                     self._leases.pop(identifier)
                     raise
+                self._pending -= 1
+                reserved = False
                 stream = None
             return identifier, length
         finally:
             if stream is not None:
                 stream.close()
-            with self._lock:
-                self._pending -= 1
+            if reserved:
+                with self._lock:
+                    self._pending -= 1
 
     def discard(self, identifier: str):
         self._expire(identifier)
@@ -86,18 +98,27 @@ class PreparedDownloads:
     def take(self, identifier: str) -> PreparedDownload | None:
         with self._lock:
             retained = self._leases.pop(identifier, None)
-        if retained is None:
-            return None
-        lease, timer = retained
+            if retained is None:
+                return None
+            lease, timer = retained
+            expired = lease.expires_at <= time.monotonic()
+            if not expired:
+                self._active[identifier] = lease
         timer.cancel()
-        if lease.expires_at <= time.monotonic():
+        if expired:
             lease.stream.close()
             return None
         return lease
 
+    def release(self, identifier: str):
+        with self._lock:
+            lease = self._active.pop(identifier, None)
+        if lease is not None:
+            lease.stream.close()
+
     def close(self):
         with self._lock:
-            self._closed = True
+            self._closing.set()
             retained = list(self._leases.values())
             self._leases.clear()
         for lease, timer in retained:

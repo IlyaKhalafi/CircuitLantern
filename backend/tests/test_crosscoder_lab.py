@@ -556,6 +556,7 @@ async def test_prepared_capture_download_checks_integrity_and_survives_source_de
     path = "/api/crosscoders/captures/" + reference["id"]
     prepared = await client.post(path + "/download")
     assert prepared.status_code == 200, prepared.text
+    assert prepared.headers["cache-control"] == "no-store"
     ticket = prepared.json()["ticket"]
     assert len(ticket) == 64
     assert (await client.delete(path)).status_code == 204
@@ -577,8 +578,9 @@ async def test_prepared_capture_download_checks_integrity_and_survives_source_de
 
 
 @pytest.mark.anyio
+@pytest.mark.parametrize("direct", [False, True])
 async def test_abandoned_preparation_releases_capacity_and_fifth_live_ticket_returns_409(
-    client, lab, monkeypatch
+    client, lab, monkeypatch, direct
 ):
     import threading
     import time
@@ -587,8 +589,17 @@ async def test_abandoned_preparation_releases_capacity_and_fifth_live_ticket_ret
 
     reference, _ = await capture_pair(client, lab)
     path = "/api/crosscoders/captures/" + reference["id"] + "/download"
-    entered, stopped = threading.Event(), threading.Event()
+    entered, stopped, settled = threading.Event(), threading.Event(), threading.Event()
     original = lab.store.open_tensors
+    original_prepare = lab.downloads.prepare
+
+    def observed_prepare(*args, **kwargs):
+        try:
+            return original_prepare(*args, **kwargs)
+        finally:
+            settled.set()
+
+    monkeypatch.setattr(lab.downloads, "prepare", observed_prepare)
 
     def waiting(identifier, *, kind, cancelled=None):
         entered.set()
@@ -598,13 +609,16 @@ async def test_abandoned_preparation_releases_capacity_and_fifth_live_ticket_ret
         raise DownloadCancelledError()
 
     monkeypatch.setattr(lab.store, "open_tensors", waiting)
-    posting = asyncio.create_task(client.post(path))
+    posting = asyncio.create_task(
+        client.get(path.removesuffix("/download") + "/tensors") if direct else client.post(path)
+    )
     try:
         assert await asyncio.to_thread(entered.wait, 5)
         posting.cancel()
         with pytest.raises(asyncio.CancelledError):
             await posting
         assert await asyncio.to_thread(stopped.wait, 5)
+        assert await asyncio.to_thread(settled.wait, 5)
     finally:
         if not posting.done():
             posting.cancel()
@@ -694,3 +708,39 @@ async def test_http_disconnect_discards_a_verification_that_completes_late(
         assert lab.downloads.take(tickets[0]) is None
     finally:
         release.set()
+
+
+@pytest.mark.anyio
+async def test_store_shutdown_cancels_inflight_verification(client, lab, monkeypatch):
+    from threading import Event
+
+    from circuit_lantern.services.prepared_downloads import DownloadCancelledError
+
+    entered, stopped = Event(), Event()
+
+    def waiting(identifier, *, kind, cancelled=None):
+        entered.set()
+        assert cancelled is not None
+        assert lab.downloads._closing.wait(5)
+        assert cancelled()
+        stopped.set()
+        raise DownloadCancelledError()
+
+    monkeypatch.setattr(lab.store, "open_tensors", waiting)
+    posting = asyncio.create_task(
+        client.post("/api/crosscoders/captures/" + "a" * 32 + "/download")
+    )
+    try:
+        assert await asyncio.to_thread(entered.wait, 5)
+        lab.downloads.close()
+        response = await asyncio.wait_for(posting, 5)
+        assert response.status_code == 503
+        assert response.headers["cache-control"] == "no-store"
+        assert stopped.is_set()
+        assert (
+            await client.post("/api/crosscoders/captures/" + "a" * 32 + "/download")
+        ).status_code == 503
+    finally:
+        lab.downloads.close()
+        if not posting.done():
+            posting.cancel()
