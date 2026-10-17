@@ -289,3 +289,43 @@ def test_invalid_retained_candidate_coordinates_fail_before_forward(setup, runti
         pytest.raises(ValueError, match="inconsistent comparison evidence"),
     ):
         lab.plan(request.model_copy(update={"reference_experiment_id": record["id"]}))
+
+
+def test_replayed_block_can_retain_an_id_newly_designated_special_without_changing_measurements(
+    setup, runtime
+):
+    from circuit_lantern.services.induction.comparison import compare_probes
+
+    lab, _, _, source, request = setup
+    original_specials = set(runtime.tokenizer.all_special_ids)
+    sampled = {
+        token for probe in source["dataset"]["probes"] for token in probe["token_ids"]
+    } - original_specials
+    name, identifier = next(
+        (name, identifier)
+        for name, identifier in runtime.tokenizer.get_vocab().items()
+        if identifier in sampled
+    )
+    mapping = runtime.tokenizer.get_vocab()
+    runtime.tokenizer.add_special_tokens({"additional_special_tokens": [name]})
+    assert runtime.tokenizer.get_vocab() == mapping
+    planned = lab.plan(request)
+    payload = request.model_dump()
+    payload.update(
+        expected_probe_fingerprint=planned["dataset_fingerprint"],
+        expected_comparison_identity=planned["comparison_identity_sha256"],
+        expected_reference_signature=planned["reference_signature"],
+    )
+    result = lab._measure(payload, {})
+    assert result["complete"] and result["dataset"] == source["dataset"]
+    assert identifier in result["active_tokenizer_special_ids"]
+    assert identifier not in source["active_tokenizer_special_ids"]
+    prefix = int(result["dataset"]["start_token_id"] is not None)
+    assert (
+        sum(probe["token_ids"][prefix:].count(identifier) for probe in result["dataset"]["probes"])
+        >= request.repeats
+    )
+    compared = compare_probes(result, source)
+    assert compared["shared_examples"] == 3
+    assert compared["repeated_loss_difference"] == pytest.approx(0, abs=1e-12)
+    assert compared["shared_causal_heads"] == 1

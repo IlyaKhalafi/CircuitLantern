@@ -37,7 +37,14 @@ def comparison_identity(model, tokenizer, blocks, batch, *, vocabulary: dict | N
         digest.update(len(encoded).to_bytes(8, "big"))
         digest.update(encoded)
     texts = [
-        identity_digest(tokenizer.decode(list(probe.token_ids), skip_special_tokens=False))
+        identity_digest(
+            tokenizer.decode(
+                list(probe.token_ids),
+                skip_special_tokens=False,
+                clean_up_tokenization_spaces=False,
+                spaces_between_special_tokens=False,
+            )
+        )
         for probe in batch.probes
     ]
     layout = {
@@ -56,6 +63,7 @@ def comparison_identity(model, tokenizer, blocks, batch, *, vocabulary: dict | N
         "vocabulary_mapping_sha256": digest.hexdigest(),
         "mapped_token_entries": len(mapping),
         "decoded_probe_sha256": texts,
+        "decoded_input_policy": "Special tokens retained, token cleanup disabled and no inserted spacing between special tokens.",
         "layout": layout,
         "scope": "Vocabulary token names and IDs within active input or output rows, decoded full probe inputs and attention layout. Head comparisons align indices and do not establish functional identity.",
     }

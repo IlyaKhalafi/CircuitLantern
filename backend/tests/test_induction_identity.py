@@ -131,3 +131,39 @@ def test_worker_rejects_a_changed_token_mapping_before_any_teacher_forward(runti
     ):
         lab._measure(payload, {})
     assert runtime.jobs == {}
+
+
+def test_cleanup_preferences_do_not_change_canonical_input_identity(runtime):
+    from tokenizers import Tokenizer
+    from tokenizers.models import WordLevel
+    from transformers import PreTrainedTokenizerFast
+
+    vocabulary = runtime.tokenizer.get_vocab()
+    vocabulary["."] = vocabulary.pop("token_10")
+    runtime.tokenizer = PreTrainedTokenizerFast(
+        tokenizer_object=Tokenizer(WordLevel(vocabulary, unk_token="<unk>")),
+        eos_token="<eos>",
+        unk_token="<unk>",
+        pad_token="<pad>",
+        clean_up_tokenization_spaces=False,
+    )
+    probes = build_probe_batch(
+        [0, 3, 4, 5, 10],
+        [],
+        0,
+        ProbeConfig(block_length=4, repeats=2, examples=2, seed=19),
+        context_limit=64,
+    )
+    before = [
+        runtime.tokenizer.decode(list(probe.token_ids), skip_special_tokens=False)
+        for probe in probes.probes
+    ]
+    original = identity(runtime, probes)
+    runtime.tokenizer.clean_up_tokenization_spaces = True
+    after = [
+        runtime.tokenizer.decode(list(probe.token_ids), skip_special_tokens=False)
+        for probe in probes.probes
+    ]
+    assert before != after
+    assert identity(runtime, probes) == original
+    assert original["decoded_input_policy"]

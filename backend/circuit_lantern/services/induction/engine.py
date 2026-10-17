@@ -116,6 +116,7 @@ def measure_induction(
         "captured_at": datetime.now(UTC).isoformat(),
         "device": device,
         "dataset": batch.description(),
+        "active_tokenizer_special_ids": sorted(set(tokenizer.all_special_ids)),
         "dataset_fingerprint": batch.fingerprint,
         "layer_targets": targets,
         "requested_examples": batch.config.examples,

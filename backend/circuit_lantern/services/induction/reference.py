@@ -103,9 +103,10 @@ class ProbeReferences:
             for coordinate in coordinates
             if coordinate in allowed and coordinate in evidence.heads
         ]
+        retained_coordinates = set(retained)
         prioritized = [evidence.heads[coordinate] for coordinate in retained]
         prioritized.extend(
-            row for row in ranked if (row["layer"], row["head"]) not in set(retained)
+            row for row in ranked if (row["layer"], row["head"]) not in retained_coordinates
         )
         chosen = prioritized[:candidate_count]
         candidates = [{"layer": row["layer"], "head": row["head"]} for row in chosen]
