@@ -262,7 +262,7 @@ class InductionLab:
             result.update(
                 reference_experiment_id=request.reference_experiment_id,
                 reference_probe=plan["reference_probe"],
-                causal_candidate_policy="reference_prefix_ranking",
+                causal_candidate_policy=plan["reference_probe"]["candidate_policy"],
                 input_policy="Exact saved reference IDs replayed without resampling. The reference sampling distribution is retained even when this tokenizer designates different special tokens.",
                 active_tokenizer_special_ids=sorted(set(runtime.tokenizer.all_special_ids)),
             )

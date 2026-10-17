@@ -52,6 +52,9 @@ class ProbeEvidence:
 def _dataset(result, layout):
     data = result["dataset"]
     config = data["config"]
+    _expect(
+        isinstance(config, dict) and set(config) == {"block_length", "repeats", "examples", "seed"}
+    )
     length, repeats, examples = (config[key] for key in ("block_length", "repeats", "examples"))
     _expect(_integer(length, 4, 64) and _integer(repeats, 2, 4) and _integer(examples, 1, 32))
     _expect(_integer(config["seed"], 0, 2**32 - 1))
@@ -279,6 +282,21 @@ def validate_probe(result: dict) -> ProbeEvidence:
         heads = _heads(result, available, indices)
         probes = _probe_losses(result, indices, repeats)
         causal = _causal(result, heads, probes, examples)
+        candidates = result.get("requested_causal_candidates")
+        if candidates is not None:
+            _expect(
+                isinstance(candidates, list) and len(candidates) == result["requested_causal_heads"]
+            )
+            coordinates = []
+            layers = {row["layer"]: row["heads"] for row in result["layer_targets"]}
+            for candidate in candidates:
+                _expect(isinstance(candidate, dict) and set(candidate) == {"layer", "head"})
+                layer, head = candidate["layer"], candidate["head"]
+                _expect(
+                    _integer(layer) and layer in layers and _integer(head, 0, layers[layer] - 1)
+                )
+                coordinates.append((layer, head))
+            _expect(len(set(coordinates)) == len(coordinates) and set(causal).issubset(coordinates))
         _expect(type(result["complete"]) is bool)
         if result["complete"]:
             _expect(

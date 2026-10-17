@@ -113,11 +113,14 @@ class ExperimentStore:
 
     def payload_size(self, experiment_id: str) -> int | None:
         with self.connect() as connection:
+            connection.execute("BEGIN")
             row = connection.execute(
-                "SELECT length(CAST(payload AS BLOB)) FROM experiments WHERE id = ?",
-                (experiment_id,),
+                "SELECT rowid FROM experiments WHERE id = ?", (experiment_id,)
             ).fetchone()
-        return int(row[0]) if row is not None else None
+            if row is None:
+                return None
+            with connection.blobopen("experiments", "payload", row[0], readonly=True) as payload:
+                return len(payload)
 
     def get(self, experiment_id: str) -> dict | None:
         with self.connect() as connection:

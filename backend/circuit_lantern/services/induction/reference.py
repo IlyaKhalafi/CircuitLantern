@@ -94,7 +94,20 @@ class ProbeReferences:
             raise ValueError(
                 "The reference probe has no measured candidate heads in the selected layers."
             )
-        chosen = ranked[:candidate_count]
+        preferred = evidence.result.get("requested_causal_candidates") or evidence.result.get(
+            "causal_results", []
+        )
+        coordinates = [(row["layer"], row["head"]) for row in preferred]
+        retained = [
+            coordinate
+            for coordinate in coordinates
+            if coordinate in allowed and coordinate in evidence.heads
+        ]
+        prioritized = [evidence.heads[coordinate] for coordinate in retained]
+        prioritized.extend(
+            row for row in ranked if (row["layer"], row["head"]) not in set(retained)
+        )
+        chosen = prioritized[:candidate_count]
         candidates = [{"layer": row["layer"], "head": row["head"]} for row in chosen]
         summary = {
             "experiment_id": identifier,
@@ -105,6 +118,9 @@ class ProbeReferences:
             "comparison_identity_sha256": evidence.result["comparison_identity_sha256"],
             "measured_examples": evidence.result["measured_examples"],
             "requested_examples": evidence.result["requested_examples"],
+            "candidate_policy": "retained_reference_coordinates"
+            if retained
+            else "reference_prefix_ranking",
             "candidate_scores": [
                 {
                     "layer": row["layer"],

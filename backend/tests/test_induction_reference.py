@@ -164,8 +164,25 @@ def test_matching_candidates_remain_at_reference_coordinates_when_the_model_head
     assert (result["heads"][0]["layer"], result["heads"][0]["head"]) == (layer, other)
     assert [(row["layer"], row["head"]) for row in result["causal_results"]] == [(layer, head)]
     assert result["reference_experiment_id"] == record["id"]
-    assert result["causal_candidate_policy"] == "reference_prefix_ranking"
+    assert result["causal_candidate_policy"] == "retained_reference_coordinates"
     assert store.get(record["id"])["result"] == source
+    second = store.create_artifact("Matched permuted probe", "", "induction_probe", result)
+    third_request = request.model_copy(update={"reference_experiment_id": second["id"]})
+    third_plan = lab.plan(third_request)
+    assert third_plan["causal_candidates"] == [{"layer": layer, "head": head}]
+    third_payload = third_request.model_dump()
+    third_payload.update(
+        expected_probe_fingerprint=third_plan["dataset_fingerprint"],
+        expected_comparison_identity=third_plan["comparison_identity_sha256"],
+        expected_reference_signature=third_plan["reference_signature"],
+    )
+    third = lab._measure(third_payload, {})
+    assert third["complete"] and third["completed_forwards"] == 6
+    assert [(row["layer"], row["head"]) for row in third["causal_results"]] == [(layer, head)]
+    from circuit_lantern.services.induction.comparison import compare_probes
+
+    assert compare_probes(third, result)["shared_causal_heads"] == 1
+    assert compare_probes(third, source)["shared_causal_heads"] == 1
 
 
 @pytest.fixture
@@ -219,3 +236,56 @@ async def test_comparison_ram_check_precedes_evidence_decode(setup, monkeypatch)
             )
     assert response.status_code == 400
     assert "Insufficient available RAM" in response.json()["detail"]
+
+
+@pytest.mark.anyio
+async def test_reference_with_unknown_sampling_fields_is_rejected_as_invalid_evidence(
+    setup, runtime, monkeypatch
+):
+    from copy import deepcopy
+
+    from circuit_lantern.services.induction.identity import identity_digest
+
+    lab, store, _, source, request = setup
+    altered = deepcopy(source)
+    altered["dataset"]["config"]["unknown_setting"] = 1
+    altered["dataset_fingerprint"] = identity_digest(altered["dataset"])
+    record = store.create_artifact("Inconsistent source", "", "induction_probe", altered)
+    monkeypatch.setattr(app.state, "runtime", runtime, raising=False)
+    monkeypatch.setattr(app.state, "store", store, raising=False)
+    monkeypatch.setattr(app.state, "induction", lab, raising=False)
+    with patch.object(runtime.model, "forward", side_effect=AssertionError("Unexpected forward")):
+        async with httpx.AsyncClient(
+            transport=httpx.ASGITransport(app=app), base_url="http://test"
+        ) as client:
+            response = await client.post(
+                "/api/induction/plan",
+                json=request.model_copy(
+                    update={"reference_experiment_id": record["id"]}
+                ).model_dump(),
+            )
+    assert response.status_code == 400
+    assert "inconsistent comparison evidence" in response.json()["detail"]
+
+
+@pytest.mark.parametrize(
+    "candidates",
+    [
+        [],
+        [{"layer": True, "head": 0}],
+        [{"layer": 0, "head": 99}],
+        [{"layer": 0, "head": 0, "unknown": 1}],
+    ],
+)
+def test_invalid_retained_candidate_coordinates_fail_before_forward(setup, runtime, candidates):
+    from copy import deepcopy
+
+    lab, store, _, source, request = setup
+    altered = deepcopy(source)
+    altered["requested_causal_candidates"] = candidates
+    record = store.create_artifact("Invalid candidate evidence", "", "induction_probe", altered)
+    with (
+        patch.object(runtime.model, "forward", side_effect=AssertionError("Unexpected forward")),
+        pytest.raises(ValueError, match="inconsistent comparison evidence"),
+    ):
+        lab.plan(request.model_copy(update={"reference_experiment_id": record["id"]}))
