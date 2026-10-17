@@ -110,8 +110,8 @@ export default function FeaturesPage() {
     <>
       <PageHeader
         eyebrow={t("SPARSE FEATURES")}
-        title={t("From activations to testable features.")}
-        description={t(
+        title={t("Feature lab")}
+        help={t(
           "Train sparse autoencoders, inspect their features and test causal effects without writing code.",
         )}
         actions={

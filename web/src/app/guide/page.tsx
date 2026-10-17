@@ -19,7 +19,7 @@ export default function GuidePage() {
     <>
       <PageHeader
         eyebrow={t("THE FIELD GUIDE")}
-        title={t("Make the model a little less mysterious.")}
+        title={t("Field guide")}
         description={t(
           "A practical guide to your first investigation and the measurements behind it.",
         )}

@@ -146,9 +146,7 @@ function ExperimentNotebook() {
     <>
       <PageHeader
         eyebrow={t("A RECORD OF YOUR CURIOSITY")}
-        title={
-          selected ? selected.name : t("Good questions deserve a notebook.")
-        }
+        title={selected ? selected.name : t("Experiments")}
         description={
           selected
             ? t("{v0} \u00B7 saved {v1}", {

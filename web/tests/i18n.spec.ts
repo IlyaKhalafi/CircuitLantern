@@ -119,7 +119,7 @@ test("server page titles follow language cookies before hydration", async ({
   const page = await context.newPage();
   try {
     for (const [path, label] of [
-      ["/causal", "Causal tracing"],
+      ["/causal", "Residual patching"],
       ["/causal/heads", "Head ablation"],
       ["/causal/heads/induction", "Induction probe"],
       ["/workspace", "Model explorer"],

@@ -13,6 +13,7 @@ export function CausalNavigation() {
         {[
           { href: "/causal", label: "Residual patching" },
           { href: "/causal/heads", label: "Head ablation" },
+          { href: "/causal/heads/induction", label: "Induction probe" },
         ].map(({ href, label }) => (
           <Link
             key={href}

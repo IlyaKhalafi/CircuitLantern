@@ -7,7 +7,9 @@ test("NF4 selection loads packed weights, traces and exports logical statistics"
 }) => {
   await page.goto("/");
   await page.getByRole("button", { name: /Tiny random GPT-2/ }).click();
-  await page.getByLabel("Execution format").selectOption("int4");
+  await page
+    .getByLabel("Execution format", { exact: true })
+    .selectOption("int4");
   await expect(page.getByText("Ready to explore on this server")).toBeVisible();
   await page.getByText("How this estimate works").click();
   await expect(page.getByText(/NF4 \/ FP32 compute/)).toBeVisible();

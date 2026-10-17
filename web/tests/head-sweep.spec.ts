@@ -82,7 +82,7 @@ test("head sweep compares independent heads, filters results and restores an exp
     .click();
   await expect(
     page.getByRole("heading", {
-      name: "Restore a signal. Measure the effect.",
+      name: "Residual patching",
     }),
   ).toBeVisible();
   await page.getByRole("link", { name: "Head ablation", exact: true }).click();

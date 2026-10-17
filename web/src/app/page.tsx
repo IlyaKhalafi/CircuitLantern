@@ -1,13 +1,12 @@
 "use client";
+import { FieldLabel } from "@/components/help-tooltip";
 import { useI18n } from "@/i18n/provider";
 import { Modal } from "@/components/modal";
 import { ModelDiscovery } from "@/components/model-discovery";
 import { matchingProbeHref } from "@/lib/induction-comparison";
-import Image from "next/image";
 import {
   ArrowRight,
   ArrowUpRight,
-  Check,
   CheckCircle2,
   ChevronRight,
   Cpu,
@@ -17,7 +16,6 @@ import {
   Info,
   LoaderCircle,
   ShieldCheck,
-  Sparkles,
   X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -186,8 +184,8 @@ export default function LibraryPage() {
     <>
       <PageHeader
         eyebrow={t("YOUR NEXT DISCOVERY STARTS HERE")}
-        title={t("Open a model. Look closer.")}
-        description={t(
+        title={t("Model library")}
+        help={t(
           "Find a model, check your hardware, and start exploring what makes it work.",
         )}
         actions={
@@ -197,106 +195,32 @@ export default function LibraryPage() {
           </a>
         }
       />
-      <section className="welcome-banner library-intro">
-        <div>
-          <span className="pill orange">
-            <Sparkles size={13} />
-            {t("THE OPEN MODEL WORKBENCH")}
-          </span>
-          <p>
-            {t(
-              "Trace a prediction through every layer. Explore weight geometry.",
-            )}
-            <br className="desktop-break" />
-            {t("Turn a black box into something you can reason about.")}
-          </p>
-          <div className="banner-points">
-            <span>
-              <Check size={14} />
-              {t("Real model weights")}
-            </span>
-            <span>
-              <Check size={14} />
-              {t("Runs on your server")}
-            </span>
-            <span>
-              <Check size={14} />
-              {t("Reproducible experiments")}
-            </span>
-          </div>
-        </div>
-        <div className="lantern-illustration" aria-hidden="true">
-          <Image
-            src="/brand/lantern-icon.webp"
-            alt=""
-            width={280}
-            height={280}
-            preload
-          />
-        </div>
-      </section>
-      <div className="section-heading">
-        <div>
-          <h2>
-            {t("Model library")}
-            <span className="count-badge">Hugging Face</span>
-          </h2>
-          <p>
-            {t(
-              "Start small, inspect deeply. Or bring any compatible checkpoint.",
-            )}
-          </p>
-        </div>
-        <div className="pill subtle">
-          <ShieldCheck size={14} />
-          {t("Compatibility checked before download")}
-        </div>
+      <div className="library-check-note">
+        <ShieldCheck size={14} />
+        {t("Compatibility checked before download")}
       </div>
       <ModelDiscovery onChoose={check} />
       {!selected && <ErrorNotice message={error} />}
-      <div className="library-bottom">
-        <div>
-          <Cpu size={21} />
-          <div>
-            <strong>{t("Your hardware, taken into account.")}</strong>
-            <p>
-              {t(
-                "Memory capacity is just the beginning. Architecture and runtime matter too.",
-              )}
-            </p>
-          </div>
-        </div>
+      <div className="library-server-summary">
+        <Cpu size={16} />
+        <span>
+          {hardware?.execution_gpu?.name || hardware?.gpus[0]?.name || t("CPU")}
+        </span>
+        {hardware && (
+          <>
+            <span>
+              {bytes(hardware.ram_available_bytes)}{" "}
+              {t("Available system memory")}
+            </span>
+            <span>
+              {bytes(hardware.disk_free_bytes)} {t("Free disk space")}
+            </span>
+          </>
+        )}
         <a className="text-link" href="/hardware">
           {t("View server details")}
-          <ArrowRight size={15} />
+          <ArrowRight size={14} />
         </a>
-      </div>
-      <div className="how-it-works">
-        {[
-          {
-            n: "01",
-            title: "Choose a checkpoint",
-            text: "Browse open models or use a Hub repository ID.",
-          },
-          {
-            n: "02",
-            title: "Check the fit",
-            text: "Verify memory, hardware and runtime support.",
-          },
-          {
-            n: "03",
-            title: "Follow your curiosity",
-            text: "Inspect matrices and watch predictions emerge.",
-          },
-        ].map((step) => (
-          <div key={step.n}>
-            <span>{step.n}</span>
-            <div>
-              <h3>{t(step.title)}</h3>
-              <p>{step.text}</p>
-            </div>
-          </div>
-        ))}
       </div>
       {selected && (
         <Modal
@@ -331,9 +255,14 @@ export default function LibraryPage() {
             {selected} <ExternalLink size={13} />
           </a>
           <div className="form-grid">
-            <label>
-              {t("Execution device")}
+            <div className="form-field">
+              <FieldLabel
+                id="deployment-device"
+                label="Execution device"
+                help="Select the CPU or a CUDA GPU exposed to this server."
+              />
               <select
+                id="deployment-device"
                 aria-label={t("Execution device")}
                 disabled={!!isDownloading}
                 value={device}
@@ -345,10 +274,15 @@ export default function LibraryPage() {
                 <option value="cpu">{t("CPU \u00B7 system memory")}</option>
                 <option value="cuda">{t("CUDA \u00B7 NVIDIA GPU")}</option>
               </select>
-            </label>
-            <label>
-              {t("Context allowance")}
+            </div>
+            <div className="form-field">
+              <FieldLabel
+                id="deployment-context"
+                label="Context allowance"
+                help="Maximum prompt and generated tokens kept in the loaded session. Larger contexts require more memory."
+              />
               <select
+                id="deployment-context"
                 aria-label={t("Context allowance")}
                 disabled={!!isDownloading}
                 value={context}
@@ -367,10 +301,15 @@ export default function LibraryPage() {
                   ),
                 )}
               </select>
-            </label>
-            <label>
-              {t("Execution format")}
+            </div>
+            <div className="form-field">
+              <FieldLabel
+                id="deployment-precision"
+                label="Execution format"
+                help="Choose the weight format used by the runtime. Support depends on both the checkpoint and your hardware."
+              />
               <select
+                id="deployment-precision"
                 aria-label={t("Execution format")}
                 disabled={!!isDownloading}
                 value={precision}
@@ -392,7 +331,7 @@ export default function LibraryPage() {
                   </option>
                 ))}
               </select>
-            </label>
+            </div>
           </div>
           <details className="estimate-details revision-details">
             <summary>

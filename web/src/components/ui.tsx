@@ -3,23 +3,27 @@ import { useI18n } from "@/i18n/provider";
 import { AlertCircle, ArrowUpRight, LoaderCircle } from "lucide-react";
 import Link from "next/link";
 import type { ReactNode } from "react";
+import { HelpTooltip } from "@/components/help-tooltip";
 export function PageHeader({
-  eyebrow,
   title,
   description,
+  help,
   actions,
 }: {
-  eyebrow: string;
+  eyebrow?: string;
   title: string;
-  description: string;
+  description?: ReactNode;
+  help?: string;
   actions?: ReactNode;
 }) {
   return (
     <header className="page-header">
       <div>
-        <div className="eyebrow">{eyebrow}</div>
-        <h1 dir="auto">{title}</h1>
-        <p>{description}</p>
+        <div className="heading-with-help">
+          <h1 dir="auto">{title}</h1>
+          {help && <HelpTooltip label={title}>{help}</HelpTooltip>}
+        </div>
+        {description && <p>{description}</p>}
       </div>
       {actions && <div className="header-actions">{actions}</div>}
     </header>
@@ -82,15 +86,20 @@ export function Metric({
   label,
   value,
   note,
+  help,
 }: {
   label: string;
   value: ReactNode;
   note?: string;
+  help?: string;
 }) {
   const { t } = useI18n();
   return (
     <div className="metric">
-      <span>{t(label)}</span>
+      <span className="metric-label">
+        <span>{t(label)}</span>
+        {help && <HelpTooltip label={label}>{help}</HelpTooltip>}
+      </span>
       <strong>
         {typeof value === "number" ||
         (typeof value === "string" && /^[+−-]?\d/.test(value)) ? (
@@ -104,15 +113,19 @@ export function Metric({
   );
 }
 export function Panel({
+  id,
   title,
   subtitle,
+  help,
   children,
   action,
   className = "",
   translateTitle = true,
 }: {
+  id?: string;
   title: string;
   subtitle?: string;
+  help?: string;
   children: ReactNode;
   action?: ReactNode;
   className?: string;
@@ -120,10 +133,13 @@ export function Panel({
 }) {
   const { t, localize } = useI18n();
   return (
-    <section className={`panel ${className}`}>
+    <section id={id} className={`panel ${className}`}>
       <div className="panel-header">
         <div>
-          <h2>{translateTitle ? t(title) : title}</h2>
+          <div className="heading-with-help">
+            <h2>{translateTitle ? t(title) : title}</h2>
+            {help && <HelpTooltip label={title}>{help}</HelpTooltip>}
+          </div>
           {subtitle && <p>{t(subtitle)}</p>}
         </div>
         {localize(action)}

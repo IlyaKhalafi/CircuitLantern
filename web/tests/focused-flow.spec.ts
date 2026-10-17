@@ -167,10 +167,12 @@ test("focused views show complete boundary values and preserve the selected path
   await hybrid(page);
   await page.goto("/workspace");
   await expect(page.locator(".flow-boundary")).toHaveCount(2);
-  await page.getByLabel("Diagram focus").selectOption("mlp");
+  await page.getByLabel("Diagram focus", { exact: true }).selectOption("mlp");
   await expect(page.locator(".flow-weight")).toHaveCount(3);
   await page.getByRole("button", { name: "Next block", exact: true }).click();
-  await expect(page.getByLabel("Diagram focus")).toHaveValue("mlp");
+  await expect(page.getByLabel("Diagram focus", { exact: true })).toHaveValue(
+    "mlp",
+  );
   await expect(page.locator(".flow-weight")).toHaveCount(3);
   await expect
     .poll(async () => {
@@ -187,7 +189,7 @@ test("focused views show complete boundary values and preserve the selected path
   await capturePage(page, {
     path: "../artifacts/screenshots/focused-mlp-boundaries.png",
   });
-  await page.getByLabel("Diagram focus").selectOption("all");
+  await page.getByLabel("Diagram focus", { exact: true }).selectOption("all");
   await expect(page.locator(".flow-boundary")).toHaveCount(0);
 });
 
@@ -196,10 +198,10 @@ test("changing focused paths clears unrelated connection highlighting", async ({
 }) => {
   await hybrid(page);
   await page.goto("/workspace");
-  const select = page.getByLabel("Trace connections");
+  const select = page.getByLabel("Trace connections", { exact: true });
   await select.selectOption({ label: "Update projection · in_proj_b" });
   await expect(page.locator(".flow-dimmed").first()).toBeVisible();
-  await page.getByLabel("Diagram focus").selectOption("mlp");
+  await page.getByLabel("Diagram focus", { exact: true }).selectOption("mlp");
   await expect(select).toHaveValue("");
   await expect(page.locator(".flow-dimmed")).toHaveCount(0);
 });
@@ -300,8 +302,8 @@ test("parallel residual boundaries retain distinct values and readable origin la
   await page
     .getByRole("button", { name: "Block dataflow", exact: true })
     .click();
-  await page.getByLabel("Diagram focus").selectOption("mlp");
-  const trace = page.getByLabel("Trace connections");
+  await page.getByLabel("Diagram focus", { exact: true }).selectOption("mlp");
+  const trace = page.getByLabel("Trace connections", { exact: true });
   await expect(
     trace.locator("option").filter({ hasText: /^Path input · / }),
   ).toHaveCount(2);
@@ -311,7 +313,9 @@ test("parallel residual boundaries retain distinct values and readable origin la
   await expect(
     trace.locator("option", { hasText: "Path input · W_O" }),
   ).toHaveCount(1);
-  await page.getByLabel("Diagram focus").selectOption("attention");
+  await page
+    .getByLabel("Diagram focus", { exact: true })
+    .selectOption("attention");
   await expect(
     trace.locator("option", { hasText: "Path output · Residual input" }),
   ).toHaveCount(1);

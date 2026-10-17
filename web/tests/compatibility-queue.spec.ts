@@ -39,9 +39,15 @@ test("rapid deployment changes check only the latest selection without overlappi
     await page.goto("/");
     await page.getByRole("button", { name: /Tiny random GPT-2/ }).click();
     await started;
-    await page.getByLabel("Context allowance").selectOption("64");
-    await page.getByLabel("Execution format").selectOption("int4");
-    await page.getByLabel("Context allowance").selectOption("128");
+    await page
+      .getByLabel("Context allowance", { exact: true })
+      .selectOption("64");
+    await page
+      .getByLabel("Execution format", { exact: true })
+      .selectOption("int4");
+    await page
+      .getByLabel("Context allowance", { exact: true })
+      .selectOption("128");
   } finally {
     release();
   }
