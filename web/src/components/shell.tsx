@@ -73,17 +73,19 @@ export function Shell({ children }: { children: React.ReactNode }) {
         path.startsWith("/causal")));
   const current = navigation.find((item) => activeRoute(item.href));
   const currentLabel =
-    path === "/causal/heads"
-      ? "Head ablation"
-      : path === "/causal"
-        ? "Causal tracing"
-        : path === "/features/compare"
-          ? "Shared feature comparisons"
-          : path === "/features"
-            ? "Feature lab"
-            : path === "/playground"
-              ? "Activation lab"
-              : current?.label;
+    path === "/causal/heads/induction"
+      ? "Induction probe"
+      : path === "/causal/heads"
+        ? "Head ablation"
+        : path === "/causal"
+          ? "Causal tracing"
+          : path === "/features/compare"
+            ? "Shared feature comparisons"
+            : path === "/features"
+              ? "Feature lab"
+              : path === "/playground"
+                ? "Activation lab"
+                : current?.label;
   useEffect(() => {
     document.title =
       t(

@@ -1,3 +1,5 @@
+import type { InductionResult } from "@/lib/induction";
+
 export interface ExecutionProvenance {
   execution_id?: string | null;
   execution_precision?: string;
@@ -337,7 +339,8 @@ export type Experiment =
   | (ExperimentBase & { kind?: "trace"; trace?: Trace })
   | (ExperimentBase & { kind: "causal"; result?: CausalResult })
   | (ExperimentBase & { kind: "head_sweep"; result?: HeadSweepResult })
-  | (ExperimentBase & { kind: "matrix"; result?: MatrixMetrics });
+  | (ExperimentBase & { kind: "matrix"; result?: MatrixMetrics })
+  | (ExperimentBase & { kind: "induction_probe"; result?: InductionResult });
 
 export interface CausalLayer {
   layer: number;

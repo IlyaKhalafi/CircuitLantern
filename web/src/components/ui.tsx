@@ -31,14 +31,13 @@ export function ErrorNotice({
   message: string | readonly string[] | null;
 }) {
   const { t } = useI18n();
-  return message ? (
+  const parts = (
+    typeof message === "string" ? [message] : message || []
+  ).filter((part) => part.trim());
+  return parts.length ? (
     <div role="alert" className="notice error">
       <AlertCircle size={17} />
-      <span>
-        {(typeof message === "string" ? [message] : message)
-          .map((part) => t(part))
-          .join(" ")}
-      </span>
+      <span>{parts.map((part) => t(part)).join(" ")}</span>
     </div>
   ) : null;
 }

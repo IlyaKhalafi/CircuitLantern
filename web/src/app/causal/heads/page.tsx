@@ -1,4 +1,5 @@
 "use client";
+import Link from "next/link";
 import { useI18n } from "@/i18n/provider";
 import { useEffect, useState } from "react";
 import { Download, FlaskConical, Play, RefreshCw, Square } from "lucide-react";
@@ -103,6 +104,11 @@ export default function HeadSweepPage() {
         }
       />
       <CausalNavigation />
+      <p className="control-note" style={{ marginBottom: 20 }}>
+        <Link className="button secondary" href="/causal/heads/induction">
+          {t("Explore induction heads")}
+        </Link>
+      </p>
       <ErrorNotice
         message={runtimeError || (error === result?.error ? null : error)}
       />
@@ -258,10 +264,10 @@ export default function HeadSweepPage() {
       )}
       {result ? (
         <div className="section-gap">
-          <HeadSweepResults key={job?.id} result={result} />
+          <HeadSweepResults key={"result-" + job?.id} result={result} />
           {job && (
             <SaveJobExperiment
-              key={job.id}
+              key={"save-" + job.id}
               jobId={job.id}
               defaultName={"Head ablation · " + truncateText(result.prompt, 60)}
               disabled={busy}

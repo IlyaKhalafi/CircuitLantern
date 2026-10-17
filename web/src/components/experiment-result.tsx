@@ -1,6 +1,7 @@
 import { SavedMatrixComparison } from "@/components/saved-matrix-comparison";
 import { SavedCausalComparison } from "@/components/saved-causal-comparison";
 import { HeadSweepResults } from "@/components/head-sweep-results";
+import { InductionResults } from "@/components/induction-results";
 import { SavedTraceComparison } from "@/components/saved-trace-comparison";
 import type { Experiment } from "@/lib/types";
 
@@ -42,6 +43,10 @@ export function ExperimentResult({
   if (experiment.kind === "head_sweep")
     return experiment.result ? (
       <HeadSweepResults result={experiment.result} />
+    ) : null;
+  if (experiment.kind === "induction_probe")
+    return experiment.result ? (
+      <InductionResults result={experiment.result} />
     ) : null;
   return experiment.trace ? (
     <SavedTraceComparison

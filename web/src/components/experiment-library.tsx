@@ -74,6 +74,7 @@ export function ExperimentLibrary({
             <option value="causal">{t("Residual patching")}</option>
             <option value="head_sweep">{t("Head ablation")}</option>
             <option value="matrix">{t("Matrix analyses")}</option>
+            <option value="induction_probe">{t("Induction probes")}</option>
           </select>
         </label>
         <p className="notebook-count" role="status">

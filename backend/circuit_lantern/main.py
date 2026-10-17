@@ -9,6 +9,7 @@ from huggingface_hub.errors import HfHubHTTPError
 from circuit_lantern.api.checkpoints import router as checkpoint_router
 from circuit_lantern.api.crosscoders import router as crosscoder_router
 from circuit_lantern.api.features import router as feature_router
+from circuit_lantern.api.induction import router as induction_router
 from circuit_lantern.config import get_settings
 from circuit_lantern.schemas import (
     CausalRequest,
@@ -32,6 +33,7 @@ from circuit_lantern.services.features.lab import FeatureLab
 from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
+from circuit_lantern.services.induction.lab import InductionLab
 from circuit_lantern.services.runtime import ModelChangedError, ModelRuntime, RuntimeBusyError
 from circuit_lantern.services.store import ExperimentStore
 from circuit_lantern.services.tensor_artifacts import (
@@ -46,6 +48,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.runtime = ModelRuntime(settings)
     app.state.store = ExperimentStore(settings.data_dir / "experiments.sqlite3")
+    app.state.induction = InductionLab(app.state.runtime)
     app.state.features = FeatureLab(
         app.state.runtime,
         DictionaryStore(
@@ -74,6 +77,7 @@ app = FastAPI(title="Circuit Lantern", version="0.1.0", lifespan=lifespan)
 app.include_router(feature_router)
 app.include_router(checkpoint_router)
 app.include_router(crosscoder_router)
+app.include_router(induction_router)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=get_settings().allowed_origins,
@@ -264,7 +268,7 @@ def save_job_experiment(payload: ExperimentFromJobRequest, request: Request):
     job = request.app.state.runtime.job(payload.job_id)
     if job is None:
         raise HTTPException(404, "The sweep job was not found. Its result may have expired.")
-    if job.get("kind") not in ("causal", "head_sweep"):
+    if job.get("kind") not in ("causal", "head_sweep", "induction_probe"):
         raise HTTPException(400, "Only research sweeps can be saved from a job.")
     result = job.get("result")
     if job["status"] not in ("ready", "cancelled", "failed") or not isinstance(result, dict):
