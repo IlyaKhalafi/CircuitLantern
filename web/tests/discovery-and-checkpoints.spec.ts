@@ -92,6 +92,7 @@ test("block dataflow exposes attention branches and opens actual matrices", asyn
     page.getByLabel("Transformer block computation flow"),
   ).toBeVisible();
   const flow = page.locator(".block-dataflow");
+  await page.getByLabel("Diagram focus", { exact: true }).selectOption("all");
   await expect(flow.locator(".react-flow__node")).toHaveCount(15);
   await expect(
     flow.getByText("Attention probabilities", { exact: true }),
@@ -133,6 +134,14 @@ test("block dataflow exposes attention branches and opens actual matrices", asyn
   await page
     .getByLabel("Diagram focus", { exact: true })
     .selectOption("attention");
+  await expect(flow.locator(".react-flow__node")).toHaveCount(11);
+  await expect(flow.locator(".flow-boundary")).toHaveCount(1);
+  await expect(
+    flow.getByRole("button", {
+      name: "Inspect transformer.h.0.mlp.c_fc.weight",
+      exact: true,
+    }),
+  ).toHaveCount(0);
   await expectNodeInside("qkv");
   await capturePage(page, {
     path: "../artifacts/screenshots/block-dataflow-light.png",
