@@ -1,5 +1,8 @@
 import { expect, test } from "@playwright/test";
-import { normalizeProbeDraft } from "../src/lib/induction-settings";
+import {
+  normalizeProbeDraft,
+  validProbeNumbers,
+} from "../src/lib/induction-settings";
 import type { InductionSettings } from "../src/lib/induction";
 
 const fallback: InductionSettings = {
@@ -56,4 +59,19 @@ test("probe drafts restore valid fields independently and discard obsolete or in
       [0, 1],
     ),
   ).toEqual(fallback);
+});
+
+test("probe draft and workload bounds respect the active token vocabulary", () => {
+  const small = { ...fallback, block_length: 4 };
+  expect(
+    normalizeProbeDraft(
+      { ...small, block_length: 64, seed: 23 },
+      small,
+      [0, 1],
+      13,
+    ),
+  ).toEqual({ ...small, seed: 23 });
+  expect(validProbeNumbers({ ...fallback, examples: 999 })).toBe(false);
+  expect(validProbeNumbers({ ...fallback, block_length: 64 }, 13)).toBe(false);
+  expect(validProbeNumbers(small, 13)).toBe(true);
 });

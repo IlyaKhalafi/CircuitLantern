@@ -548,6 +548,17 @@ test("invalid collapsed probe settings reopen the control and reload preserves o
   await expect(page.locator(".induction-advanced")).toHaveAttribute("open", "");
   await expect(example).toBeFocused();
   expect(submissions).toBe(0);
+  await example.fill("999");
+  await expect(page.locator(".induction-form")).toContainText(
+    "Enter valid probe settings to estimate the workload.",
+  );
+  await page.getByText("Probe settings", { exact: true }).click();
+  await page
+    .getByRole("button", { name: "Check resources", exact: true })
+    .click();
+  await expect(page.locator(".induction-advanced")).toHaveAttribute("open", "");
+  await expect(example).toBeFocused();
+  expect(submissions).toBe(0);
   await page.reload();
   await page.getByText("Probe settings", { exact: true }).click();
   await expect(seedInput).toHaveValue("23");

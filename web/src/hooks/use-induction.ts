@@ -16,6 +16,7 @@ function restoreSettings(
   execution: string,
   fallback: InductionSettings,
   layers: number[],
+  vocabularyPool: number,
 ): InductionSettings {
   try {
     return normalizeProbeDraft(
@@ -25,6 +26,7 @@ function restoreSettings(
       ),
       fallback,
       layers,
+      vocabularyPool,
     );
   } catch {
     return { ...fallback };
@@ -78,6 +80,7 @@ export function useInduction() {
                     execution,
                     value.recommended!,
                     value.layers.map((row) => row.layer),
+                    value.vocabulary_pool_size || 64,
                   ),
                 },
           );

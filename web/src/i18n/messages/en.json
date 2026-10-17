@@ -1614,7 +1614,6 @@
   "Checking probe capabilities": "Checking probe capabilities",
   "Checking resources": "Checking resources",
   "Choose a checkpoint to look for candidate induction heads using synthetic token sequences.": "Choose a checkpoint to look for candidate induction heads using synthetic token sequences.",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL uses the full vocabulary.": "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL uses the full vocabulary.",
   "Delta log probability": "Delta log probability",
   "Design a repeated token probe": "Design a repeated token probe",
   "Duplicate token": "Duplicate token",
@@ -1692,5 +1691,5 @@
   "The probe vocabulary changed. Start the measurement again.": "The probe vocabulary changed. Start the measurement again.",
   "Pattern evidence and a causal test on the same probes.": "Pattern evidence and a causal test on the same probes.",
   "Enter valid probe settings to estimate the workload.": "Enter valid probe settings to estimate the workload.",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary."
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL goes from baseline to ablated over the full vocabulary, weighted by baseline probabilities.": "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL goes from baseline to ablated over the full vocabulary, weighted by baseline probabilities."
 }

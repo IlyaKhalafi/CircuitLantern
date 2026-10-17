@@ -1614,7 +1614,6 @@
   "Checking probe capabilities": "جارٍ فحص إمكانات الاختبار",
   "Checking resources": "جارٍ فحص الموارد",
   "Choose a checkpoint to look for candidate induction heads using synthetic token sequences.": "اختر نقطة تحقق للبحث عن رؤوس استقراء مرشحة باستخدام تسلسلات رموز اصطناعية.",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL uses the full vocabulary.": "دلتا هي لوغاريتم الاحتمال بعد الاستئصال ناقص خط الأساس بوحدة نات. القيم السالبة تعني أن إزالة الرأس خفضت احتمال الهدف الدوري. يستخدم KL كامل المفردات.",
   "Delta log probability": "فرق لوغاريتم الاحتمال",
   "Design a repeated token probe": "تصميم اختبار الرموز المتكررة",
   "Duplicate token": "الرمز المطابق السابق",
@@ -1692,5 +1691,5 @@
   "The probe vocabulary changed. Start the measurement again.": "تغيرت مفردات الاختبار. أعد بدء القياس.",
   "Pattern evidence and a causal test on the same probes.": "أدلة نمطية واختبار سببي على أمثلة الاختبار نفسها.",
   "Enter valid probe settings to estimate the workload.": "أدخل إعدادات مسبار صالحة لتقدير حجم العمل.",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "دلتا هي لوغاريتم الاحتمال بعد الاستئصال ناقص خط الأساس بوحدة نات. القيم السالبة تعني أن إزالة الرأس خفضت احتمال الهدف الدوري. تقارن KL توزيع خط الأساس بتوزيع الاستئصال على كامل المفردات."
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL goes from baseline to ablated over the full vocabulary, weighted by baseline probabilities.": "دلتا هي لوغاريتم الاحتمال بعد الاستئصال ناقص خط الأساس بوحدة نات. القيم السالبة تعني أن إزالة الرأس خفضت احتمال الهدف الدوري. اتجاه KL من توزيع خط الأساس إلى توزيع الاستئصال على كامل المفردات، بأوزان احتمالات خط الأساس."
 }

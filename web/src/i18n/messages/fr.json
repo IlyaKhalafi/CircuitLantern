@@ -1614,7 +1614,6 @@
   "Checking probe capabilities": "Vérification des capacités du test",
   "Checking resources": "Vérification des ressources",
   "Choose a checkpoint to look for candidate induction heads using synthetic token sequences.": "Choisissez un point de contrôle pour rechercher des têtes d’induction candidates avec des séquences synthétiques.",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL uses the full vocabulary.": "Le delta est la log-probabilité après neutralisation moins la référence, en nats. Une valeur négative indique une baisse de probabilité de la cible périodique. KL utilise tout le vocabulaire.",
   "Delta log probability": "Delta de log-probabilité",
   "Design a repeated token probe": "Configurer un test de tokens répétés",
   "Duplicate token": "Token dupliqué",
@@ -1692,5 +1691,5 @@
   "The probe vocabulary changed. Start the measurement again.": "Le vocabulaire du test a changé. Relancez la mesure.",
   "Pattern evidence and a causal test on the same probes.": "Des mesures de motif et un test causal sur les mêmes exemples.",
   "Enter valid probe settings to estimate the workload.": "Saisissez des paramètres de sonde valides pour estimer le travail.",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "Le delta est la log-probabilité après ablation moins la référence, en nats. Une valeur négative signifie que retirer la tête réduit la probabilité de la cible périodique. La KL va de la distribution de référence vers celle après ablation, sur tout le vocabulaire."
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL goes from baseline to ablated over the full vocabulary, weighted by baseline probabilities.": "Le delta est la log-probabilité après ablation moins la référence, en nats. Une valeur négative signifie que retirer la tête réduit la probabilité de la cible périodique. La KL va de la distribution de référence vers celle après ablation, sur tout le vocabulaire et pondérée par les probabilités de référence."
 }

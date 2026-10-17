@@ -12,6 +12,7 @@ export function normalizeProbeDraft(
   value: unknown,
   fallback: InductionSettings,
   availableLayers: number[],
+  vocabularyPool = 64,
 ): InductionSettings {
   const result = { ...fallback };
   if (!value || typeof value !== "object" || Array.isArray(value))
@@ -23,7 +24,8 @@ export function normalizeProbeDraft(
       typeof candidate === "number" &&
       Number.isSafeInteger(candidate) &&
       candidate >= min &&
-      candidate <= max
+      candidate <=
+        (key === "block_length" ? Math.min(max, vocabularyPool) : max)
     )
       result[key] = candidate;
   }
@@ -41,4 +43,17 @@ export function normalizeProbeDraft(
   )
     result.layers = [...recorded.layers];
   return result;
+}
+
+export function validProbeNumbers(
+  value: InductionSettings,
+  vocabularyPool = 64,
+) {
+  return bounds.every(
+    ([key, min, max]) =>
+      Number.isSafeInteger(value[key]) &&
+      value[key] >= min &&
+      value[key] <=
+        (key === "block_length" ? Math.min(max, vocabularyPool) : max),
+  );
 }

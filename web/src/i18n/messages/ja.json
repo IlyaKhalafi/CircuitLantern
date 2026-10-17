@@ -1614,7 +1614,6 @@
   "Checking probe capabilities": "プローブの対応状況を確認中",
   "Checking resources": "リソースを確認中",
   "Choose a checkpoint to look for candidate induction heads using synthetic token sequences.": "人工的なトークン列で誘導ヘッド候補を探すチェックポイントを選択します。",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL uses the full vocabulary.": "差分は除去後の対数確率からベースラインを引いた値で、単位はnatです。負の値は、除去によって周期的ターゲットの確率が低下したことを示します。KLは語彙全体を使います。",
   "Delta log probability": "対数確率の差分",
   "Design a repeated token probe": "反復トークンプローブの設定",
   "Duplicate token": "重複トークン",
@@ -1692,5 +1691,5 @@
   "The probe vocabulary changed. Start the measurement again.": "プローブの語彙が変更されました。測定を再実行してください。",
   "Pattern evidence and a causal test on the same probes.": "パターンの証拠と、同じプローブを使った因果テスト。",
   "Enter valid probe settings to estimate the workload.": "有効なプローブ設定を入力すると処理量を見積もれます。",
-  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "差分はアブレーション後からベースラインを引いた対数確率で、単位は nat です。負の値はヘッド除去で周期的な正解トークンの確率が低下したことを示します。KL は全語彙でベースライン分布からアブレーション後の分布への発散です。"
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL goes from baseline to ablated over the full vocabulary, weighted by baseline probabilities.": "差分はアブレーション後からベースラインを引いた対数確率で、単位は nat です。負の値はヘッド除去で周期的な正解トークンの確率が低下したことを示します。KL は全語彙でベースラインからアブレーション後への発散を、ベースラインの確率で重み付けしたものです。"
 }

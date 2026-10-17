@@ -19,6 +19,7 @@ import {
   Panel,
 } from "@/components/ui";
 import { useInduction } from "@/hooks/use-induction";
+import { validProbeNumbers } from "@/lib/induction-settings";
 import { useI18n } from "@/i18n/provider";
 import { bytes, downloadJSON } from "@/lib/api";
 
@@ -35,12 +36,7 @@ export function InductionWorkbench() {
       .reduce((sum, item) => sum + item.heads, 0) || 0;
   const previewReady =
     settings &&
-    [
-      settings.examples,
-      settings.causal_heads,
-      settings.block_length,
-      settings.repeats,
-    ].every(Number.isFinite);
+    validProbeNumbers(settings, capabilities?.vocabulary_pool_size || 64);
   const forwards = settings
     ? settings.examples * (1 + Math.min(settings.causal_heads, selectedHeads))
     : 0;
