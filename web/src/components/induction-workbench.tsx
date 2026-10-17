@@ -10,6 +10,7 @@ import {
   Square,
 } from "lucide-react";
 import { InductionResults } from "@/components/induction-results";
+import { MatchingProbeReference } from "@/components/matching-probe-reference";
 import { SaveJobExperiment } from "@/components/save-job-experiment";
 import {
   EmptyState,
@@ -19,6 +20,7 @@ import {
   Panel,
 } from "@/components/ui";
 import { useInduction } from "@/hooks/use-induction";
+import { validProbeNumbers } from "@/lib/induction-settings";
 import { useI18n } from "@/i18n/provider";
 import { bytes, downloadJSON } from "@/lib/api";
 
@@ -33,6 +35,9 @@ export function InductionWorkbench() {
         (item) => !settings?.layers || settings.layers.includes(item.layer),
       )
       .reduce((sum, item) => sum + item.heads, 0) || 0;
+  const previewReady =
+    settings &&
+    validProbeNumbers(settings, capabilities?.vocabulary_pool_size || 64);
   const forwards = settings
     ? settings.examples * (1 + Math.min(settings.causal_heads, selectedHeads))
     : 0;
@@ -81,6 +86,7 @@ export function InductionWorkbench() {
         <ArrowLeft size={14} />
         {t("Head ablation")}
       </Link>
+      <MatchingProbeReference lab={lab} />
       <ErrorNotice message={lab.error === result?.error ? null : lab.error} />
       {lab.loading ? (
         <Loading label={t("Connecting to model runtime")} />
@@ -116,6 +122,12 @@ export function InductionWorkbench() {
           >
             <form
               className="induction-form"
+              onInvalidCapture={(event) => {
+                const details = (event.target as HTMLElement).closest(
+                  "details",
+                );
+                if (details) details.open = true;
+              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 lab.check(true);
@@ -136,21 +148,25 @@ export function InductionWorkbench() {
                         {"A B C"} <span aria-hidden="true">···</span>
                       </strong>
                       <small>
-                        {t("{v0} tokens", { v0: settings.block_length })}
+                        {Number.isFinite(settings.block_length)
+                          ? t("{v0} tokens", { v0: settings.block_length })
+                          : t("Unavailable")}
                       </small>
                     </div>
                   ),
                 )}
               </div>
               <p className="inline-note">
-                {t(
-                  "{v0} probes and up to {v1} candidate ablations use {v2} forward passes.",
-                  {
-                    v0: settings.examples,
-                    v1: Math.min(settings.causal_heads, selectedHeads),
-                    v2: forwards,
-                  },
-                )}
+                {previewReady
+                  ? t(
+                      "{v0} probes and up to {v1} candidate ablations use {v2} forward passes.",
+                      {
+                        v0: settings.examples,
+                        v1: Math.min(settings.causal_heads, selectedHeads),
+                        v2: forwards,
+                      },
+                    )
+                  : t("Enter valid probe settings to estimate the workload.")}
               </p>
               <details className="induction-advanced">
                 <summary>{t("Probe settings")}</summary>
@@ -181,7 +197,7 @@ export function InductionWorkbench() {
                         value={
                           Number.isFinite(settings[key]) ? settings[key] : ""
                         }
-                        disabled={lab.busy}
+                        disabled={lab.busy || !!lab.reference.identifier}
                         required
                         onChange={(event) =>
                           lab.update({ [key]: event.target.valueAsNumber })
@@ -193,18 +209,30 @@ export function InductionWorkbench() {
                     {t("Layers to test")}
                     <select
                       aria-label={t("Layers to test")}
-                      value={settings.layers?.[0] ?? "all"}
-                      disabled={lab.busy}
-                      onChange={(event) =>
+                      value={
+                        settings.layers === null
+                          ? "all"
+                          : settings.layers.length === 1
+                            ? String(settings.layers[0])
+                            : "subset"
+                      }
+                      disabled={lab.busy || !!lab.reference.identifier}
+                      onChange={(event) => {
+                        if (event.target.value === "subset") return;
                         lab.update({
                           layers:
                             event.target.value === "all"
                               ? null
                               : [+event.target.value],
-                        })
-                      }
+                        });
+                      }}
                     >
                       <option value="all">{t("All tested layers")}</option>
+                      {settings.layers && settings.layers.length > 1 && (
+                        <option value="subset">
+                          {t("Reference layer selection")}
+                        </option>
+                      )}
                       {capabilities.layers.map((item) => (
                         <option value={item.layer} key={item.layer}>
                           {t("Layer {v0}", { v0: item.layer })}
@@ -217,7 +245,7 @@ export function InductionWorkbench() {
                   <input
                     type="checkbox"
                     checked={settings.include_start_token}
-                    disabled={lab.busy}
+                    disabled={lab.busy || !!lab.reference.identifier}
                     onChange={(event) =>
                       lab.update({ include_start_token: event.target.checked })
                     }
@@ -251,7 +279,7 @@ export function InductionWorkbench() {
                 <button
                   type="button"
                   className="button secondary"
-                  disabled={lab.busy}
+                  disabled={lab.busy || !lab.matchingReady}
                   onClick={(event) => {
                     if (event.currentTarget.form?.reportValidity())
                       lab.check(false);
@@ -262,7 +290,7 @@ export function InductionWorkbench() {
                 <button
                   type="submit"
                   className="button primary"
-                  disabled={lab.busy || !selectedHeads}
+                  disabled={lab.busy || !selectedHeads || !lab.matchingReady}
                 >
                   <Play size={14} />
                   {lab.checking
@@ -303,6 +331,7 @@ export function InductionWorkbench() {
             <SaveJobExperiment
               key={"save-" + lab.job.id}
               jobId={lab.job.id}
+              compareId={result.reference_experiment_id}
               defaultName={"Repeated token probe · " + result.model_id}
               disabled={lab.busy}
             />

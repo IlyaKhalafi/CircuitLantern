@@ -1,3 +1,5 @@
+import { Suspense } from "react";
+import { Loading } from "@/components/ui";
 import { InductionWorkbench } from "@/components/induction-workbench";
 import { localizedMetadata } from "@/i18n/server";
 import "./induction.css";
@@ -8,5 +10,9 @@ export async function generateMetadata() {
 }
 
 export default function InductionPage() {
-  return <InductionWorkbench />;
+  return (
+    <Suspense fallback={<Loading label="Connecting to model runtime" />}>
+      <InductionWorkbench />
+    </Suspense>
+  );
 }
