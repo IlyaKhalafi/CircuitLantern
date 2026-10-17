@@ -12,7 +12,9 @@ from circuit_lantern.services.tokens import capture_token_limit
 MAX_SWEEP_HEADS = 512
 
 
-def select_head_targets(blocks, layers: list[int] | None) -> list[dict]:
+def select_head_targets(
+    blocks, layers: list[int] | None, *, max_heads: int = MAX_SWEEP_HEADS
+) -> list[dict]:
     available = {item["layer"]: item for item in attention_head_targets(blocks)}
     selected = sorted(available) if layers is None else layers
     if not selected:
@@ -22,8 +24,8 @@ def select_head_targets(blocks, layers: list[int] | None) -> list[dict]:
     if any(layer not in available for layer in selected):
         raise ValueError("One of the selected layers has no verified attention head layout.")
     targets = [available[layer] for layer in sorted(selected)]
-    if sum(item["heads"] for item in targets) > MAX_SWEEP_HEADS:
-        raise ValueError(f"A sweep can test at most {MAX_SWEEP_HEADS} heads. Select fewer layers.")
+    if sum(item["heads"] for item in targets) > max_heads:
+        raise ValueError(f"A sweep can test at most {max_heads} heads. Select fewer layers.")
     return targets
 
 

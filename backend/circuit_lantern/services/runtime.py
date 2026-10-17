@@ -283,7 +283,13 @@ class ModelRuntime:
             job = self.jobs.get(job_id)
             if job is None:
                 return None
-            if job.get("kind") not in ("causal", "head_sweep", "sae_training", "feature_circuit"):
+            if job.get("kind") not in (
+                "causal",
+                "head_sweep",
+                "sae_training",
+                "feature_circuit",
+                "induction_probe",
+            ):
                 raise ValueError(
                     "Only research jobs can be cancelled. Model downloads must finish before another operation starts."
                 )
@@ -294,6 +300,7 @@ class ModelRuntime:
         label = {
             "sae_training": "Dictionary training",
             "feature_circuit": "Feature ablation graph",
+            "induction_probe": "Induction probe",
         }.get(job["kind"], "Head sweep" if is_head_sweep else "Causal sweep")
         result = None
         failure = None
