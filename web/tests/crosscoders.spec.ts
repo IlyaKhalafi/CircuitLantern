@@ -134,6 +134,10 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
       "href",
       "/playground",
     );
+    const execution = page.locator(".crosscoder-session .execution-context");
+    await expect(execution).toContainText("FP32");
+    await expect(execution).toContainText("CPU");
+    await expect(execution).toContainText("256 context tokens");
     const reference = page.locator("section.panel").filter({
       has: page.getByRole("heading", {
         name: "1 · Reference activations",
