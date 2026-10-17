@@ -1882,5 +1882,10 @@
   "The tensor artifact exceeds the configured size limit.": "اثر تنسوری از محدودیت اندازه تنظیم‌شده بیشتر است.",
   "The tensor artifact identifier is invalid.": "شناسه اثر تنسوری نامعتبر است.",
   "The tensor artifact metadata exceeds the supported size limit.": "فراداده اثر تنسوری از محدودیت اندازه پشتیبانی‌شده بیشتر است.",
-  "Artifact training is bound to its saved capture sources.": "آموزش اثر به منابع نمونه‌برداری ذخیره‌شده آن وابسته است."
+  "Artifact training is bound to its saved capture sources.": "آموزش اثر به منابع نمونه‌برداری ذخیره‌شده آن وابسته است.",
+  "Checking download": "در حال بررسی دانلود",
+  "Downloads are busy. Try again shortly.": "دانلودها مشغول هستند. کمی بعد دوباره امتحان کنید.",
+  "The download could not be prepared. Try again.": "دانلود آماده نشد. دوباره امتحان کنید.",
+  "The prepared download expired. Prepare the download again.": "مهلت دانلود آماده‌شده تمام شد. دانلود را دوباره آماده کنید.",
+  "The saved tensor file could not be read. Check server storage and try again.": "فایل تنسور ذخیره‌شده خوانده نشد. فضای ذخیره‌سازی سرور را بررسی و دوباره امتحان کنید."
 }

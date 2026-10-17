@@ -4,6 +4,7 @@ import { Download, Trash2 } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { api, downloadJSON } from "@/lib/api";
 import { ErrorNotice } from "@/components/ui";
+import { ArtifactDownload } from "@/components/artifact-download";
 import type {
   CaptureSummary,
   CrosscoderSummary,
@@ -133,21 +134,15 @@ export function CrosscoderStorage({
                 {t("Export evidence")}
               </button>
               {!damaged && (
-                <a
-                  className="button secondary"
-                  href={
-                    "/api" +
-                    path +
-                    (kind === "capture" ? "/tensors" : "/weights")
+                <ArtifactDownload
+                  key={path}
+                  path={path + "/download"}
+                  label={
+                    kind === "capture" ? "Download tensors" : "Download weights"
                   }
-                  download
-                >
-                  {t(
-                    kind === "capture"
-                      ? "Download tensors"
-                      : "Download weights",
-                  )}
-                </a>
+                  disabled={working || blocked}
+                  onError={setError}
+                />
               )}
               <button
                 className="button secondary"

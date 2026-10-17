@@ -67,6 +67,8 @@ Each capture records its checkpoint revision, execution identity, precision, lay
 
 **Export evidence** downloads the immutable comparison manifest together with current annotations. **Download weights** downloads the joint encoder and decoder banks as safetensors. Tensor and manifest checksums are verified independently. Labels and notes are stored separately and do not change the immutable manifest checksum.
 
+Tensor and weight downloads are checked before the browser starts receiving bytes. Missing files, integrity failures and busy storage appear beside the controls so you can retry. Verified files stream directly to the browser without being copied into a large browser memory buffer. A prepared download expires after one minute if it has not started. A download that has started continues from its verified file even if the source artifact is deleted.
+
 Use **Manage retained data** to export capture metadata and tensors or delete saved artifacts. Deleting a source capture leaves existing comparison evidence available. Training another comparison requires its activation captures to remain available.
 
 ## Storage recovery

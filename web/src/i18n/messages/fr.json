@@ -1882,5 +1882,10 @@
   "The tensor artifact exceeds the configured size limit.": "L’artefact de tenseurs dépasse la limite de taille configurée.",
   "The tensor artifact identifier is invalid.": "L’identifiant de l’artefact de tenseurs est invalide.",
   "The tensor artifact metadata exceeds the supported size limit.": "Les métadonnées de l’artefact de tenseurs dépassent la taille maximale prise en charge.",
-  "Artifact training is bound to its saved capture sources.": "L’entraînement de l’artefact est lié à ses sources d’enregistrement sauvegardées."
+  "Artifact training is bound to its saved capture sources.": "L’entraînement de l’artefact est lié à ses sources d’enregistrement sauvegardées.",
+  "Checking download": "Vérification du téléchargement",
+  "Downloads are busy. Try again shortly.": "Les téléchargements sont occupés. Réessayez dans un instant.",
+  "The download could not be prepared. Try again.": "Le téléchargement n’a pas pu être préparé. Réessayez.",
+  "The prepared download expired. Prepare the download again.": "Le téléchargement préparé a expiré. Préparez-le à nouveau.",
+  "The saved tensor file could not be read. Check server storage and try again.": "Le fichier de tenseurs enregistré n’a pas pu être lu. Vérifiez le stockage du serveur et réessayez."
 }

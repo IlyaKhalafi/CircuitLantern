@@ -1882,5 +1882,10 @@
   "The tensor artifact exceeds the configured size limit.": "テンソル成果物が設定されたサイズ上限を超えています。",
   "The tensor artifact identifier is invalid.": "テンソル成果物の識別子が無効です。",
   "The tensor artifact metadata exceeds the supported size limit.": "テンソル成果物のメタデータが対応するサイズ上限を超えています。",
-  "Artifact training is bound to its saved capture sources.": "成果物の学習は保存したキャプチャ元に紐付いています。"
+  "Artifact training is bound to its saved capture sources.": "成果物の学習は保存したキャプチャ元に紐付いています。",
+  "Checking download": "ダウンロードを確認中",
+  "Downloads are busy. Try again shortly.": "ダウンロードが混み合っています。しばらくしてから再試行してください。",
+  "The download could not be prepared. Try again.": "ダウンロードを準備できませんでした。再試行してください。",
+  "The prepared download expired. Prepare the download again.": "準備したダウンロードの有効期限が切れました。もう一度準備してください。",
+  "The saved tensor file could not be read. Check server storage and try again.": "保存したテンソルファイルを読み取れませんでした。サーバーのストレージを確認して再試行してください。"
 }

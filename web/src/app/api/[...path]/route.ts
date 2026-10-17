@@ -33,6 +33,12 @@ async function proxy(
         "Content-Type":
           upstream.headers.get("content-type") || "application/json",
         "Cache-Control": "no-store",
+        ...(upstream.headers
+          .get("content-type")
+          ?.startsWith("application/octet-stream") &&
+        upstream.headers.get("content-length")
+          ? { "Content-Length": upstream.headers.get("content-length")! }
+          : {}),
         ...(upstream.headers.get("content-disposition")
           ? {
               "Content-Disposition": upstream.headers.get(

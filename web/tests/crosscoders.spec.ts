@@ -6,6 +6,7 @@ import {
   type Page,
 } from "@playwright/test";
 import { mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { join } from "node:path";
 import type { RuntimeState } from "../src/lib/types";
 import type { CaptureSummary, CrosscoderSummary } from "../src/lib/crosscoders";
@@ -313,11 +314,129 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     expect(exported.suggestedFilename()).toBe(
       "crosscoder-" + comparisonId + ".json",
     );
+    let downloadFailure: { status: number; message: string } | null = null;
+    await page.route(
+      "**/api/crosscoders/" + comparisonId + "/download",
+      (route) => {
+        if (downloadFailure)
+          return route.fulfill({
+            status: downloadFailure.status,
+            json: { detail: downloadFailure.message },
+          });
+        return route.continue();
+      },
+    );
+    for (const [status, message] of [
+      [400, "The saved tensor artifact checksum does not match."],
+      [404, "The saved tensor file was not found."],
+      [409, "Downloads are busy. Try again shortly."],
+    ] as const) {
+      downloadFailure = { status, message };
+      await page
+        .getByRole("button", { name: "Download weights", exact: true })
+        .click();
+      await expect(
+        page.locator(".notice.error").filter({ hasText: message }),
+      ).toBeVisible();
+      await expect(
+        page.getByRole("button", { name: "Download weights", exact: true }),
+      ).toBeEnabled();
+      if (status === 400) {
+        await page
+          .locator(".notice.error")
+          .filter({ hasText: message })
+          .scrollIntoViewIfNeeded();
+        await screenshot(page, "crosscoder-download-integrity-error");
+      }
+    }
+    downloadFailure = null;
     const weights = page.waitForEvent("download");
     await page
-      .getByRole("link", { name: "Download weights", exact: true })
+      .getByRole("button", { name: "Download weights", exact: true })
       .click();
-    expect((await weights).suggestedFilename()).toContain(comparisonId);
+    const downloadedWeights = await weights;
+    expect(downloadedWeights.suggestedFilename()).toContain(comparisonId);
+    expect(await downloadedWeights.failure()).toBeNull();
+    const weightStream = await downloadedWeights.createReadStream();
+    const digest = createHash("sha256");
+    let receivedBytes = 0;
+    for await (const chunk of weightStream!) {
+      digest.update(chunk);
+      receivedBytes += chunk.length;
+    }
+    expect(digest.digest("hex")).toBe(record.tensors_sha256);
+    const proxyPrepared = await request.post(
+      "/api/crosscoders/" + comparisonId + "/download",
+    );
+    expect(proxyPrepared.status()).toBe(200);
+    const preparedStream = await proxyPrepared.json();
+    const proxyDownload = await request.get(
+      "/api/crosscoders/downloads/" + preparedStream.ticket,
+    );
+    expect(proxyDownload.status()).toBe(200);
+    expect(proxyDownload.headers()["content-length"]).toBe(
+      String(receivedBytes),
+    );
+    expect((await proxyDownload.body()).length).toBe(preparedStream.size);
+    expect(
+      createHash("sha256")
+        .update(await proxyDownload.body())
+        .digest("hex"),
+    ).toBe(record.tensors_sha256);
+
+    let releasePreparation = () => {};
+    let sawPreparation = () => {};
+    const preparationGate = new Promise<void>((resolve) => {
+      releasePreparation = resolve;
+    });
+    const preparationSeen = new Promise<void>((resolve) => {
+      sawPreparation = resolve;
+    });
+    let nativeRequests = 0;
+    const countNative = (request: import("@playwright/test").Request) => {
+      if (
+        new URL(request.url()).pathname.startsWith(
+          "/api/crosscoders/downloads/",
+        )
+      )
+        nativeRequests++;
+    };
+    page.on("request", countNative);
+    await page.route(
+      "**/api/crosscoders/" + comparisonId + "/download",
+      async (route) => {
+        sawPreparation();
+        await preparationGate;
+        await route.fulfill({ json: { ticket: "e".repeat(64) } });
+      },
+    );
+    try {
+      await page
+        .getByRole("button", { name: "Download weights", exact: true })
+        .click();
+      await preparationSeen;
+      await expect(
+        page.getByRole("button", { name: "Checking download", exact: true }),
+      ).toBeDisabled();
+      await page
+        .getByLabel("Choose a comparison", { exact: true })
+        .selectOption("");
+      releasePreparation();
+      await page
+        .getByLabel("Choose a comparison", { exact: true })
+        .selectOption(comparisonId);
+      await expect(page.locator(".crosscoder-inspector")).toBeVisible();
+      await page.evaluate(
+        () =>
+          new Promise<void>((resolve) =>
+            requestAnimationFrame(() => requestAnimationFrame(() => resolve())),
+          ),
+      );
+      expect(nativeRequests).toBe(0);
+    } finally {
+      releasePreparation();
+      page.off("request", countNative);
+    }
     await page.reload();
     await expect(page.locator(".crosscoder-inspector")).toBeVisible();
     await expect(
@@ -420,6 +539,19 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     await storage
       .getByLabel("Saved artifact", { exact: true })
       .selectOption(referenceId);
+    const captureTensors = page.waitForEvent("download");
+    await storage
+      .getByRole("button", { name: "Download tensors", exact: true })
+      .click();
+    const downloadedCapture = await captureTensors;
+    expect(await downloadedCapture.failure()).toBeNull();
+    expect(downloadedCapture.suggestedFilename()).toContain(referenceId);
+    const tensorStream = await downloadedCapture.createReadStream();
+    const captureDigest = createHash("sha256");
+    for await (const chunk of tensorStream!) captureDigest.update(chunk);
+    expect(captureDigest.digest("hex")).toBe(
+      captures.find((item) => item.id === referenceId)!.tensors_sha256,
+    );
     const captureExport = page.waitForEvent("download");
     await storage
       .getByRole("button", { name: "Export evidence", exact: true })
@@ -801,7 +933,7 @@ test("damaged summaries stay outside research selection and can be removed from 
     page.getByRole("button", { name: "Export evidence", exact: true }),
   ).toBeDisabled();
   await expect(
-    page.getByRole("link", { name: "Download tensors", exact: true }),
+    page.getByRole("button", { name: "Download tensors", exact: true }),
   ).toHaveCount(0);
   await page
     .getByRole("button", { name: "Delete saved artifact", exact: true })

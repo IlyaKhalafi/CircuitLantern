@@ -1882,5 +1882,10 @@
   "The tensor artifact exceeds the configured size limit.": "The tensor artifact exceeds the configured size limit.",
   "The tensor artifact identifier is invalid.": "The tensor artifact identifier is invalid.",
   "The tensor artifact metadata exceeds the supported size limit.": "The tensor artifact metadata exceeds the supported size limit.",
-  "Artifact training is bound to its saved capture sources.": "Artifact training is bound to its saved capture sources."
+  "Artifact training is bound to its saved capture sources.": "Artifact training is bound to its saved capture sources.",
+  "Checking download": "Checking download",
+  "Downloads are busy. Try again shortly.": "Downloads are busy. Try again shortly.",
+  "The download could not be prepared. Try again.": "The download could not be prepared. Try again.",
+  "The prepared download expired. Prepare the download again.": "The prepared download expired. Prepare the download again.",
+  "The saved tensor file could not be read. Check server storage and try again.": "The saved tensor file could not be read. Check server storage and try again."
 }

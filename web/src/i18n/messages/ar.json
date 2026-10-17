@@ -1882,5 +1882,10 @@
   "The tensor artifact exceeds the configured size limit.": "يتجاوز أثر الموترات حد الحجم المضبوط.",
   "The tensor artifact identifier is invalid.": "معرّف أثر الموترات غير صالح.",
   "The tensor artifact metadata exceeds the supported size limit.": "تتجاوز البيانات الوصفية لأثر الموترات حد الحجم المدعوم.",
-  "Artifact training is bound to its saved capture sources.": "يرتبط تدريب الأثر بمصادر تسجيل التنشيطات المحفوظة الخاصة به."
+  "Artifact training is bound to its saved capture sources.": "يرتبط تدريب الأثر بمصادر تسجيل التنشيطات المحفوظة الخاصة به.",
+  "Checking download": "جارٍ فحص التنزيل",
+  "Downloads are busy. Try again shortly.": "التنزيلات مشغولة. أعد المحاولة بعد قليل.",
+  "The download could not be prepared. Try again.": "تعذر تجهيز التنزيل. أعد المحاولة.",
+  "The prepared download expired. Prepare the download again.": "انتهت صلاحية التنزيل المجهز. جهّز التنزيل مرة أخرى.",
+  "The saved tensor file could not be read. Check server storage and try again.": "تعذرت قراءة ملف الموترات المحفوظ. تحقق من تخزين الخادم وأعد المحاولة."
 }

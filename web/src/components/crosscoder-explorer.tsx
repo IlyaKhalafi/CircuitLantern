@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { Download, Save, Sparkles } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { SeriesChart } from "@/components/charts";
+import { ArtifactDownload } from "@/components/artifact-download";
 import { CaptureCard } from "@/components/crosscoder-shared";
 import {
   EmptyState,
@@ -399,13 +400,12 @@ export function CrosscoderExplorer({
                   <Download size={14} />
                   {t("Export evidence")}
                 </button>
-                <a
-                  className="button secondary"
-                  href={"/api/crosscoders/" + identifier + "/weights"}
-                  download
-                >
-                  {t("Download weights")}
-                </a>
+                <ArtifactDownload
+                  key={identifier}
+                  path={"/crosscoders/" + identifier + "/download"}
+                  label="Download weights"
+                  onError={setExportError}
+                />
               </div>
             }
           >
