@@ -756,7 +756,9 @@ test("damaged summaries stay outside research selection and can be removed from 
   await expect(
     page.locator(".crosscoder-workbench > .notice.error"),
   ).toContainText("Some saved artifact summaries failed integrity checks.");
-  await expect(page.getByLabel("Reference capture", { exact: true })).toHaveCount(0);
+  await expect(
+    page.getByLabel("Reference capture", { exact: true }),
+  ).toHaveCount(0);
   await page.getByText("Manage retained data", { exact: true }).click();
   await page
     .getByLabel("Saved artifact", { exact: true })
