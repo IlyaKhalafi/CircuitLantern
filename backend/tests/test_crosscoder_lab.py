@@ -361,3 +361,59 @@ async def test_cancelled_joint_training_retains_a_checksummed_partial_dictionary
     assert manifest["training_summary"] == artifact["training_summary"]
     assert dictionary.config.features == artifact["features"]
     assert (await client.get("/api/crosscoders/" + artifact["id"] + "/weights")).status_code == 200
+
+
+@pytest.mark.anyio
+async def test_matched_capture_reuses_effective_reference_limit_with_larger_target_context(
+    client, lab
+):
+    runtime = lab.runtime
+    runtime.metadata["execution_context_length"] = 16
+    documents = [text + " the capital of France is" * 6 for text in DOCUMENTS]
+    started = await client.post(
+        "/api/crosscoders/captures",
+        json={
+            "name": "Context reference",
+            "documents": documents,
+            "layer": 0,
+            "max_tokens": 128,
+            "max_samples": 64,
+        },
+    )
+    assert started.status_code == 202, started.text
+    reference = (await finished(client, started.json()))["result"]["captures"][0]
+    manifest = lab.store.get(reference["id"], kind="capture")
+    assert manifest["capture_config"]["max_tokens"] == 128
+    assert manifest["corpus"]["token_limit"] == 16
+    runtime.metadata.update(execution_context_length=32, execution_id=uuid.uuid4().hex)
+    path = "/api/crosscoders/captures/" + reference["id"] + "/match"
+    forwards = []
+    handle = runtime.model.base_model.register_forward_pre_hook(lambda *args: forwards.append(1))
+    try:
+        body = {"layer": 0, "expected_execution_id": runtime.metadata["execution_id"]}
+        plan = await client.post(path + "/plan", json=body)
+        assert plan.status_code == 200, plan.text
+        assert not forwards
+        assert plan.json()["token_limit"] == 16
+        assert plan.json()["corpus_fingerprint"] == reference["corpus_fingerprint"]
+        response = await client.post(path, json=body)
+        assert response.status_code == 202, response.text
+        compared_job = await finished(client, response.json())
+        assert compared_job["status"] == "ready"
+        compared = compared_job["result"]["captures"][0]
+        assert compared["sample_count"] == reference["sample_count"]
+        assert compared["corpus_fingerprint"] == reference["corpus_fingerprint"]
+        forwards.clear()
+        runtime.metadata.update(execution_context_length=8, execution_id=uuid.uuid4().hex)
+        blocked = await client.post(
+            path + "/plan",
+            json={
+                "layer": 0,
+                "expected_execution_id": runtime.metadata["execution_id"],
+            },
+        )
+        assert blocked.status_code == 400
+        assert "limits differ" in blocked.json()["detail"]
+        assert not forwards
+    finally:
+        handle.remove()

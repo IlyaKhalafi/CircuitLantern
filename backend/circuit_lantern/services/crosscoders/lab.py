@@ -169,6 +169,7 @@ class CrosscoderLab:
             reference["capture_config"],
             name=request.name,
             layer=request.layer,
+            max_tokens=reference["corpus"]["token_limit"],
             expected_execution_id=request.expected_execution_id,
         )
         matched = ActivationCaptureRequest(**values)
