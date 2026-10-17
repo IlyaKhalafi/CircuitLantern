@@ -25,7 +25,9 @@ The matched capture reuses the reference documents, token limit, sampling rules 
 
 Capture uses the residual stream immediately after the selected transformer block. Special tokens and the first sequence position are excluded by default. Advanced settings expose these choices, the sample limit and the split seed. Existing corpus preparation separates document groups before training and excludes repeated sampled prefixes across splits.
 
-Both captures remain on the server after the model is unloaded. You can also select an existing pair with matching fingerprints. The sources can have different residual widths, although decoder cosine is unavailable for different widths.
+Every capture action checks resources before starting a teacher forward. The token control follows the loaded checkpoint's context allowance and the server limit. Resource plans show the effective token limit and warn about documents that will be truncated. Saved capture summaries retain the effective limit and truncation count. Document length validation counts Unicode code points.
+
+Both captures remain on the server after the model is unloaded. You can also select two distinct existing captures with matching fingerprints. The sources can have different residual widths, although decoder cosine is unavailable for different widths.
 
 ## Train and inspect
 
@@ -66,7 +68,6 @@ Each capture records its checkpoint revision, execution identity, precision, lay
 **Export evidence** downloads the immutable comparison manifest together with current annotations. **Download weights** downloads the joint encoder and decoder banks as safetensors. Tensor and manifest checksums are verified independently. Labels and notes are stored separately and do not change the immutable manifest checksum.
 
 Use **Manage retained data** to export capture metadata and tensors or delete saved artifacts. Deleting a source capture leaves existing comparison evidence available. Training another comparison requires its activation captures to remain available.
-
 
 ## Storage recovery
 

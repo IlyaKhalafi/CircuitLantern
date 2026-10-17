@@ -300,3 +300,9 @@
     max-height: min(600px, calc(100dvh - 400px));
   }
 }
+
+.crosscoder-context-warning {
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-color: var(--accent-border);
+}

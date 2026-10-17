@@ -308,7 +308,7 @@ async def test_preflight_rejects_resource_and_request_errors_without_forward(
 @pytest.mark.anyio
 async def test_capture_capabilities_and_missing_tensor_download(client, lab):
     capabilities = (await client.get("/api/crosscoders/capabilities")).json()
-    assert capabilities["max_capture_tokens"] == lab.runtime.settings.max_prompt_tokens
+    assert capabilities["max_capture_tokens"] == 64
     assert capabilities["references"][0]["url"].endswith("/2024/crosscoders/index.html")
     reference, _ = await capture_pair(client, lab)
     path = lab.store.directory / (reference["id"] + ".safetensors")
@@ -449,3 +449,44 @@ async def test_damaged_artifacts_remain_removable_without_hiding_healthy_records
     assert store.get(damaged["id"]) is None
     assert store.get(healthy["id"]) == healthy
     assert [row["id"] for row in (await client.get(base)).json()] == [healthy["id"]]
+
+
+@pytest.mark.anyio
+async def test_capture_context_limit_and_truncation_are_visible_before_forward_and_retained(
+    client, lab
+):
+    from unittest.mock import patch
+
+    lab.runtime.metadata["execution_context_length"] = 16
+    documents = [prefix + " the" * 40 for prefix in ("France", "Poland", "capital", "is")]
+    body = {"documents": documents, "layer": 0, "max_tokens": 128, "max_samples": 64}
+    with patch.object(
+        lab.runtime.model, "forward", side_effect=AssertionError("Unexpected forward")
+    ):
+        capabilities = (await client.get("/api/crosscoders/capabilities")).json()
+        assert capabilities["max_capture_tokens"] == 16
+        planned = await client.post("/api/crosscoders/captures/plan", json=body)
+        assert planned.status_code == 200, planned.text
+        assert planned.json()["token_limit"] == 16
+        assert planned.json()["truncated_documents"] == 4
+    queued = await client.post("/api/crosscoders/captures", json=body)
+    assert queued.status_code == 202
+    job = await finished(client, queued.json())
+    assert job["status"] == "ready", job["message"]
+    capture = job["result"]["captures"][0]
+    assert capture["token_limit"] == 16 and capture["truncated_documents"] == 4
+    listed = (await client.get("/api/crosscoders/captures")).json()
+    assert listed[0]["token_limit"] == 16 and listed[0]["truncated_documents"] == 4
+
+
+@pytest.mark.anyio
+async def test_training_rejects_duplicate_capture_identifiers_before_reading_artifacts(client, lab):
+    from unittest.mock import patch
+
+    with patch.object(lab.store, "get", side_effect=AssertionError("Unexpected artifact read")):
+        for route in ("plan", "train"):
+            response = await client.post(
+                "/api/crosscoders/" + route, json={"capture_ids": ["a" * 32] * 2}
+            )
+            assert response.status_code == 400
+            assert response.json()["detail"] == "Choose two distinct retained activation captures."

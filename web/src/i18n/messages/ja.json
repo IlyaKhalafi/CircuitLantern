@@ -1769,5 +1769,8 @@
   "Model diffing": "モデル差分",
   "Integrity check failed": "整合性チェックに失敗",
   "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "保存済みデータの概要が整合性チェックに失敗しました。保持データの管理からこの記録を削除できます。",
-  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "一部の保存済みデータの概要が整合性チェックに失敗しました。保持データの管理から対象の記録を削除してください。これらは学習と比較の選択肢から除外されています。"
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "一部の保存済みデータの概要が整合性チェックに失敗しました。保持データの管理から対象の記録を削除してください。これらは学習と比較の選択肢から除外されています。",
+  "Capture limit {v0} tokens per document": "各文書の取得上限は {v0} トークン",
+  "{count} documents were truncated during capture": "取得時に {count} 件の文書が切り詰められました",
+  "Choose two distinct retained activation captures.": "異なる保持済み活性値データを二つ選択してください。"
 }

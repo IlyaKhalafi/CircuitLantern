@@ -52,7 +52,11 @@ def capture_evidence(manifest: dict) -> dict:
             "tensors_sha256",
             "manifest_sha256",
         )
-    } | {"corpus_fingerprint": manifest["corpus"]["fingerprint"]}
+    } | {
+        "corpus_fingerprint": manifest["corpus"]["fingerprint"],
+        "token_limit": manifest["corpus"]["token_limit"],
+        "truncated_documents": sum(row["truncated"] for row in manifest["corpus"]["documents"]),
+    }
 
 
 def capture_summary(manifest: dict) -> dict:
@@ -257,6 +261,8 @@ class CrosscoderLab:
             "input_dim": plan["input_dim"],
             "sample_count": len(corpus.samples),
             "corpus_fingerprint": corpus.fingerprint,
+            "token_limit": corpus.token_limit,
+            "truncated_documents": sum(row["truncated"] for row in corpus.documents),
             "capture_point": "residual_post",
             "matched_to": capture_evidence(reference) if reference else None,
             "train_samples": len(corpus.train_indices),
@@ -269,6 +275,8 @@ class CrosscoderLab:
     def _training_inputs(self, request: CrosscoderTrainingRequest):
         if not request.name.strip():
             raise ValueError("Give the crosscoder a nonempty name.")
+        if request.capture_ids[0] == request.capture_ids[1]:
+            raise ValueError("Choose two distinct retained activation captures.")
         captures = [self._capture(identifier) for identifier in request.capture_ids]
         if (
             captures[0]["corpus"]["fingerprint"] != captures[1]["corpus"]["fingerprint"]

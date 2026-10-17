@@ -1,3 +1,6 @@
+import type { ExecutionProvenance } from "@/lib/types";
+import type { FeatureCapabilities, FeatureStatistic } from "@/lib/features";
+
 export interface DamagedArtifact {
   id: string;
   kind: "capture" | "crosscoder";
@@ -5,9 +8,6 @@ export interface DamagedArtifact {
   created_at: string;
   integrity_error: string;
 }
-
-import type { ExecutionProvenance } from "@/lib/types";
-import type { FeatureCapabilities, FeatureStatistic } from "@/lib/features";
 
 export interface CaptureEvidence {
   id: string;
@@ -25,6 +25,8 @@ export interface CaptureEvidence {
   tensors_sha256: string;
   manifest_sha256: string;
   corpus_fingerprint: string;
+  token_limit?: number;
+  truncated_documents?: number;
 }
 export interface CaptureSummary extends CaptureEvidence {
   matched_to: CaptureEvidence | null;
@@ -46,6 +48,9 @@ export interface CrosscoderPlan {
   train_samples?: number;
   validation_samples?: number;
   teacher_forward_passes?: number;
+  token_limit?: number;
+  truncated_documents?: number;
+  source?: ExecutionProvenance & { model_id: string; revision: string };
 }
 export interface CrosscoderMetrics {
   samples: number;

@@ -1769,5 +1769,8 @@
   "Model diffing": "Model diffing",
   "Integrity check failed": "Integrity check failed",
   "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "The saved artifact summary failed its integrity check. You can delete this record from retained data.",
-  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection."
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.",
+  "Capture limit {v0} tokens per document": "Capture limit {v0} tokens per document",
+  "{count} documents were truncated during capture": "{count} documents were truncated during capture",
+  "Choose two distinct retained activation captures.": "Choose two distinct retained activation captures."
 }

@@ -33,7 +33,6 @@ def capabilities(request: Request):
         "devices": ["cpu", "cuda"] if torch.cuda.is_available() else ["cpu"],
         "method": "relu_crosscoder",
         "references": REFERENCES,
-        "max_capture_tokens": request.app.state.runtime.settings.max_prompt_tokens,
     }
 
 

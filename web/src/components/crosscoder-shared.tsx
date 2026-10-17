@@ -124,6 +124,20 @@ export function CaptureCard({
         {t("{v0} dimensions", { v0: capture.input_dim })} ·{" "}
         {t("{v0} token positions", { v0: capture.sample_count })}
       </span>
+      {capture.token_limit != null && (
+        <small>
+          {t("Capture limit {v0} tokens per document", {
+            v0: capture.token_limit,
+          })}
+        </small>
+      )}
+      {!!capture.truncated_documents && (
+        <small>
+          {t("{count} documents were truncated during capture", {
+            count: capture.truncated_documents,
+          })}
+        </small>
+      )}
       <small dir="ltr">
         {capture.source.revision} ·{" "}
         {t(
@@ -159,6 +173,27 @@ export function CrosscoderBudget({ plan }: { plan: CrosscoderPlan | null }) {
           value={bytes(plan.estimated_disk_bytes)}
         />
       </div>
+      {plan.token_limit != null && (
+        <p className="inline-note">
+          {t("Capture limit {v0} tokens per document", {
+            v0: plan.token_limit,
+          })}
+        </p>
+      )}
+      {plan.source && (
+        <p className="inline-note">
+          <bdi>{plan.source.model_id}</bdi> ·{" "}
+          {t("revision {v0}", { v0: plan.source.revision.slice(0, 12) })}
+        </p>
+      )}
+      {!!plan.truncated_documents && (
+        <p className="notice crosscoder-context-warning">
+          {t(
+            "{count} documents exceed the capture context and will be truncated",
+            { count: plan.truncated_documents },
+          )}
+        </p>
+      )}
       <ErrorNotice message={plan.blockers.length ? plan.blockers : null} />
     </div>
   );

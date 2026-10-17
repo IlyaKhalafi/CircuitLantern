@@ -84,13 +84,19 @@ export function CrosscoderCaptures({
     planSequence.current++;
     setPlan(null);
   }, [draft, reference?.id, capabilities?.execution?.execution_id]);
+  useEffect(
+    () => () => {
+      planSequence.current++;
+    },
+    [],
+  );
   const documents = draft.documents
     .split(/\r?\n/)
     .filter((value) => value.trim());
   const validCorpus =
     documents.length >= 4 &&
     documents.length <= 256 &&
-    documents.every((value) => value.length <= 8000) &&
+    documents.every((value) => Array.from(value).length <= 8000) &&
     validInteger(draft.samples, 3, 32768) &&
     validInteger(draft.tokens, 1, tokenLimit) &&
     validInteger(draft.splitSeed, 0, 4294967295);
@@ -130,19 +136,21 @@ export function CrosscoderCaptures({
       ? "/crosscoders/captures"
       : "/crosscoders/captures/" + reference?.id + "/match";
   }
-  async function check(role: "reference" | "compared") {
+  async function check(role: "reference" | "compared", run = false) {
     setPlanning(true);
     setError(null);
     setPlan(null);
+    const sequence = planSequence.current;
+    const endpoint = path(role);
+    const requested = payload(role);
     try {
-      const sequence = planSequence.current;
-      const value = await post<CrosscoderPlan>(
-        path(role) + "/plan",
-        payload(role),
-      );
-      if (sequence === planSequence.current) setPlan({ role, value });
+      const value = await post<CrosscoderPlan>(endpoint + "/plan", requested);
+      if (sequence !== planSequence.current) return;
+      setPlan({ role, value });
+      if (run && value.compatible) await task.start(endpoint, requested);
     } catch (reason) {
-      setError((reason as Error).message);
+      if (sequence === planSequence.current)
+        setError((reason as Error).message);
     } finally {
       setPlanning(false);
     }
@@ -156,8 +164,7 @@ export function CrosscoderCaptures({
             className="button primary"
             disabled={!valid || busy}
             onClick={() => {
-              setError(null);
-              void task.start(path(role), payload(role));
+              void check(role, true);
             }}
           >
             <Play size={14} />

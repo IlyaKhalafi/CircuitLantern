@@ -1769,5 +1769,8 @@
   "Model diffing": "فروق النماذج",
   "Integrity check failed": "فشل فحص السلامة",
   "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "فشل فحص سلامة ملخص العنصر المحفوظ. يمكنك حذف هذا السجل من البيانات المحتفظ بها.",
-  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "فشل فحص سلامة بعض الملخصات المحفوظة. احذف السجلات المتأثرة من إدارة البيانات المحتفظ بها. تُستبعد من التدريب واختيار المقارنات."
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "فشل فحص سلامة بعض الملخصات المحفوظة. احذف السجلات المتأثرة من إدارة البيانات المحتفظ بها. تُستبعد من التدريب واختيار المقارنات.",
+  "Capture limit {v0} tokens per document": "حد الالتقاط {v0} رمزًا لكل مستند",
+  "{count} documents were truncated during capture": "اقتُطع {count} مستندات أثناء الالتقاط",
+  "Choose two distinct retained activation captures.": "اختر التقاطي تنشيط محفوظين مختلفين."
 }

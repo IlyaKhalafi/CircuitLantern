@@ -1769,5 +1769,8 @@
   "Model diffing": "Différences de modèles",
   "Integrity check failed": "Échec du contrôle d’intégrité",
   "The saved artifact summary failed its integrity check. You can delete this record from retained data.": "Le résumé des données enregistrées a échoué au contrôle d’intégrité. Vous pouvez supprimer cet enregistrement dans la gestion des données conservées.",
-  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "Certains résumés ont échoué au contrôle d’intégrité. Supprimez les enregistrements concernés dans la gestion des données conservées. Ils sont exclus de l’entraînement et des choix de comparaison."
+  "Some saved artifact summaries failed integrity checks. Remove affected records under Manage retained data. They are excluded from training and comparison selection.": "Certains résumés ont échoué au contrôle d’intégrité. Supprimez les enregistrements concernés dans la gestion des données conservées. Ils sont exclus de l’entraînement et des choix de comparaison.",
+  "Capture limit {v0} tokens per document": "Limite de capture de {v0} jetons par document",
+  "{count} documents were truncated during capture": "{count} documents ont été tronqués lors de la capture",
+  "Choose two distinct retained activation captures.": "Choisissez deux captures d’activations conservées distinctes."
 }

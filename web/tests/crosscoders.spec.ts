@@ -494,6 +494,9 @@ test("a capture job survives reload and stops without publishing incomplete tens
   await expect(capture).toBeEnabled();
   await capture.click();
   await expect(capture).toBeDisabled();
+  await expect(
+    page.getByRole("button", { name: "Stop", exact: true }),
+  ).toBeVisible();
   await page.reload();
   await expect(
     page.getByRole("button", { name: "Stop", exact: true }),
@@ -775,6 +778,7 @@ test("damaged summaries stay outside research selection and can be removed from 
   await page
     .getByRole("button", { name: "Delete saved artifact", exact: true })
     .click();
+  await screenshot(page, "crosscoder-damaged-summary");
   await page
     .getByRole("button", { name: "Confirm deletion", exact: true })
     .click();
@@ -786,4 +790,68 @@ test("damaged summaries stay outside research selection and can be removed from 
     page.locator(".crosscoder-workbench > .notice.error"),
   ).toHaveCount(0);
   await screenshot(page, "crosscoder-recovered-summary");
+});
+
+test("capture limits follow the loaded context and resource plans disclose truncation", async ({
+  page,
+  request,
+}) => {
+  await load(request, "hf-internal-testing/tiny-random-gpt2", {
+    context_length: 64,
+  });
+  await page.goto("/features/compare");
+  const reference = page.locator("section.panel").filter({
+    has: page.getByRole("heading", {
+      name: "1 · Reference activations",
+      exact: true,
+    }),
+  });
+  await reference
+    .getByText("Advanced capture settings", { exact: true })
+    .click();
+  const limit = reference.getByLabel("Tokens per document", { exact: true });
+  await expect(limit).toHaveAttribute("max", "64");
+  await expect(limit).toHaveValue("64");
+  const corpus = reference.getByLabel("Training corpus", { exact: true });
+  await corpus.fill(
+    [
+      "😀".repeat(4001),
+      "the capital of France is",
+      "the capital of Poland is",
+      "France is the capital",
+    ].join("\n"),
+  );
+  await expect(
+    reference.getByRole("button", { name: "Capture reference", exact: true }),
+  ).toBeEnabled();
+  await corpus.fill(
+    ["France", "Poland", "capital", "is"]
+      .map((prefix) => prefix + " the".repeat(80))
+      .join("\n"),
+  );
+  let captures = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().endsWith("/api/crosscoders/captures")
+    )
+      captures++;
+  });
+  await reference
+    .getByRole("button", { name: "Check resources", exact: true })
+    .click();
+  await expect(reference).toContainText("Capture limit 64 tokens per document");
+  await expect(reference).toContainText(
+    "4 documents exceed the capture context and will be truncated",
+  );
+  expect(captures).toBe(0);
+  expect(
+    (
+      await new AxeBuilder({ page })
+        .withTags(["wcag2a", "wcag2aa", "wcag21aa"])
+        .analyze()
+    ).violations,
+  ).toEqual([]);
+  await reference.locator(".feature-plan").scrollIntoViewIfNeeded();
+  await screenshot(page, "crosscoder-context-truncation");
 });
