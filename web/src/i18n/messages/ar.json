@@ -1807,5 +1807,17 @@
   "Split gate · sigmoid": "فصل البوابة · سيغمويد",
   "K RMSNorm · RoPE": "RMSNorm لـ K · RoPE",
   "Attention probabilities × V · concatenate heads": "احتمالات الانتباه × V · دمج الرؤوس",
-  "Attention output × sigmoid(gate)": "خرج الانتباه × سيغمويد البوابة"
+  "Attention output × sigmoid(gate)": "خرج الانتباه × سيغمويد البوابة",
+  "Path input": "دخل المسار",
+  "Path output": "خرج المسار",
+  "Continues outside this path": "يستمر خارج هذا المسار",
+  "Outside this path": "خارج هذا المسار",
+  "From {operation}": "من {operation}",
+  "Coverage includes every path in this block": "تشمل التغطية جميع مسارات هذه الكتلة",
+  "Boundary nodes show values entering or leaving the selected path.": "تُظهر عقد الحدود القيم الداخلة إلى المسار المحدد أو الخارجة منه.",
+  "Blue arrows carry activations.": "تحمل الأسهم الزرقاء التنشيطات.",
+  "Layer pattern navigation": "التنقل في نمط الطبقات",
+  "Previous block": "الكتلة السابقة",
+  "{operation} · {origin}": "{operation} · {origin}",
+  "{mapped} of {total} block matrices connected": "تم توصيل {mapped} من {total} مصفوفة في الكتلة"
 }
