@@ -1957,5 +1957,6 @@
   "percentage points": "points de pourcentage",
   "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "Le classement des variations est exploratoire. Les têtes ont été sélectionnées et mesurées sur ces mêmes sondes. Aucun intervalle d’incertitude n’est estimé.",
   "Change": "Variation",
-  "Scroll horizontally to see all columns.": "Faites défiler horizontalement pour voir toutes les colonnes."
+  "Scroll horizontally to see all columns.": "Faites défiler horizontalement pour voir toutes les colonnes.",
+  "Insufficient available RAM to read saved artifact metadata.": "La mémoire vive disponible est insuffisante pour lire les métadonnées de l’artefact enregistré."
 }

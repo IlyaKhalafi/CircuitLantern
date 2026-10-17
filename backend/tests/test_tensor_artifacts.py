@@ -174,10 +174,9 @@ def test_load_checks_available_memory_before_reading_tensor_bytes(tmp_path, monk
     store = TensorArtifactStore(tmp_path, 1024)
     manifest, _ = save(store)
 
-    class Memory:
-        available = 1
-
-    monkeypatch.setattr("circuit_lantern.services.tensor_artifacts.psutil.virtual_memory", Memory)
+    monkeypatch.setattr(
+        "circuit_lantern.services.tensor_artifacts.available_memory_bytes", lambda: 1
+    )
     with pytest.raises(ValueError, match="RAM"):
         store.load(manifest["id"], kind="capture")
 

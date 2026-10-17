@@ -437,7 +437,7 @@ class CrosscoderLab:
         return result
 
     def overview(self, identifier: str) -> dict:
-        manifest = self.store.get(identifier, kind="crosscoder")
+        manifest = self.store.get_readonly(identifier, kind="crosscoder")
         if manifest is None:
             raise ArtifactNotFoundError("The shared feature comparison was not found.")
         corpus = manifest["corpus"]
@@ -470,7 +470,7 @@ class CrosscoderLab:
         offset: int = 0,
         limit: int = 50,
     ) -> dict:
-        manifest = self.store.get(identifier, kind="crosscoder")
+        manifest = self.store.get_readonly(identifier, kind="crosscoder")
         if manifest is None:
             raise ArtifactNotFoundError("The shared feature comparison was not found.")
         if (
@@ -531,7 +531,7 @@ class CrosscoderLab:
         }
 
     def feature(self, identifier: str, feature: int) -> dict:
-        manifest = self.store.get(identifier, kind="crosscoder")
+        manifest = self.store.get_readonly(identifier, kind="crosscoder")
         if manifest is None:
             raise ArtifactNotFoundError("The shared feature comparison was not found.")
         if not 0 <= feature < manifest["features"]:

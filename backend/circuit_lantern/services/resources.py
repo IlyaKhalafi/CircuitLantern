@@ -2,6 +2,8 @@ import re
 import shutil
 from pathlib import Path
 
+import psutil
+
 
 def _read(path: Path) -> str | None:
     try:
@@ -115,6 +117,11 @@ def memory_budget(total: int, available: int, *, proc_root: Path = Path("/proc")
         else "system",
         "ram_constraints": constraints,
     }
+
+
+def available_memory_bytes(*, proc_root: Path = Path("/proc")) -> int:
+    memory = psutil.virtual_memory()
+    return memory_budget(memory.total, memory.available, proc_root=proc_root)["ram_available_bytes"]
 
 
 def _disk_at(path: Path):

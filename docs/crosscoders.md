@@ -9,7 +9,7 @@ Open **Research lab**, choose **Feature lab**, then **Compare shared features**.
   <img src="images/shared-feature-comparison-light.png" alt="Real SmolLM2 base and instruct crosscoder comparison with both checkpoint sources and held out reconstruction metrics" />
 </picture>
 
-Example run with SmolLM2 135M base and instruct in NF4 at layer 12. The dictionary used 128 optimizer steps, 225 paired positions and 40 held out positions.
+Example run with SmolLM2 135M base and instruct in NF4 at layer 12. The dictionary used 128 optimizer steps, 225 paired positions and 40 held out positions. Training explained variance is about 98 percent, compared with about 48 percent on held out positions. This small corpus checks the workflow and calls for further validation before interpreting learned features.
 
 [Explore joint feature contexts and decoder geometry](images/shared-feature-explorer-dark.png)
 
@@ -65,7 +65,7 @@ This implementation follows the joint representation learning formulation in [Sp
 
 Each capture records its checkpoint revision, execution identity, precision, layer, residual width and corpus fingerprint. Each comparison retains both capture sources, preprocessing scales, training means, hyperparameters, split evidence, diagnostics and method references.
 
-**Export evidence** downloads the immutable comparison manifest together with current annotations. **Download weights** downloads the joint encoder and decoder banks as safetensors. Tensor and manifest checksums are verified independently. Labels and notes are stored separately and do not change the immutable manifest checksum.
+**Export evidence** downloads the immutable comparison manifest together with current annotations. **Download weights** downloads the joint encoder and decoder banks as safetensors. Tensor and manifest checksums are verified independently. Labels and notes are stored separately and do not change the immutable manifest checksum. Repeated feature browsing reuses bounded immutable metadata views while checking the retained manifest bytes on every request. Views are evicted under memory pressure. Labels stay current because annotations are read separately, and exports retain the complete original evidence.
 
 Tensor and weight downloads are checked before the browser starts receiving bytes. Missing files, integrity failures and busy storage appear beside the controls so you can retry. Verified files stream directly to the browser without being copied into a large browser memory buffer. Up to four files can be verifying, prepared or streaming at once, so slow transfers cannot accumulate open files without a limit. Direct tensor URLs use the same checks and cancellation path. A transfer that cannot send its next chunk within 30 seconds stops and releases its reservation. A prepared download expires after one minute if it has not started. This also releases reservations when a connection drops just after preparation. A download that has started continues from its verified file even if the source artifact is deleted.
 

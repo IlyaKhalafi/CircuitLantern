@@ -6,7 +6,7 @@ import pytest
 
 from circuit_lantern.schemas import CompatibilityRequest
 from circuit_lantern.services.compatibility import assess_compatibility
-from circuit_lantern.services.resources import disk_budget, memory_budget
+from circuit_lantern.services.resources import available_memory_bytes, disk_budget, memory_budget
 
 GIB = 1024**3
 
@@ -170,3 +170,13 @@ def test_process_limit_changes_the_real_compatibility_decision(tmp_path):
     assert not result["compatible"]
     assert any("Insufficient available memory" in blocker for blocker in result["blockers"])
     assert any("container memory limit" in warning for warning in result["warnings"])
+
+
+def test_available_memory_helper_uses_container_headroom_instead_of_host_ram(tmp_path, monkeypatch):
+    proc, _, current = hierarchy(tmp_path)
+    constraint(current, GIB, 900 * 1024**2)
+    monkeypatch.setattr(
+        "circuit_lantern.services.resources.psutil.virtual_memory",
+        lambda: SimpleNamespace(total=32 * GIB, available=20 * GIB),
+    )
+    assert available_memory_bytes(proc_root=proc) == GIB - 900 * 1024**2

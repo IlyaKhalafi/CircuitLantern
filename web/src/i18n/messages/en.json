@@ -1957,5 +1957,6 @@
   "percentage points": "percentage points",
   "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.",
   "Change": "Change",
-  "Scroll horizontally to see all columns.": "Scroll horizontally to see all columns."
+  "Scroll horizontally to see all columns.": "Scroll horizontally to see all columns.",
+  "Insufficient available RAM to read saved artifact metadata.": "Insufficient available RAM to read saved artifact metadata."
 }

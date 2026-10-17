@@ -1957,5 +1957,6 @@
   "percentage points": "واحد درصد",
   "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "رتبه‌بندی تغییرات برای بررسی اولیه است. سرها با همین پروب‌ها انتخاب و اندازه‌گیری شده‌اند. بازه‌ای برای عدم قطعیت برآورد نشده است.",
   "Change": "تغییر",
-  "Scroll horizontally to see all columns.": "برای دیدن همه ستون‌ها، به‌صورت افقی پیمایش کنید."
+  "Scroll horizontally to see all columns.": "برای دیدن همه ستون‌ها، به‌صورت افقی پیمایش کنید.",
+  "Insufficient available RAM to read saved artifact metadata.": "حافظهٔ RAM آزاد برای خواندن اطلاعات ذخیره‌شده کافی نیست."
 }

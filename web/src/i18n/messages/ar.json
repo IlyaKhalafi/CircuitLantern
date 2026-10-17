@@ -1957,5 +1957,6 @@
   "percentage points": "نقاط مئوية",
   "Ranked changes are exploratory. Heads were selected and measured on these same probes. No uncertainty interval is estimated.": "ترتيب التغيّرات استكشافي. اختيرت الرؤوس وقِيست باستخدام هذه المجسات نفسها. لم تُقدّر فترة لعدم اليقين.",
   "Change": "التغيّر",
-  "Scroll horizontally to see all columns.": "مرّر أفقيًا لعرض جميع الأعمدة."
+  "Scroll horizontally to see all columns.": "مرّر أفقيًا لعرض جميع الأعمدة.",
+  "Insufficient available RAM to read saved artifact metadata.": "ذاكرة RAM المتاحة غير كافية لقراءة بيانات العنصر المحفوظ."
 }

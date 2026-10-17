@@ -9,21 +9,28 @@ import re
 import shutil
 import sqlite3
 import uuid
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
 from contextlib import contextmanager
 from datetime import UTC, datetime
 from pathlib import Path
 
-import psutil
 import torch
 from filelock import FileLock, Timeout
 from safetensors import SafetensorError
 from safetensors.torch import load, save_file
 
+from circuit_lantern.services.artifact_views import (
+    MAX_ARTIFACT_METADATA_BYTES as _MAX_METADATA_BYTES,
+)
+from circuit_lantern.services.artifact_views import (
+    ArtifactManifestViews,
+    checked_metadata_size,
+    require_metadata_ram,
+)
 from circuit_lantern.services.prepared_downloads import DownloadCancelledError
+from circuit_lantern.services.resources import available_memory_bytes
 
 _IDENTIFIER = re.compile(r"^[a-f0-9]{32}$")
-_MAX_METADATA_BYTES = 128 * 1024**2
 _HEADER_ALLOWANCE = 64 * 1024
 
 
@@ -52,6 +59,7 @@ class TensorArtifactStore:
         self.max_bytes = max_bytes
         self.database = directory / "artifacts.sqlite3"
         self.file_lock = FileLock(directory / ".artifacts.lock")
+        self._views = ArtifactManifestViews()
         with self.file_lock:
             with self.connect() as connection:
                 connection.executescript("""
@@ -135,26 +143,55 @@ class TensorArtifactStore:
 
     @staticmethod
     def _decode(encoded: str, expected: str) -> dict:
-        if (
-            len(encoded.encode()) > _MAX_METADATA_BYTES
-            or digest_bytes(encoded.encode()) != expected
-        ):
-            raise ValueError("The saved artifact metadata checksum does not match.")
+        checked_metadata_size(encoded, expected)
         value = json.loads(encoded)
         if not isinstance(value, dict) or value.get("kind") not in ("capture", "crosscoder"):
             raise ValueError("The saved artifact metadata is invalid.")
         return value
 
-    def get(self, identifier: str, *, kind: str | None = None) -> dict | None:
+    def _read_manifest(self, identifier: str, kind: str | None) -> tuple[str, str, str] | None:
         self._path(identifier)
         with self.connect() as connection:
-            row = connection.execute(
-                "SELECT * FROM artifacts WHERE id = ?", (identifier,)
+            # Keep the size check and payload in one SQLite read snapshot.
+            connection.execute("BEGIN")
+            metadata = connection.execute(
+                "SELECT rowid, kind FROM artifacts WHERE id = ?",
+                (identifier,),
             ).fetchone()
-        if row is None or (kind is not None and row["kind"] != kind):
-            return None
-        payload = self._decode(row["manifest"], row["manifest_sha256"])
-        return dict(payload, manifest_sha256=row["manifest_sha256"])
+            if metadata is None or (kind is not None and metadata["kind"] != kind):
+                return None
+            with connection.blobopen(
+                "artifacts", "manifest", metadata["rowid"], readonly=True
+            ) as manifest:
+                size = len(manifest)
+            if size > _MAX_METADATA_BYTES:
+                raise ValueError("The saved artifact metadata checksum does not match.")
+            # One astral character can widen the whole Python string to four bytes.
+            require_metadata_ram(size, 5)
+            row = connection.execute(
+                "SELECT manifest, manifest_sha256 FROM artifacts WHERE id = ?", (identifier,)
+            ).fetchone()
+            return row["manifest"], row["manifest_sha256"], metadata["kind"]
+
+    def _decode_manifest(self, identifier: str, encoded: str, expected: str, kind: str) -> dict:
+        if not isinstance(encoded, str):
+            raise ValueError("The saved artifact metadata is invalid.")  # noqa: TRY004 - stored data errors use API validation
+        require_metadata_ram(len(encoded.encode()), 16)
+        payload = self._decode(encoded, expected)
+        if payload.get("id") != identifier or payload["kind"] != kind:
+            raise ValueError("The saved artifact metadata is invalid.")
+        return dict(payload, manifest_sha256=expected)
+
+    def get(self, identifier: str, *, kind: str | None = None) -> dict | None:
+        loaded = self._read_manifest(identifier, kind)
+        return None if loaded is None else self._decode_manifest(identifier, *loaded)
+
+    def get_readonly(self, identifier: str, *, kind: str | None = None) -> Mapping | None:
+        return self._views.read(
+            identifier,
+            lambda: self._read_manifest(identifier, kind),
+            lambda *loaded: self._decode_manifest(identifier, *loaded),
+        )
 
     def list(self, kind: str) -> list[dict]:
         with self.connect() as connection:
@@ -221,7 +258,7 @@ class TensorArtifactStore:
                 for value in tensors.values()
                 if value.device.type != "cpu" or not value.is_contiguous()
             )
-            if copy_bytes + len(initial.encode()) * 4 > psutil.virtual_memory().available * 0.75:
+            if copy_bytes + len(initial.encode()) * 4 > available_memory_bytes() * 0.75:
                 raise ValueError("Insufficient available RAM to publish the tensor artifact.")
             if tensor_bytes * 2 + len(initial.encode()) * 2 + _HEADER_ALLOWANCE > (
                 shutil.disk_usage(self.directory).free * 0.9
@@ -291,7 +328,7 @@ class TensorArtifactStore:
                         raise ValueError(
                             "The saved artifact exceeds the configured file size limit."
                         )
-                    if size * 4 > psutil.virtual_memory().available * 0.75:
+                    if size * 4 > available_memory_bytes() * 0.75:
                         raise ValueError(
                             "Insufficient available RAM to load the saved tensor artifact."
                         )
@@ -380,6 +417,7 @@ class TensorArtifactStore:
                 raise
             trash.unlink(missing_ok=True)
             self._sync_directory()
+            self._views.discard(identifier)
             return True
 
     def annotations(self, identifier: str, features: list[int] | None = None) -> dict[int, dict]:
