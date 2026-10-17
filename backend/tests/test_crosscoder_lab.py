@@ -1,3 +1,5 @@
+from model_fixtures import assert_no_forward_hooks
+
 """Real teacher capture, model-free joint training and immutable API evidence."""
 
 import asyncio
@@ -154,7 +156,7 @@ async def test_capture_joint_training_and_exports_work_after_teacher_unload(clie
         assert len(forwards) == plan.json()["teacher_forward_passes"]
         for name, value in teacher.state_dict().items():
             assert torch.equal(value, original[name])
-        assert all(not block._forward_hooks for block in lab.runtime._blocks())
+        assert_no_forward_hooks(lab.runtime._blocks())
         first_execution = lab.runtime.metadata["execution_id"]
 
         with torch.no_grad():
@@ -298,7 +300,7 @@ async def test_capture_cancellation_never_publishes_partial_activation_rows(clie
         job = await finished(client, response.json())
         assert job["status"] == "cancelled" and len(forwards) == 1
         assert (await client.get("/api/crosscoders/captures")).json() == []
-        assert all(not block._forward_hooks for block in lab.runtime._blocks())
+        assert_no_forward_hooks(lab.runtime._blocks())
     finally:
         handle.remove()
 

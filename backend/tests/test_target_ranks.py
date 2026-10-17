@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.services import token_logits
 from circuit_lantern.services.token_logits import summarize_token_logits
@@ -81,7 +82,7 @@ def test_captured_ranks_match_each_real_logit_lens_projection(runtime, intervent
         captured_logits[0], (6, 9, 0)
     )
     assert "strictly greater" in result["target_rank_method"]
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
     json.dumps(result, allow_nan=False)
 
 

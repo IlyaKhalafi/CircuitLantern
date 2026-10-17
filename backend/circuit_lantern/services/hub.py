@@ -9,6 +9,7 @@ from pathlib import Path, PurePosixPath
 from huggingface_hub import HfApi, hf_hub_download
 
 from circuit_lantern.services.architecture import architecture_layout
+from circuit_lantern.services.hub_errors import architecture_diagnostic
 
 CURATED_MODELS = [
     {
@@ -97,10 +98,9 @@ def search_models(
     models = HfApi().list_models(
         search=query.strip() or None,
         author=author.strip() or None,
-        pipeline_tag="text-generation",
+        filter="transformers",
         sort=SEARCH_SORTS[sort],
-        direction=-1,
-        limit=500 if cutoff or min_likes else limit,
+        limit=500,
         expand=[
             "downloads",
             "likes",
@@ -109,10 +109,16 @@ def search_models(
             "library_name",
             "gated",
             "safetensors",
+            "pipeline_tag",
+            "tags",
         ],
     )
     results = []
     for model in models:
+        if model.pipeline_tag not in ("text-generation", "image-text-to-text"):
+            continue
+        if model.library_name != "transformers" or set(model.tags or []) & {"gguf", "mlx", "peft"}:
+            continue
         date = model.created_at if sort == "newest" else model.last_modified
         if cutoff and (date is None or date < cutoff):
             continue
@@ -263,7 +269,7 @@ def _metadata_at_revision(model_id: str, revision: str) -> dict:
     except (ValueError, TypeError, ImportError, AttributeError, RuntimeError) as error:
         layout = {}
         architecture_supported = False
-        architecture_error = str(error)[:250]
+        architecture_error = architecture_diagnostic(error, str(Path(config_path).parent))
     if layout:
         parameters = layout["parameters"]
     if not parameters and hidden and layers:

@@ -4,6 +4,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.schemas import TraceRequest
 from circuit_lantern.services import token_logits
@@ -125,7 +126,7 @@ def test_intervened_final_targets_match_the_intervened_model(runtime, interventi
         rtol=1e-12,
         atol=1e-14,
     )
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 @pytest.mark.parametrize(
@@ -147,7 +148,7 @@ def test_invalid_targets_do_not_run_the_model_or_leave_hooks(runtime, targets, m
         runtime.trace("the capital", 0, False, None, tracked_tokens=targets)
     forward.assert_not_called()
     assert runtime.metadata == before
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 @pytest.mark.parametrize("targets", [[""], ["x" * 101], ["France"] * 9, [1]])

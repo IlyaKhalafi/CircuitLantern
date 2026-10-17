@@ -1,6 +1,7 @@
 from unittest.mock import patch
 
 import pytest
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.services.causal import activation_patch_sweep, normalized_recovery
 from circuit_lantern.services.jobs import JobRecord
@@ -40,7 +41,7 @@ def test_last_block_patch_restores_clean_target_score(runtime):
         assert result["layers"][-1]["recovery"] == pytest.approx(1, abs=1e-4)
     else:
         assert result["layers"][-1]["recovery"] is None
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_all_position_patch_restores_clean_computation_at_every_block(runtime):
@@ -60,7 +61,7 @@ def test_identical_prompts_do_not_report_normalized_recovery(runtime):
 def test_unaligned_prompts_rejected_before_installing_hooks(runtime):
     with pytest.raises(ValueError, match="same length"):
         sweep(runtime, corrupted_prompt="the capital")
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_invalid_target_rejected_with_actionable_message(runtime):
@@ -76,7 +77,7 @@ def test_cancelled_sweep_keeps_partial_result_and_removes_hooks(runtime):
     snapshot = job.snapshot()
     assert snapshot["status"] == "cancelled"
     assert snapshot["result"]["layers"] == []
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_failed_clean_forward_removes_capture_hooks(runtime):
@@ -85,7 +86,7 @@ def test_failed_clean_forward_removes_capture_hooks(runtime):
         pytest.raises(RuntimeError, match="forward failed"),
     ):
         sweep(runtime)
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_prompt_position_validation(runtime):
@@ -162,7 +163,7 @@ def test_failed_patch_keeps_completed_layers_and_removes_intervention_hooks(runt
     assert job["status"] == "failed"
     assert job["progress"] == 50
     assert job["result"] is result
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 @pytest.mark.parametrize("nonfinite", [False, True])
@@ -196,7 +197,7 @@ def test_first_patch_failure_retains_baselines_without_publishing_a_successful_b
         else "RuntimeError"
     )
     assert job["status"] == "failed" and job["progress"] == 0
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_patch_failure_wins_over_a_simultaneous_cancellation(runtime):
@@ -219,4 +220,4 @@ def test_patch_failure_wins_over_a_simultaneous_cancellation(runtime):
     assert len(result["layers"]) == 1
     assert result["cancelled"] is False
     assert result["failed_layer"] == 1
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())

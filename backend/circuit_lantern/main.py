@@ -1,10 +1,11 @@
 from contextlib import asynccontextmanager
 from typing import Literal
 
+import httpx
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from huggingface_hub.errors import HfHubHTTPError
+from huggingface_hub.errors import HfHubHTTPError, LocalEntryNotFoundError, OfflineModeIsEnabled
 
 from circuit_lantern.api.checkpoints import router as checkpoint_router
 from circuit_lantern.api.crosscoders import router as crosscoder_router
@@ -34,6 +35,7 @@ from circuit_lantern.services.features.lab import FeatureLab
 from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
+from circuit_lantern.services.hub_errors import explain_hub_error
 from circuit_lantern.services.induction.lab import InductionLab
 from circuit_lantern.services.induction.reference import ReferenceProbeNotFoundError
 from circuit_lantern.services.prepared_downloads import DownloadBusyError
@@ -125,12 +127,12 @@ async def value_error(request: Request, error: ValueError):
 
 
 @app.exception_handler(HfHubHTTPError)
-async def hub_error(request: Request, error: HfHubHTTPError):
-    code = error.response.status_code if error.response else 502
-    message = "Hugging Face could not provide this model. Check the repository ID, revision and access permissions. For gated models, set HF_TOKEN on the server."
-    return JSONResponse(
-        status_code=code if code in (401, 403, 404) else 502, content={"detail": message}
-    )
+@app.exception_handler(LocalEntryNotFoundError)
+@app.exception_handler(OfflineModeIsEnabled)
+@app.exception_handler(httpx.RequestError)
+async def hub_error(request: Request, error: Exception):
+    status, message, headers = explain_hub_error(error)
+    return JSONResponse(status_code=status, content={"detail": message}, headers=headers)
 
 
 @app.get("/api/health")

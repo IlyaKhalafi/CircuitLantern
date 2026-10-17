@@ -3,7 +3,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
-from model_fixtures import checkpoint_metadata, tiny_gpt2
+from model_fixtures import assert_no_forward_hooks, checkpoint_metadata, tiny_gpt2
 
 from circuit_lantern.config import Settings
 from circuit_lantern.services.architecture import architecture_layout, describe_model_layout
@@ -173,7 +173,7 @@ def test_quantized_causal_sweep_keeps_canonical_weights_and_removes_hooks(precis
     assert result["layers"][-1]["log_probability"] == pytest.approx(
         result["clean"]["log_probability"], abs=1e-5
     )
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
     runtime.metrics_cache.clear()
     assert runtime.matrix(name)["frobenius_norm"] == pytest.approx(before)
 

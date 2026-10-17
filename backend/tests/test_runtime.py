@@ -1,12 +1,13 @@
 from unittest.mock import patch
 
 import pytest
+from model_fixtures import assert_no_forward_hooks
 
 
 def test_trace_last_residual_is_before_final_normalization(runtime):
     captured = []
     handle = runtime.model.transformer.h[-1].register_forward_hook(
-        lambda m, a, o: captured.append(o[0].detach().clone())
+        lambda m, a, o: captured.append((o[0] if isinstance(o, tuple) else o).detach().clone())
     )
     trace = runtime.trace("the capital of France is", 1, True, None)
     handle.remove()
@@ -21,7 +22,7 @@ def test_block_bypass_preserves_input_residual_and_hooks_are_removed(runtime):
     assert trace["layers"][1]["norm"] == pytest.approx(trace["layers"][2]["norm"])
     assert trace["layers"][2]["update_norm"] == 0
     assert trace["layers"][2]["relative_update"] == 0
-    assert all(not block._forward_hooks for block in runtime.model.transformer.h)
+    assert_no_forward_hooks(runtime.model.transformer.h)
 
 
 def test_hook_cleanup_even_when_generation_fails(runtime):
@@ -30,7 +31,7 @@ def test_hook_cleanup_even_when_generation_fails(runtime):
         pytest.raises(RuntimeError, match="generation failed"),
     ):
         runtime.trace("the capital", 1, False, 0)
-    assert all(not block._forward_hooks for block in runtime.model.transformer.h)
+    assert_no_forward_hooks(runtime.model.transformer.h)
 
 
 def test_failed_download_preserves_active_model(runtime):
@@ -76,7 +77,7 @@ def test_nonfinite_logits_fail_cleanly_and_remove_capture_hooks(runtime):
             runtime.trace("the capital", 1, True, None)
     finally:
         handle.remove()
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_loaded_context_allowance_bounds_prompt_and_generation_together(runtime):

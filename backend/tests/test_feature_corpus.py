@@ -2,6 +2,7 @@ from unittest.mock import patch
 
 import pytest
 import torch
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.services.features.corpus import (
     CaptureCancelled,
@@ -109,7 +110,7 @@ def test_collection_matches_exact_raw_block_states_and_preserves_model_weights(r
     assert torch.equal(before_rng, torch.get_rng_state())
     for name, parameter in runtime.model.named_parameters():
         torch.testing.assert_close(parameter, before[name], rtol=0, atol=0)
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
 
 
 def test_failed_collection_does_not_leave_a_model_hook(runtime):
@@ -121,7 +122,7 @@ def test_failed_collection_does_not_leave_a_model_hook(runtime):
         pytest.raises(RuntimeError, match="capture failed"),
     ):
         capture_activations(runtime.model, runtime._blocks(), prepared, 0, 16, device="cpu")
-    assert not runtime._blocks()[0]._forward_hooks
+    assert_no_forward_hooks([runtime._blocks()[0]])
 
 
 def test_cancelled_collection_does_not_publish_partial_activations(runtime):
@@ -135,7 +136,7 @@ def test_cancelled_collection_does_not_publish_partial_activations(runtime):
             device="cpu",
             cancelled=lambda: True,
         )
-    assert not runtime._blocks()[0]._forward_hooks
+    assert_no_forward_hooks([runtime._blocks()[0]])
 
 
 @pytest.mark.parametrize("documents", [DOCUMENTS[:3], ["the"] * 4, [""] * 4, ["x" * 8001] * 4])

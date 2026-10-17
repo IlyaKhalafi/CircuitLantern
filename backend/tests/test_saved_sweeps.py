@@ -3,6 +3,7 @@ from unittest.mock import patch
 
 import httpx
 import pytest
+from model_fixtures import assert_no_forward_hooks
 
 from circuit_lantern.main import app
 from circuit_lantern.services.jobs import JobRecord
@@ -213,7 +214,7 @@ async def test_actual_failed_patch_job_keeps_saveable_measurements_after_unload(
     assert result["failed_layer"] == failure_call - 3
     assert len(result["layers"]) == failure_call - 3
     assert result["complete"] is False and result["cancelled"] is False
-    assert all(not block._forward_hooks for block in runtime._blocks())
+    assert_no_forward_hooks(runtime._blocks())
     runtime.unload()
     saved = await client.post(
         "/api/experiments/from-job", json={"job_id": job_id, "name": "Retained partial patch"}

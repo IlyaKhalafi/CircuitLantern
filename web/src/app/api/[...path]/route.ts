@@ -33,6 +33,9 @@ async function proxy(
         "Content-Type":
           upstream.headers.get("content-type") || "application/json",
         "Cache-Control": "no-store",
+        ...(upstream.headers.get("retry-after")
+          ? { "Retry-After": upstream.headers.get("retry-after")! }
+          : {}),
         ...(upstream.headers
           .get("content-type")
           ?.startsWith("application/octet-stream") &&

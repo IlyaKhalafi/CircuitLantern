@@ -179,3 +179,32 @@ test("an unavailable preview leaves capture usable with server validation", asyn
     page.getByText("Capture complete", { exact: true }),
   ).toBeVisible();
 });
+
+test("expanded tokenization survives prompt updates and supports keyboard toggles", async ({
+  page,
+}) => {
+  await page.goto("/playground");
+  const prompt = page.getByLabel("Prompt", { exact: true });
+  const summary = page.locator(".token-preview summary");
+  const table = page.getByRole("table", { name: "Prompt tokenization" });
+  await prompt.fill("the capital");
+  await expect(page.getByText(/Prompt 2 \/ \d+ tokens/)).toBeVisible();
+  await summary.click();
+  await expect(table).toBeVisible();
+  for (const [text, count] of [
+    ["the capital of", 3],
+    ["the capital of France", 4],
+    ["the capital", 2],
+  ] as const) {
+    await prompt.fill(text);
+    await expect(
+      page.getByText(new RegExp(`Prompt ${count} / \\d+ tokens`)),
+    ).toBeVisible();
+    await expect(table).toBeVisible();
+  }
+  await summary.focus();
+  await page.keyboard.press("Space");
+  await expect(table).not.toBeVisible();
+  await page.keyboard.press("Enter");
+  await expect(table).toBeVisible();
+});
