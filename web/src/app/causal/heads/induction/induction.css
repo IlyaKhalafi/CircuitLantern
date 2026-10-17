@@ -14,7 +14,7 @@
 }
 .induction-sequence {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(95px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
   gap: 10px;
   margin-bottom: 16px;
 }
@@ -32,9 +32,13 @@
   color: var(--muted);
 }
 .induction-sequence strong {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
   color: var(--accent);
   font-family: var(--mono);
-  font-size: 20px;
+  font-size: 18px;
   letter-spacing: 2px;
   white-space: nowrap;
 }
@@ -113,4 +117,22 @@
   border: 0;
   padding: 0;
   margin-top: 10px;
+}
+
+.induction-sequence strong span {
+  font-size: 14px;
+  letter-spacing: 0;
+}
+@media (max-width: 380px) {
+  .induction-sequence {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+  .induction-sequence strong {
+    font-size: 16px;
+    letter-spacing: 1px;
+    gap: 5px;
+  }
+  .induction-sequence strong span {
+    font-size: 12px;
+  }
 }

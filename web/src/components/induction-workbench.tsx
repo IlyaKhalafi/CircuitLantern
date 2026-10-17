@@ -9,7 +9,6 @@ import {
   RefreshCw,
   Square,
 } from "lucide-react";
-import { CausalNavigation } from "@/components/causal-navigation";
 import { InductionResults } from "@/components/induction-results";
 import { SaveJobExperiment } from "@/components/save-job-experiment";
 import {
@@ -78,7 +77,6 @@ export function InductionWorkbench() {
           </>
         }
       />
-      <CausalNavigation />
       <Link className="induction-back" href="/causal/heads">
         <ArrowLeft size={14} />
         {t("Head ablation")}
