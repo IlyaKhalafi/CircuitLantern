@@ -5,6 +5,7 @@ import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
 import { bytes, number, post } from "@/lib/api";
 import { useBackgroundJob } from "@/lib/jobs";
+import { useCompletedJob } from "@/hooks/use-completed-job";
 import type {
   DictionaryPlan,
   FeatureCapabilities,
@@ -44,10 +45,9 @@ export function FeatureTraining({
         (current) => current || capabilities.example_documents.join("\n"),
       );
   }, [capabilities]);
-  useEffect(() => {
-    if (task.job && ["ready", "cancelled", "failed"].includes(task.job.status))
-      onTrained(task.job.result?.dictionaries[0]?.id);
-  }, [task.job?.id, task.job?.status, onTrained]);
+  useCompletedJob(task, "lantern-feature-training-delivered", (result) => {
+    onTrained(result.dictionaries[0]?.id);
+  });
   useEffect(() => {
     setPlan(null);
   }, [capabilities?.execution?.execution_id]);
