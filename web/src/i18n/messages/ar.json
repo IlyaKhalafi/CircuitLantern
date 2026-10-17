@@ -2106,7 +2106,6 @@
   "Score is target logit minus alternative logit.": "الدرجة هي لوجيت الهدف مطروحًا منه لوجيت البديل.",
   "Score is target log probability.": "الدرجة هي لوغاريتم احتمال الهدف.",
   "Recovery uses {count} positive-gap pairs. Other completed pairs remain in the raw effect view.": "يستخدم الاسترداد {count} من الأزواج ذات الفجوة الموجبة. تبقى الأزواج المكتملة الأخرى في عرض التأثيرات الخام.",
-  "Raw effects include all {count} completed pairs, including {excluded} without a positive baseline gap.": "تشمل التأثيرات الخام جميع الأزواج المكتملة وعددها {count}، ومنها {excluded} بلا فجوة أساسية موجبة.",
   "At least two positive-gap pairs are needed for a recovery interval.": "يلزم زوجان على الأقل ذوا فجوة موجبة لحساب فترة الاسترداد.",
   "95% lower bound": "الحد الأدنى لفترة 95%",
   "95% upper bound": "الحد الأعلى لفترة 95%",
@@ -2153,5 +2152,6 @@
   "Insufficient free GPU memory for this prompt set.": "ذاكرة GPU الحرة غير كافية لمجموعة الموجّهات هذه.",
   "Insufficient disk space for the saved prompt set.": "مساحة القرص غير كافية لحفظ مجموعة الموجّهات.",
   "The active model changed during the prompt set.": "تغيّر النموذج النشط أثناء تشغيل مجموعة الموجّهات.",
-  "Captured source or token IDs differ from the validated plan.": "يختلف المصدر الملتقط أو معرّفات الرموز عن الخطة التي تم التحقق منها."
+  "Captured source or token IDs differ from the validated plan.": "يختلف المصدر الملتقط أو معرّفات الرموز عن الخطة التي تم التحقق منها.",
+  "Raw effects include all {count} completed pairs, including {excluded} excluded from recovery.": "تشمل التأثيرات الخام جميع الأزواج المكتملة البالغ عددها {count}، بما فيها {excluded} أزواج مستبعدة من حساب الاستعادة."
 }
