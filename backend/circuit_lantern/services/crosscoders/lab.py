@@ -141,7 +141,13 @@ class CrosscoderLab:
         budget = capture_budget(
             width,
             len(corpus.samples),
-            len(json.dumps(corpus.description(), ensure_ascii=False).encode()),
+            len(json.dumps(corpus.description(), ensure_ascii=False).encode())
+            + len(
+                json.dumps(
+                    request.model_dump(exclude={"name", "expected_execution_id"}),
+                    ensure_ascii=False,
+                ).encode()
+            ),
             forward_memory(
                 self.runtime.model,
                 max(len(row["token_ids"]) for row in corpus.documents),

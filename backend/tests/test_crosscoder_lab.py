@@ -30,6 +30,31 @@ DOCUMENTS = [
 HARDWARE = {"ram_available_bytes": 8 * 1024**3, "experiment_disk_free_bytes": 8 * 1024**3}
 
 
+def test_truncated_capture_plan_includes_the_retained_raw_request_text(lab, monkeypatch):
+    from circuit_lantern.crosscoder_schemas import ActivationCaptureRequest
+
+    monkeypatch.setattr(
+        "circuit_lantern.services.crosscoders.lab.hardware_snapshot",
+        lambda _: dict(HARDWARE, ram_available_bytes=10 * 1024**2),
+    )
+    request = ActivationCaptureRequest(
+        name="Long raw documents",
+        documents=[word + " capital" * 990 for word in ("France", "Poland", "the", "capital")],
+        layer=0,
+        max_tokens=4,
+        max_samples=8,
+        expected_execution_id=lab.runtime.metadata["execution_id"],
+    )
+    try:
+        plan = lab.capture_plan(request)
+        assert not plan["compatible"]
+        assert (
+            "Insufficient available RAM for the retained activation workflow." in plan["blockers"]
+        )
+    finally:
+        lab.downloads.close()
+
+
 @pytest.fixture
 def anyio_backend():
     return "asyncio"
