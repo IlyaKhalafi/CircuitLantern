@@ -1807,5 +1807,17 @@
   "Split gate · sigmoid": "تفکیک دروازه · سیگموید",
   "K RMSNorm · RoPE": "RMSNorm برای K · RoPE",
   "Attention probabilities × V · concatenate heads": "احتمال‌های توجه × V · الحاق سرها",
-  "Attention output × sigmoid(gate)": "خروجی توجه × سیگموید دروازه"
+  "Attention output × sigmoid(gate)": "خروجی توجه × سیگموید دروازه",
+  "Path input": "ورودی مسیر",
+  "Path output": "خروجی مسیر",
+  "Continues outside this path": "ادامه در خارج از این مسیر",
+  "Outside this path": "خارج از این مسیر",
+  "From {operation}": "از {operation}",
+  "Coverage includes every path in this block": "پوشش شامل همهٔ مسیرهای این بلوک است",
+  "Boundary nodes show values entering or leaving the selected path.": "گره‌های مرزی، مقادیر ورودی و خروجی مسیر انتخاب‌شده را نشان می‌دهند.",
+  "Blue arrows carry activations.": "پیکان‌های آبی فعال‌سازی‌ها را منتقل می‌کنند.",
+  "Layer pattern navigation": "پیمایش الگوی لایه‌ها",
+  "Previous block": "بلوک قبلی",
+  "{operation} · {origin}": "{operation} · {origin}",
+  "{mapped} of {total} block matrices connected": "{mapped} ماتریس از {total} ماتریس بلوک متصل است"
 }

@@ -20,7 +20,7 @@ test("hybrid layers show distinct connected mixer paths and exact matrix links",
   await page
     .getByRole("button", { name: "Block dataflow", exact: true })
     .click();
-  await expect(page.getByText("8 of 8 matrices connected")).toBeVisible();
+  await expect(page.getByText("8 of 8 block matrices connected")).toBeVisible();
   await expect(
     page
       .locator(".flow-operation")
@@ -52,7 +52,7 @@ test("hybrid layers show distinct connected mixer paths and exact matrix links",
     .getByRole("button", { name: "Block 3 · Full attention", exact: true })
     .click();
   await expect(page.getByLabel("Focus on transformer block")).toHaveValue("3");
-  await expect(page.getByText("7 of 7 matrices connected")).toBeVisible();
+  await expect(page.getByText("7 of 7 block matrices connected")).toBeVisible();
   await expect(
     page
       .locator(".flow-operation")
@@ -111,7 +111,7 @@ test("summarized internals disclose incomplete coverage and retain inspectable w
   await page
     .getByRole("button", { name: "Block dataflow", exact: true })
     .click();
-  await expect(page.getByText("7 of 8 matrices connected")).toBeVisible();
+  await expect(page.getByText("7 of 8 block matrices connected")).toBeVisible();
   await expect(
     page.getByText("Some module internals remain summarized"),
   ).toBeVisible();
@@ -201,7 +201,7 @@ test("larger source-derived architectures open directly on readable connections"
     page.getByRole("button", { name: "Block dataflow", exact: true }),
   ).toHaveAttribute("aria-pressed", "true");
   await expect(page.getByLabel("Diagram focus")).toHaveValue("attention");
-  await expect(page.getByText("8 of 8 matrices connected")).toBeVisible();
+  await expect(page.getByText("8 of 8 block matrices connected")).toBeVisible();
   await expect
     .poll(
       async () =>

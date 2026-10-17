@@ -79,6 +79,8 @@ For Docker with explicit GPU access, run `python3 scripts/deploy.py --gpus 0 --p
 
 [Model overview](docs/images/model-explorer.png) · [MLP connections](docs/images/block-dataflow-mlp.png) · [Dark theme](docs/images/block-dataflow-dark.png)
 
+Explore Qwen 3.5 with connected [Gated DeltaNet](docs/images/qwen35-deltanet-flow.png) and [full attention](docs/images/qwen35-attention-flow-dark.png) paths. These complete graph panels come from a loaded 4B checkpoint.
+
 | Deployment checks | Weight geometry |
 | --- | --- |
 | [![Hardware and kernel compatibility report before model loading](docs/images/deployment-check.png)](docs/images/deployment-check.png) | [![Logical weight heatmap, singular values and matrix properties](docs/images/weight-analysis.png)](docs/images/weight-analysis.png) |

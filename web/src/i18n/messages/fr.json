@@ -1807,5 +1807,17 @@
   "Split gate · sigmoid": "Séparation de porte · sigmoïde",
   "K RMSNorm · RoPE": "RMSNorm de K · RoPE",
   "Attention probabilities × V · concatenate heads": "Probabilités d’attention × V · concaténation des têtes",
-  "Attention output × sigmoid(gate)": "Sortie d’attention × sigmoid(gate)"
+  "Attention output × sigmoid(gate)": "Sortie d’attention × sigmoid(gate)",
+  "Path input": "Entrée du chemin",
+  "Path output": "Sortie du chemin",
+  "Continues outside this path": "Se poursuit hors de ce chemin",
+  "Outside this path": "Hors de ce chemin",
+  "From {operation}": "Depuis {operation}",
+  "Coverage includes every path in this block": "La couverture inclut tous les chemins de ce bloc",
+  "Boundary nodes show values entering or leaving the selected path.": "Les nœuds de frontière représentent les valeurs qui entrent dans le chemin sélectionné ou en sortent.",
+  "Blue arrows carry activations.": "Les flèches bleues transportent les activations.",
+  "Layer pattern navigation": "Navigation entre les couches",
+  "Previous block": "Bloc précédent",
+  "{operation} · {origin}": "{operation} · {origin}",
+  "{mapped} of {total} block matrices connected": "{mapped} matrices du bloc connectées sur {total}"
 }

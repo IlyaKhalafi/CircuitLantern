@@ -3691,6 +3691,10 @@ html[lang="ja"] :is(.page-header h1, .welcome-banner h2) {
   outline-offset: -2px;
   background: var(--blue-tint);
 }
+.flow-layer-pattern button:focus-visible {
+  outline: 3px solid var(--blue);
+  outline-offset: -3px;
+}
 .flow-dimmed {
   opacity: 0.2;
 }
@@ -3728,4 +3732,36 @@ html[lang="ja"] :is(.page-header h1, .welcome-banner h2) {
   .block-dataflow {
     height: 900px;
   }
+}
+
+.flow-boundary {
+  background: var(--panel-raised);
+  border-style: dashed;
+}
+.flow-pattern-navigation {
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) 32px;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 16px 12px;
+}
+.flow-pattern-navigation .flow-layer-pattern {
+  margin: 0;
+  padding: 4px 2px 8px;
+  scrollbar-width: thin;
+  scrollbar-color: var(--blue-border) transparent;
+}
+.flow-pattern-step {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 36px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  color: var(--ink);
+  background: var(--panel-raised);
+}
+[dir="rtl"] .flow-pattern-step svg {
+  transform: rotate(180deg);
 }
