@@ -4,6 +4,15 @@ A sparse crosscoder learns one set of latent features from two activation captur
 
 Open **Research lab**, choose **Feature lab**, then **Compare shared features**. The existing checkpoint comparison in the model explorer remains useful for weight deltas, residual drift and output distributions.
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="images/shared-feature-comparison-dark.png" />
+  <img src="images/shared-feature-comparison-light.png" alt="Real SmolLM2 base and instruct crosscoder comparison with both checkpoint sources and held out reconstruction metrics" />
+</picture>
+
+Example run with SmolLM2 135M base and instruct in NF4 at layer 12. The dictionary used 128 optimizer steps, 225 paired positions and 40 held out positions.
+
+[Explore joint feature contexts and decoder geometry](images/shared-feature-explorer-dark.png)
+
 ## Prepare the captures
 
 1. Load the reference checkpoint from the model library.
@@ -12,7 +21,7 @@ Open **Research lab**, choose **Feature lab**, then **Compare shared features**.
 4. Return to the comparison workspace and refresh. Record matched activations at the desired layer.
 5. Check the two recorded sources before training.
 
-The matched capture reuses the reference documents, token limit, sampling rules and split seed. The backend compares exact model inputs, token positions and dataset split fingerprints before running the second model. Different tokenization or capture limits are rejected.
+The matched capture reuses the reference documents, token limit, sampling rules and split seed. The backend compares exact model inputs, token positions and dataset split fingerprints before running the second model. A larger context window still uses the effective reference token limit. Different tokenization or a smaller limit that changes the model inputs is rejected.
 
 Capture uses the residual stream immediately after the selected transformer block. Special tokens and the first sequence position are excluded by default. Advanced settings expose these choices, the sample limit and the split seed. Existing corpus preparation separates document groups before training and excludes repeated sampled prefixes across splits.
 
