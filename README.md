@@ -106,6 +106,7 @@ Execution supports FP32, FP16, BF16, bitsandbytes NF4, native bitsandbytes FP4 c
 - [Setup](docs/setup.md) covers CUDA installation, configuration and remote access.
 - [Measurements](docs/measurements.md) explains capture conventions, interventions and comparisons.
 - [Sparse features](docs/features.md) covers dictionary training, validation, interventions and research references.
+- [Model explorer](docs/model-explorer.md) explains source-derived connections, hybrid mixers and coverage.
 - [Checkpoint comparisons](docs/checkpoints.md) explains retained references, alignment checks, model drift and block dataflow.
 - [Development](docs/development.md) covers checks and browser verification.
 - [Architecture](docs/architecture.md) describes the service boundaries and current limits.

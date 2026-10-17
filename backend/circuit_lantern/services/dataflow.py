@@ -1,5 +1,8 @@
 """Architecture-specific block dataflow from inspected modules and logical weights."""
 
+from circuit_lantern.services.hybrid_dataflow import expand_hybrid_mixer
+from circuit_lantern.services.source_dataflow import source_block_dataflow
+
 SUPPORTED_BLOCKS = {
     "GPT2Block",
     "GPTNeoXLayer",
@@ -17,11 +20,18 @@ def block_dataflow(model, blocks, matrices: list[dict]) -> list[dict]:
     results = []
     for index, block in enumerate(blocks):
         kind = type(block).__name__
-        if kind not in SUPPORTED_BLOCKS:
+        path = paths.get(id(block))
+        if path is None:
             results.append({"layer": index, "supported": False, "nodes": [], "edges": []})
             continue
-        prefix = paths[id(block)] + "."
+        prefix = path + "."
         weights = {item["name"]: item for item in matrices if item["name"].startswith(prefix)}
+        if kind not in SUPPORTED_BLOCKS:
+            discovered = source_block_dataflow(block, prefix, weights, index, expand_hybrid_mixer)
+            results.append(
+                discovered or {"layer": index, "supported": False, "nodes": [], "edges": []}
+            )
+            continue
         nodes, edges = [], []
 
         def node(
