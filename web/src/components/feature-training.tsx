@@ -1,7 +1,6 @@
 "use client";
-import { FieldLabel } from "@/components/help-tooltip";
+import { FieldLabel, HelpTooltip } from "@/components/help-tooltip";
 import { useEffect, useId, useState } from "react";
-import { HelpTooltip } from "@/components/help-tooltip";
 import { Play, Square, Upload } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";

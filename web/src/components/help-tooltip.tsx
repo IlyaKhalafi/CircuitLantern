@@ -52,7 +52,9 @@ export function HelpProvider({ children }: { children: ReactNode }) {
 export function HelpTooltip({
   label,
   children,
+  translateLabel = true,
 }: {
+  translateLabel?: boolean;
   label: string;
   children: string;
 }) {
@@ -108,7 +110,9 @@ export function HelpTooltip({
         ref={setReference}
         type="button"
         className="help-trigger"
-        aria-label={t("About {label}", { label: t(label) })}
+        aria-label={t("About {label}", {
+          label: translateLabel ? t(label) : label,
+        })}
         aria-expanded={open}
         {...getReferenceProps()}
         aria-describedby={descriptionId}

@@ -197,3 +197,16 @@
     overflow: visible;
   }
 }
+
+.metric small,
+.model-card-footer > div > span {
+  font-size: 11px;
+  color: var(--muted);
+}
+.flow-layer-pattern .active {
+  outline-color: var(--blue);
+  box-shadow: 0 0 0 2px var(--blue);
+}
+.flow-context {
+  justify-content: flex-start;
+}
