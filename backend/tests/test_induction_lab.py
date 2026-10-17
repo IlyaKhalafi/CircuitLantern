@@ -317,3 +317,50 @@ async def test_api_rejects_stale_binding_and_strict_request_types(client, runtim
             response = await client.post("/api/induction/probe", json={**REQUEST, **invalid})
             assert response.status_code == 422
     assert runtime.jobs == {}
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("status", ["cancelled", "failed", "running"])
+async def test_from_job_preserves_partial_probe_evidence_and_rejects_unfinished_jobs(
+    client, lab, runtime, status
+):
+    batch, targets, plan = lab._prepare(request())
+    from circuit_lantern.services.induction.engine import measure_induction
+
+    result = measure_induction(
+        runtime.model,
+        runtime.tokenizer,
+        runtime._blocks(),
+        runtime.metadata,
+        runtime.device,
+        batch,
+        targets,
+        1,
+        {"cancel_requested": True},
+        plan,
+    )
+    assert not result["complete"] and result["measured_examples"] == 0
+    if status == "failed":
+        result["error"] = "Interrupted measurement"
+    result["cancelled"] = status == "cancelled"
+    identifier = "d" * 32
+    runtime.jobs[identifier] = JobRecord(
+        {
+            "id": identifier,
+            "kind": "induction_probe",
+            "status": status,
+            "result": result,
+            "progress": 0,
+        }
+    )
+    runtime.unload()
+    response = await client.post(
+        "/api/experiments/from-job", json={"job_id": identifier, "name": "Partial probe"}
+    )
+    if status == "running":
+        assert response.status_code == 409
+        assert app.state.store.list() == []
+    else:
+        assert response.status_code == 201, response.text
+        retained = (await client.get("/api/experiments/" + response.json()["id"])).json()
+        assert retained["result"] == result and retained["kind"] == "induction_probe"
