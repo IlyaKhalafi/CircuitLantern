@@ -166,6 +166,8 @@ export interface BlockFlow {
     module_path?: string;
     matrices?: string[];
     opaque?: boolean;
+    boundary?: "input" | "output";
+    boundary_origin?: string;
   }[];
   edges: {
     source: string;

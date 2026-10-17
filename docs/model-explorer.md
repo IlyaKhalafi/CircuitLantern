@@ -2,7 +2,17 @@
 
 Open **Block dataflow** to follow activations through a transformer block. Matrix boxes open the corresponding logical weights, including supported quantized weights. Gold arrows mark proven residual shortcuts. **Trace connections** highlights the upstream and downstream paths of one operation.
 
+Focused paths show explicit input and output boundary values. Operations outside the selected path stay outside the diagram. Select **Full block** to include normalization and residual connections around both sublayers.
+
+Use the previous and next buttons to browse layers. When a layer chip has keyboard focus, arrow keys move between layers and Home or End jumps to either end. The selected path remains active when changing layers, and the layer strip scrolls without moving the page.
+
 For hybrid Qwen 3.5 models, the layer strip distinguishes Gated DeltaNet layers from full attention layers. Select a layer to see its actual mixer. The DeltaNet diagram includes QKV projection, causal convolution, update and decay gates, recurrence, gated normalization and the output projection. The full attention diagram includes the joint query and gate projection, query and key normalization, rotary position encoding, attention probabilities and the sigmoid output gate.
+
+These panels show actual weights from `hamishivi/Qwen3.5-4B`. Focused views keep their complete input and output values visible on desktop. On narrow screens, pan the graph or use the zoom controls.
+
+![Qwen 3.5 Gated DeltaNet with connected projections, gates and recurrence](images/qwen35-deltanet-flow.png)
+
+![Qwen 3.5 full attention with query, key, value and output gate connections in the dark theme](images/qwen35-attention-flow-dark.png)
 
 ## How connections are discovered
 

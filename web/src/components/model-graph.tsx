@@ -16,6 +16,7 @@ import {
 } from "@xyflow/react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BlockDataflow } from "@/components/block-dataflow";
+import { LayerPattern } from "@/components/layer-pattern";
 import type { ModelGraph, Weight } from "@/lib/types";
 import "@xyflow/react/dist/style.css";
 type LayerNode = Node<
@@ -315,48 +316,11 @@ export function ModelGraphView({
         </div>
       </div>
       {mode === "flow" && !!graph.dataflow?.some((item) => item.mixer_type) && (
-        <div
-          className="flow-layer-pattern"
-          role="group"
-          aria-label={t("Layer pattern")}
-        >
-          {graph.dataflow.map((item) => (
-            <button
-              key={item.layer}
-              className={
-                (item.layer === (selectedLayer ?? 0) ? "active " : "") +
-                (item.mixer_type === "linear_attention"
-                  ? "linear"
-                  : item.mixer_type === "full_attention"
-                    ? "full"
-                    : "neutral")
-              }
-              aria-pressed={item.layer === (selectedLayer ?? 0)}
-              aria-label={t("Block {layer} · {kind}", {
-                layer: item.layer,
-                kind: t(
-                  item.mixer_type === "linear_attention"
-                    ? "Gated DeltaNet"
-                    : item.mixer_type === "full_attention"
-                      ? "Full attention"
-                      : "Other mixer",
-                ),
-              })}
-              onClick={() => onSelect(item.layer)}
-            >
-              {item.layer}
-              <small>
-                {t(
-                  item.mixer_type === "linear_attention"
-                    ? "Linear"
-                    : item.mixer_type === "full_attention"
-                      ? "Full"
-                      : "Other",
-                )}
-              </small>
-            </button>
-          ))}
-        </div>
+        <LayerPattern
+          flows={graph.dataflow}
+          selected={selectedLayer ?? 0}
+          onSelect={onSelect}
+        />
       )}
       {mode === "flow" ? (
         <BlockDataflow

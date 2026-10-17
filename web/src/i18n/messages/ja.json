@@ -2004,5 +2004,17 @@
   "Split gate · sigmoid": "ゲート分割 · シグモイド",
   "K RMSNorm · RoPE": "K の RMSNorm · RoPE",
   "Attention probabilities × V · concatenate heads": "注意確率 × V · ヘッドの連結",
-  "Attention output × sigmoid(gate)": "注意出力 × sigmoid(gate)"
+  "Attention output × sigmoid(gate)": "注意出力 × sigmoid(gate)",
+  "Path input": "経路の入力",
+  "Path output": "経路の出力",
+  "Continues outside this path": "この経路の外へ続きます",
+  "Outside this path": "この経路の外",
+  "From {operation}": "{operation} から",
+  "Coverage includes every path in this block": "対象範囲はこのブロックの全経路です",
+  "Boundary nodes show values entering or leaving the selected path.": "境界ノードは選択した経路へ入る値と出る値を示します。",
+  "Blue arrows carry activations.": "青い矢印は活性値を運びます。",
+  "Layer pattern navigation": "層パターンの移動",
+  "Previous block": "前のブロック",
+  "{operation} · {origin}": "{operation} · {origin}",
+  "{mapped} of {total} block matrices connected": "ブロックの {total} 個中 {mapped} 個の行列を接続"
 }

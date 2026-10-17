@@ -16,6 +16,7 @@ import {
 } from "@xyflow/react";
 import { useI18n } from "@/i18n/provider";
 import type { BlockFlow } from "@/lib/types";
+import { focusBlockFlow, hasFlowSection } from "@/lib/block-flow";
 
 type FlowNode = Node<
   {
@@ -24,6 +25,7 @@ type FlowNode = Node<
     weight: string | null;
     onInspect: (name: string) => void;
     opaque?: boolean;
+    boundary?: "input" | "output";
   },
   "operation"
 >;
@@ -34,7 +36,8 @@ function Operation({ data }: NodeProps<FlowNode>) {
       className={
         "flow-operation " +
         (data.weight ? "flow-weight" : "") +
-        (data.opaque ? " flow-opaque" : "")
+        (data.opaque ? " flow-opaque" : "") +
+        (data.boundary ? " flow-boundary" : "")
       }
     >
       <Handle type="target" position={Position.Top} id="top" />
@@ -55,7 +58,13 @@ function Operation({ data }: NodeProps<FlowNode>) {
       ) : (
         <>
           <strong>{t(data.label)}</strong>
-          {data.detail && <small>{t(data.detail)}</small>}
+          {data.detail && (
+            <small>
+              {data.boundary
+                ? t("From {operation}", { operation: t(data.detail) })
+                : t(data.detail)}
+            </small>
+          )}
         </>
       )}
       <Handle type="source" position={Position.Bottom} id="bottom" />
@@ -109,13 +118,7 @@ function SkipEdge({
   return <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} />;
 }
 const edgeTypes = { residual: ResidualEdge, skip: SkipEdge };
-function FitComputation({
-  flow,
-  section,
-}: {
-  flow: BlockFlow;
-  section: string;
-}) {
+function FitComputation({ flow }: { flow: BlockFlow }) {
   const { fitBounds, getNode, setViewport, viewportInitialized } =
     useReactFlow();
   const measurements = useStore((state) =>
@@ -127,26 +130,7 @@ function FitComputation({
     height = useStore((state) => state.height);
   useEffect(() => {
     if (!viewportInitialized || !width || !height) return;
-    const mlp = new Set([
-      "norm-mlp",
-      "up",
-      "gate",
-      "act",
-      "multiply",
-      "down",
-      "output",
-    ]);
-    const selected =
-      section === "all"
-        ? flow.nodes
-        : flow.nodes.filter((node) =>
-            section === "attention"
-              ? node.section === "attention" ||
-                (!flow.provenance && !mlp.has(node.id))
-              : node.section === "mlp" ||
-                mlp.has(node.id) ||
-                node.id === (flow.parallel_residual ? "input" : "add-attn"),
-          );
+    const selected = flow.nodes;
     if (!selected.length) return;
     const left = Math.min(-90, ...flow.nodes.map((node) => node.x - 70));
     const right = Math.max(...selected.map((node) => node.x + 260));
@@ -174,7 +158,6 @@ function FitComputation({
     );
   }, [
     flow,
-    section,
     viewportInitialized,
     measurements,
     width,
@@ -193,30 +176,50 @@ export function BlockDataflow({
   onInspect: (name: string) => void;
 }) {
   const { t } = useI18n();
-  const [section, setSection] = useState(
+  const [preferredSection, setSection] = useState(
     flow?.provenance && !flow.nodes.some((node) => node.section === "attention")
       ? "all"
       : "attention",
   );
-  const [focused, setFocused] = useState("");
-  useEffect(() => {
-    setFocused("");
-    setSection(
-      flow?.provenance &&
-        !flow.nodes.some((node) => node.section === "attention")
+  const [selection, setSelection] = useState<{
+    flow: BlockFlow;
+    id: string;
+  } | null>(null);
+  const section =
+    flow && hasFlowSection(flow, preferredSection)
+      ? preferredSection
+      : flow?.provenance && !hasFlowSection(flow, "attention")
         ? "all"
-        : "attention",
-    );
-  }, [flow]);
+        : "attention";
+  const visibleFlow = useMemo(
+    () => (flow ? focusBlockFlow(flow, section) : undefined),
+    [flow, section],
+  );
+  const focused =
+    selection?.flow === flow &&
+    visibleFlow?.nodes.some((node) => node.id === selection?.id)
+      ? selection!.id
+      : "";
+  function operationName(node: BlockFlow["nodes"][number]) {
+    const origin = node.boundary
+      ? flow?.nodes.find((item) => item.id === node.boundary_origin)
+      : undefined;
+    return origin
+      ? t("{operation} · {origin}", {
+          operation: t(node.label),
+          origin: t(origin.label),
+        })
+      : t(node.label);
+  }
   const connected = useMemo(() => {
-    if (!focused || !flow) return null;
+    if (!focused || !visibleFlow) return null;
     const result = new Set([focused]);
     for (const direction of ["up", "down"]) {
       const visited = new Set([focused]);
       const queue = [focused];
       while (queue.length) {
         const current = queue.pop()!;
-        for (const edge of flow.edges) {
+        for (const edge of visibleFlow.edges) {
           const next =
             direction === "up"
               ? edge.target === current
@@ -234,10 +237,10 @@ export function BlockDataflow({
       }
     }
     return result;
-  }, [flow, focused]);
+  }, [visibleFlow, focused]);
   const { nodes, edges } = useMemo(
     () => ({
-      nodes: (flow?.nodes ?? []).map((node) => ({
+      nodes: (visibleFlow?.nodes ?? []).map((node) => ({
         id: node.id,
         type: "operation" as const,
         position: { x: node.x, y: node.y },
@@ -248,10 +251,11 @@ export function BlockDataflow({
           detail: node.detail,
           weight: node.weight,
           opaque: node.opaque,
+          boundary: node.boundary,
           onInspect,
         },
       })),
-      edges: (flow?.edges ?? []).map((edge, index) => ({
+      edges: (visibleFlow?.edges ?? []).map((edge, index) => ({
         id: String(index),
         source: edge.source,
         target: edge.target,
@@ -265,15 +269,22 @@ export function BlockDataflow({
         type: edge.residual
           ? "residual"
           : flow?.provenance &&
-              (flow.nodes.find((node) => node.id === edge.target)?.y ?? 0) -
-                (flow.nodes.find((node) => node.id === edge.source)?.y ?? 0) >
+              (visibleFlow?.nodes.find((node) => node.id === edge.target)?.y ??
+                0) -
+                (visibleFlow?.nodes.find((node) => node.id === edge.source)
+                  ?.y ?? 0) >
                 115
             ? "skip"
             : "smoothstep",
         data: {
           lane: edge.residual
-            ? Math.min(-55, ...(flow?.nodes ?? []).map((node) => node.x - 55))
-            : Math.max(...(flow?.nodes ?? []).map((node) => node.x + 205)) +
+            ? Math.min(
+                -55,
+                ...(visibleFlow?.nodes ?? []).map((node) => node.x - 55),
+              )
+            : Math.max(
+                ...(visibleFlow?.nodes ?? []).map((node) => node.x + 205),
+              ) +
               (index % 4) * 12,
         },
         style: {
@@ -294,9 +305,9 @@ export function BlockDataflow({
         },
       })),
     }),
-    [flow, onInspect, t, connected],
+    [flow, visibleFlow, onInspect, t, connected],
   );
-  if (!flow?.supported)
+  if (!flow?.supported || !visibleFlow)
     return (
       <div className="empty-inline">
         {t(
@@ -321,7 +332,7 @@ export function BlockDataflow({
       {flow.provenance && (
         <div className="flow-coverage" role="status">
           <strong>
-            {t("{mapped} of {total} matrices connected", {
+            {t("{mapped} of {total} block matrices connected", {
               mapped: flow.mapped_matrices ?? 0,
               total: flow.total_matrices ?? 0,
             })}
@@ -338,7 +349,10 @@ export function BlockDataflow({
           <select
             aria-label={t("Diagram focus")}
             value={section}
-            onChange={(event) => setSection(event.target.value)}
+            onChange={(event) => {
+              setSection(event.target.value);
+              setSelection(null);
+            }}
           >
             <option value="all">{t("Full block")}</option>
             {(!flow.provenance ||
@@ -362,12 +376,16 @@ export function BlockDataflow({
           <select
             aria-label={t("Trace connections")}
             value={focused}
-            onChange={(event) => setFocused(event.target.value)}
+            onChange={(event) =>
+              setSelection(
+                event.target.value ? { flow, id: event.target.value } : null,
+              )
+            }
           >
             <option value="">{t("All connections")}</option>
-            {flow.nodes.map((node) => (
+            {visibleFlow.nodes.map((node) => (
               <option key={node.id} value={node.id}>
-                {t(node.label)}
+                {operationName(node)}
                 {node.weight
                   ? " · " + node.weight.split(".").slice(-2, -1)[0]
                   : ""}
@@ -377,7 +395,9 @@ export function BlockDataflow({
         </label>
         <span>
           {t(
-            "Blue arrows carry activations. Gold arrows carry the residual stream.",
+            visibleFlow.edges.some((edge) => edge.residual)
+              ? "Blue arrows carry activations. Gold arrows carry the residual stream."
+              : "Blue arrows carry activations.",
           )}
         </span>
       </div>
@@ -404,7 +424,7 @@ export function BlockDataflow({
           deleteKeyCode={null}
           aria-label={t("Transformer block computation flow")}
         >
-          <FitComputation flow={flow} section={section} />
+          <FitComputation flow={visibleFlow} />
           <Background color="var(--line)" gap={20} size={1} />
           <Controls showInteractive={false} />
         </ReactFlow>
@@ -433,9 +453,9 @@ export function BlockDataflow({
       <details className="flow-description">
         <summary>{t("Read the computation and scope")}</summary>
         <ol>
-          {flow.nodes.map((node) => (
+          {visibleFlow.nodes.map((node) => (
             <li key={node.id}>
-              <strong>{t(node.label)}</strong>
+              <strong>{operationName(node)}</strong>
               {node.weight ? (
                 <button
                   className="text-link"
@@ -449,20 +469,33 @@ export function BlockDataflow({
               <small>
                 {t("Output goes to {targets}", {
                   targets:
-                    flow.edges
+                    visibleFlow.edges
                       .filter((edge) => edge.source === node.id)
                       .map((edge) =>
-                        t(
-                          flow.nodes.find((item) => item.id === edge.target)
-                            ?.label || edge.target,
+                        operationName(
+                          visibleFlow.nodes.find(
+                            (item) => item.id === edge.target,
+                          )!,
                         ),
                       )
-                      .join(" · ") || t("Next block"),
+                      .join(" · ") ||
+                    t(
+                      node.boundary === "output"
+                        ? "Outside this path"
+                        : "Next block",
+                    ),
                 })}
               </small>
             </li>
           ))}
         </ol>
+        {section !== "all" && (
+          <p>
+            {t(
+              "Boundary nodes show values entering or leaving the selected path.",
+            )}
+          </p>
+        )}
         {flow.provenance && (
           <p>
             {t(

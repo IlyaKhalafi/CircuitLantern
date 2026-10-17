@@ -171,6 +171,31 @@ def serve(port: int):
                 "total_parameters": total,
             }
 
+        @main.app.get("/api/test/parallel-graph")
+        def parallel_graph():
+            from transformers import GPTNeoXConfig, GPTNeoXForCausalLM
+
+            from circuit_lantern.services.dataflow import block_dataflow
+            from circuit_lantern.services.weights import model_weight_inventory
+
+            config = GPTNeoXConfig(
+                vocab_size=1000,
+                hidden_size=32,
+                intermediate_size=64,
+                num_hidden_layers=2,
+                num_attention_heads=4,
+                use_parallel_residual=True,
+            )
+            with torch.device("meta"):
+                parallel = GPTNeoXForCausalLM(config)
+            weights, total = model_weight_inventory(parallel)
+            return {
+                "metadata": dict(main.app.state.runtime.metadata, num_layers=2),
+                "matrices": weights,
+                "dataflow": block_dataflow(parallel, parallel.gpt_neox.layers, weights),
+                "total_parameters": total,
+            }
+
         original_lifespan = main.app.router.lifespan_context
 
         @asynccontextmanager
