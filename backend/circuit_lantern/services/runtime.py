@@ -141,6 +141,7 @@ class ModelRuntime:
         except Exception as error:  # noqa: BLE001 - a failed download must preserve the active model
             job.update(status="failed", progress=0, message=str(error)[:1000])
             return
+        failure = None
         with self.lock:
             model = tokenizer = None
             released_model = False
@@ -207,21 +208,22 @@ class ModelRuntime:
                     "context_length": context_limit,
                     "attention_head_targets": attention_head_targets(self._blocks()),
                 }
-                job.update(status="ready", progress=100, message="Model is ready for inspection")
             except Exception as error:  # noqa: BLE001 - worker failures must reach the job record
                 model = tokenizer = None
-                job.update(
-                    status="failed",
-                    progress=0,
-                    message=str(error)[:800]
-                    + (
-                        " The previous model was released before loading the replacement."
-                        if released_model
-                        else ""
-                    ),
+                failure = str(error)[:650] + (
+                    " The previous model was released before loading the replacement."
+                    if released_model
+                    else ""
                 )
-            if job["status"] == "failed" and (replacement_started or self.model is None):
-                self._unload()
+            if failure is not None and (replacement_started or self.model is None):
+                try:
+                    self._unload()
+                except Exception as error:  # noqa: BLE001 - cleanup failures must not strand a job
+                    failure += " Model cleanup also failed. " + str(error)[:200]
+        if failure is None:
+            job.update(status="ready", progress=100, message="Model is ready for inspection")
+        else:
+            job.update(status="failed", progress=0, message=failure[:1000])
 
     def _unload(self):
         self.model = self.tokenizer = self.metadata = None
