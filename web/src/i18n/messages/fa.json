@@ -1909,7 +1909,6 @@
   "Score is target logit minus alternative logit.": "امتیاز برابر است با لوجیت هدف منهای لوجیت جایگزین.",
   "Score is target log probability.": "امتیاز برابر با لگاریتم احتمال هدف است.",
   "Recovery uses {count} positive-gap pairs. Other completed pairs remain in the raw effect view.": "بازیابی از {count} جفت با شکاف مثبت استفاده می‌کند. سایر جفت‌های تکمیل‌شده در نمای اثر خام باقی می‌مانند.",
-  "Raw effects include all {count} completed pairs, including {excluded} without a positive baseline gap.": "اثرهای خام شامل همهٔ {count} جفت تکمیل‌شده است، از جمله {excluded} جفت بدون شکاف پایهٔ مثبت.",
   "At least two positive-gap pairs are needed for a recovery interval.": "برای بازهٔ بازیابی دست‌کم دو جفت با شکاف مثبت لازم است.",
   "95% lower bound": "کران پایین بازهٔ 95%",
   "95% upper bound": "کران بالای بازهٔ 95%",
@@ -1956,5 +1955,6 @@
   "Insufficient free GPU memory for this prompt set.": "حافظهٔ آزاد GPU برای این مجموعهٔ پرامپت کافی نیست.",
   "Insufficient disk space for the saved prompt set.": "فضای دیسک برای ذخیرهٔ مجموعهٔ پرامپت کافی نیست.",
   "The active model changed during the prompt set.": "مدل فعال در حین اجرای مجموعهٔ پرامپت تغییر کرد.",
-  "Captured source or token IDs differ from the validated plan.": "منبع یا شناسه‌های توکن ثبت‌شده با طرح اعتبارسنجی‌شده مطابقت ندارند."
+  "Captured source or token IDs differ from the validated plan.": "منبع یا شناسه‌های توکن ثبت‌شده با طرح اعتبارسنجی‌شده مطابقت ندارند.",
+  "Raw effects include all {count} completed pairs, including {excluded} excluded from recovery.": "اثرات خام شامل هر {count} جفت تکمیل‌شده است، از جمله {excluded} جفت که از محاسبهٔ بازیابی کنار گذاشته شده‌اند."
 }

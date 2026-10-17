@@ -1909,7 +1909,6 @@
   "Score is target logit minus alternative logit.": "Le score est le logit de la cible moins le logit de l'alternative.",
   "Score is target log probability.": "Le score est la log-probabilité de la cible.",
   "Recovery uses {count} positive-gap pairs. Other completed pairs remain in the raw effect view.": "La récupération utilise {count} paires à écart positif. Les autres paires terminées restent dans la vue des effets bruts.",
-  "Raw effects include all {count} completed pairs, including {excluded} without a positive baseline gap.": "Les effets bruts incluent les {count} paires terminées, dont {excluded} sans écart de référence positif.",
   "At least two positive-gap pairs are needed for a recovery interval.": "Au moins deux paires à écart positif sont nécessaires pour un intervalle de récupération.",
   "95% lower bound": "Borne inférieure de l'intervalle à 95%",
   "95% upper bound": "Borne supérieure de l'intervalle à 95%",
@@ -1956,5 +1955,6 @@
   "Insufficient free GPU memory for this prompt set.": "Mémoire GPU libre insuffisante pour cet ensemble de prompts.",
   "Insufficient disk space for the saved prompt set.": "Espace disque insuffisant pour l'ensemble de prompts enregistré.",
   "The active model changed during the prompt set.": "Le modèle actif a changé pendant l'exécution de l'ensemble de prompts.",
-  "Captured source or token IDs differ from the validated plan.": "La source ou les ID de tokens capturés diffèrent du plan validé."
+  "Captured source or token IDs differ from the validated plan.": "La source ou les ID de tokens capturés diffèrent du plan validé.",
+  "Raw effects include all {count} completed pairs, including {excluded} excluded from recovery.": "Les effets bruts incluent les {count} paires terminées, dont {excluded} sont exclues du calcul de récupération."
 }

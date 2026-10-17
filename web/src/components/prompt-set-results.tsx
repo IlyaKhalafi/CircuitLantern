@@ -191,7 +191,7 @@ export function PromptSetResults({ result }: { result: PromptSetResult }) {
             {!recovery && (
               <p className="control-note">
                 {t(
-                  "Raw effects include all {count} completed pairs, including {excluded} without a positive baseline gap.",
+                  "Raw effects include all {count} completed pairs, including {excluded} excluded from recovery.",
                   {
                     count: result.completed_pairs,
                     excluded: result.completed_pairs - result.recovery_pairs,

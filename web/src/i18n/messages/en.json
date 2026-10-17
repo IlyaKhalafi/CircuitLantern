@@ -1909,7 +1909,6 @@
   "Score is target logit minus alternative logit.": "Score is target logit minus alternative logit.",
   "Score is target log probability.": "Score is target log probability.",
   "Recovery uses {count} positive-gap pairs. Other completed pairs remain in the raw effect view.": "Recovery uses {count} positive-gap pairs. Other completed pairs remain in the raw effect view.",
-  "Raw effects include all {count} completed pairs, including {excluded} without a positive baseline gap.": "Raw effects include all {count} completed pairs, including {excluded} without a positive baseline gap.",
   "At least two positive-gap pairs are needed for a recovery interval.": "At least two positive-gap pairs are needed for a recovery interval.",
   "95% lower bound": "95% lower bound",
   "95% upper bound": "95% upper bound",
@@ -1956,5 +1955,6 @@
   "Insufficient free GPU memory for this prompt set.": "Insufficient free GPU memory for this prompt set.",
   "Insufficient disk space for the saved prompt set.": "Insufficient disk space for the saved prompt set.",
   "The active model changed during the prompt set.": "The active model changed during the prompt set.",
-  "Captured source or token IDs differ from the validated plan.": "Captured source or token IDs differ from the validated plan."
+  "Captured source or token IDs differ from the validated plan.": "Captured source or token IDs differ from the validated plan.",
+  "Raw effects include all {count} completed pairs, including {excluded} excluded from recovery.": "Raw effects include all {count} completed pairs, including {excluded} excluded from recovery."
 }

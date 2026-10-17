@@ -339,6 +339,7 @@ export function PromptSetWorkbench({
                         <label>
                           {t("Pair label")}
                           <input
+                            className="form-input"
                             value={pair.label}
                             dir="auto"
                             maxLength={100}
@@ -409,6 +410,7 @@ export function PromptSetWorkbench({
                         <label>
                           {t("Target token")}
                           <input
+                            className="form-input"
                             dir="auto"
                             value={pair.target}
                             maxLength={100}
@@ -422,6 +424,7 @@ export function PromptSetWorkbench({
                           <label>
                             {t("Alternative token")}
                             <input
+                              className="form-input"
                               dir="auto"
                               value={pair.alternative}
                               maxLength={100}
@@ -472,6 +475,7 @@ export function PromptSetWorkbench({
                 <label>
                   {t("Layer indices")}
                   <input
+                    className="form-input"
                     dir="ltr"
                     placeholder={t("All layers, or indices such as 0, 4, 8")}
                     value={draft.layers}
@@ -482,6 +486,7 @@ export function PromptSetWorkbench({
                 <label>
                   {t("Bootstrap seed")}
                   <input
+                    className="form-input"
                     type="number"
                     min={0}
                     max={4294967295}

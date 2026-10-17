@@ -1909,7 +1909,6 @@
   "Score is target logit minus alternative logit.": "スコアはターゲットのロジットから代替のロジットを引いた値です。",
   "Score is target log probability.": "スコアはターゲットの対数確率です。",
   "Recovery uses {count} positive-gap pairs. Other completed pairs remain in the raw effect view.": "回復率には正の差を持つ {count} ペアを使用します。その他の完了済みペアは生の効果ビューに残ります。",
-  "Raw effects include all {count} completed pairs, including {excluded} without a positive baseline gap.": "生の効果には完了した {count} ペアすべてが含まれ、そのうち {excluded} ペアは正のベースライン差がありません。",
   "At least two positive-gap pairs are needed for a recovery interval.": "回復率の区間には、正の差を持つペアが少なくとも 2 つ必要です。",
   "95% lower bound": "95% 区間の下限",
   "95% upper bound": "95% 区間の上限",
@@ -1956,5 +1955,6 @@
   "Insufficient free GPU memory for this prompt set.": "このプロンプトセットには空き GPU メモリが不足しています。",
   "Insufficient disk space for the saved prompt set.": "プロンプトセットを保存するためのディスク容量が不足しています。",
   "The active model changed during the prompt set.": "プロンプトセットの実行中にアクティブなモデルが変更されました。",
-  "Captured source or token IDs differ from the validated plan.": "キャプチャしたソースまたはトークン ID が、検証済みのプランと一致しません。"
+  "Captured source or token IDs differ from the validated plan.": "キャプチャしたソースまたはトークン ID が、検証済みのプランと一致しません。",
+  "Raw effects include all {count} completed pairs, including {excluded} excluded from recovery.": "生の効果には、回復率の計算から除外された {excluded} 組を含む、完了した全 {count} 組が含まれます。"
 }
