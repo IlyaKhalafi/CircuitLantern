@@ -300,7 +300,7 @@ export default function CausalPage() {
             )}
           </Panel>
           {!result && !busy && (
-            <div className="guide-callout">
+            <div className="guide-callout method-explanation">
               <h2>{t("What the sweep measures")}</h2>
               <p>
                 {t(

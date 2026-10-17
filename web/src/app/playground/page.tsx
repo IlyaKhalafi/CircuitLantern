@@ -284,9 +284,12 @@ export default function PlaygroundPage() {
                           <option key={n} value={n}>
                             {n === 0
                               ? t("Capture only")
-                              : t("{v0} tokens", {
-                                  v0: n,
-                                })}
+                              : t(
+                                  "{count, plural, one {# token} other {# tokens}}",
+                                  {
+                                    count: n,
+                                  },
+                                )}
                           </option>
                         ))}
                     </select>

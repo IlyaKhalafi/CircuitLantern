@@ -139,3 +139,61 @@
     font-size: 20px;
   }
 }
+
+.button[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.notice.warning {
+  background: var(--accent-tint);
+  border-color: var(--accent);
+  color: var(--ink);
+}
+.guide-callout.method-explanation {
+  background: var(--panel);
+  border-color: var(--line);
+  color: var(--muted);
+}
+.guide-callout.method-explanation h2 {
+  color: var(--ink);
+}
+.prompt-controls label {
+  font-size: 12px;
+}
+.flow-layer-pattern small {
+  font-size: 11px;
+}
+.flow-layer-pattern button {
+  flex-basis: 58px;
+}
+.breadcrumb {
+  min-width: 0;
+}
+@media (max-width: 1200px) {
+  .breadcrumb-parent {
+    display: none;
+  }
+}
+@media (max-width: 720px) {
+  .topbar {
+    height: auto;
+    min-height: 88px;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding-bottom: 8px;
+  }
+  .topbar-tools {
+    order: 0;
+  }
+  .breadcrumb {
+    position: static;
+    inset: auto;
+    order: 1;
+  }
+  .breadcrumb strong {
+    white-space: normal;
+    line-height: 1.3;
+    overflow: visible;
+  }
+}

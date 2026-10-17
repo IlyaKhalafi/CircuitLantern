@@ -11,6 +11,8 @@ import {
   PageHeader,
   Panel,
 } from "@/components/ui";
+import { ExecutionContext } from "@/components/execution-context";
+import type { RuntimeState } from "@/lib/types";
 import { FeatureTraining } from "@/components/feature-training";
 import { FeatureBrowser } from "@/components/feature-browser";
 import { FeatureInspectionPanel } from "@/components/feature-inspection";
@@ -27,6 +29,7 @@ export default function FeaturesPage() {
   const [capabilities, setCapabilities] = useState<FeatureCapabilities | null>(
     null,
   );
+  const [runtime, setRuntime] = useState<RuntimeState | null>(null);
   const [dictionaries, setDictionaries] = useState<DictionarySummary[]>([]);
   const [selected, setSelected] = useState("");
   const [dictionary, setDictionary] = useState<DictionaryManifest | null>(null);
@@ -40,6 +43,7 @@ export default function FeaturesPage() {
     const responses = await Promise.allSettled([
       api<FeatureCapabilities>("/features/capabilities"),
       api<DictionarySummary[]>("/features/dictionaries"),
+      api<RuntimeState>("/runtime"),
     ]);
     if (responses[0].status === "fulfilled")
       setCapabilities(responses[0].value);
@@ -49,6 +53,7 @@ export default function FeaturesPage() {
       setDictionaries(listing);
       setSelected((current) => current || listing[0]?.id || "");
     } else setError(responses[1].reason.message);
+    setRuntime(responses[2].status === "fulfilled" ? responses[2].value : null);
     setLoading(false);
   }, []);
   useEffect(() => {
@@ -111,6 +116,12 @@ export default function FeaturesPage() {
       <PageHeader
         eyebrow={t("SPARSE FEATURES")}
         title={t("Feature lab")}
+        description={
+          runtime?.metadata?.execution_id &&
+          runtime.metadata.execution_id === executionId ? (
+            <ExecutionContext runtime={runtime} />
+          ) : undefined
+        }
         help={t(
           "Train sparse autoencoders, inspect their features and test causal effects without writing code.",
         )}

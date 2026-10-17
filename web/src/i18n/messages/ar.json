@@ -2041,5 +2041,11 @@
   "Activations": "التنشيطات",
   "CPU": "المعالج المركزي",
   "Prompt limit {count} tokens": "حد الإدخال {count} رمزًا",
-  "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.": "تتبّع تنشيطات الإدخال مع التوليد الجشع. اختر التسجيل فقط لتجاوز توليد تتمة."
+  "Trace prompt activations with greedy generation. Choose Capture only to skip generating a continuation.": "تتبّع تنشيطات الإدخال مع التوليد الجشع. اختر التسجيل فقط لتجاوز توليد تتمة.",
+  "Training is running.": "التدريب قيد التشغيل.",
+  "Verified GPT-2, Llama, Qwen2 and GPT-NeoX attention layouts are supported.": "تُدعم تخطيطات الانتباه التي تم التحقق منها في GPT-2 وLlama وQwen2 وGPT-NeoX.",
+  "{count, plural, one {# token} other {# tokens}}": "{count, plural, zero {# رموز} one {رمز واحد} two {رمزان} few {# رموز} many {# رمزًا} other {# رمز}}",
+  "{amount} GPU free": "{amount} ذاكرة GPU متاحة",
+  "{amount} RAM free": "{amount} ذاكرة RAM متاحة",
+  "{amount} disk free": "{amount} مساحة قرص متاحة"
 }

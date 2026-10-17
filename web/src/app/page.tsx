@@ -203,17 +203,35 @@ export default function LibraryPage() {
       {!selected && <ErrorNotice message={error} />}
       <div className="library-server-summary">
         <Cpu size={16} />
-        <span>
-          {hardware?.execution_gpu?.name || hardware?.gpus[0]?.name || t("CPU")}
-        </span>
         {hardware && (
           <>
+            <bdi>
+              {hardware.execution_gpu?.name ||
+                hardware.gpus[0]?.name ||
+                t("CPU")}
+            </bdi>
+            {(hardware.execution_gpu || hardware.gpus[0]) && (
+              <span>
+                {rich("{amount} GPU free", {
+                  amount: (
+                    <bdi>
+                      {bytes(
+                        (hardware.execution_gpu || hardware.gpus[0]).free_bytes,
+                      )}
+                    </bdi>
+                  ),
+                })}
+              </span>
+            )}
             <span>
-              {bytes(hardware.ram_available_bytes)}{" "}
-              {t("Available system memory")}
+              {rich("{amount} RAM free", {
+                amount: <bdi>{bytes(hardware.ram_available_bytes)}</bdi>,
+              })}
             </span>
             <span>
-              {bytes(hardware.disk_free_bytes)} {t("Free disk space")}
+              {rich("{amount} disk free", {
+                amount: <bdi>{bytes(hardware.disk_free_bytes)}</bdi>,
+              })}
             </span>
           </>
         )}
