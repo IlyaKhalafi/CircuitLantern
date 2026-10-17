@@ -249,8 +249,10 @@ test("retain paired checkpoint activations, train unloaded and explore joint fea
     await request.delete("/api/runtime");
     await page.getByRole("button", { name: "Refresh", exact: true }).click();
     await expect(
-      page.locator(".crosscoder-session .execution-context bdi").first(),
-    ).toHaveText("No model loaded");
+      page
+        .locator(".crosscoder-session")
+        .getByText("No model loaded", { exact: true }),
+    ).toBeVisible();
     await training
       .getByLabel("Comparison name", { exact: true })
       .fill("Joint comparison {raw}");
