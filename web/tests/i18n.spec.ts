@@ -121,6 +121,7 @@ test("server page titles follow language cookies before hydration", async ({
     for (const [path, label] of [
       ["/causal", "Causal tracing"],
       ["/causal/heads", "Head ablation"],
+      ["/causal/heads/induction", "Induction probe"],
       ["/workspace", "Model explorer"],
     ] as const) {
       await page.goto(path, { waitUntil: "domcontentloaded" });
