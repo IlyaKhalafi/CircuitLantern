@@ -1690,5 +1690,7 @@
   "Insufficient free GPU memory for this head probe with the model resident.": "الذاكرة الرسومية الحرة لا تكفي للاختبار مع بقاء النموذج محملاً.",
   "Insufficient disk space for the saved probe evidence.": "مساحة القرص لا تكفي لحفظ أدلة الاختبار.",
   "The probe vocabulary changed. Start the measurement again.": "تغيرت مفردات الاختبار. أعد بدء القياس.",
-  "Pattern evidence and a causal test on the same probes.": "أدلة نمطية واختبار سببي على أمثلة الاختبار نفسها."
+  "Pattern evidence and a causal test on the same probes.": "أدلة نمطية واختبار سببي على أمثلة الاختبار نفسها.",
+  "Enter valid probe settings to estimate the workload.": "أدخل إعدادات مسبار صالحة لتقدير حجم العمل.",
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "دلتا هي لوغاريتم الاحتمال بعد الاستئصال ناقص خط الأساس بوحدة نات. القيم السالبة تعني أن إزالة الرأس خفضت احتمال الهدف الدوري. تقارن KL توزيع خط الأساس بتوزيع الاستئصال على كامل المفردات."
 }

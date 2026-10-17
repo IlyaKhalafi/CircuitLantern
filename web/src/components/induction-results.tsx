@@ -262,7 +262,7 @@ export function InductionResults({ result }: { result: InductionResult }) {
                     )}
                     <p className="inline-note">
                       {t(
-                        "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL uses the full vocabulary.",
+                        "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.",
                       )}
                     </p>
                   </div>

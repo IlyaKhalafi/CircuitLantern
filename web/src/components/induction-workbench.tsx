@@ -33,6 +33,14 @@ export function InductionWorkbench() {
         (item) => !settings?.layers || settings.layers.includes(item.layer),
       )
       .reduce((sum, item) => sum + item.heads, 0) || 0;
+  const previewReady =
+    settings &&
+    [
+      settings.examples,
+      settings.causal_heads,
+      settings.block_length,
+      settings.repeats,
+    ].every(Number.isFinite);
   const forwards = settings
     ? settings.examples * (1 + Math.min(settings.causal_heads, selectedHeads))
     : 0;
@@ -116,6 +124,12 @@ export function InductionWorkbench() {
           >
             <form
               className="induction-form"
+              onInvalidCapture={(event) => {
+                const details = (event.target as HTMLElement).closest(
+                  "details",
+                );
+                if (details) details.open = true;
+              }}
               onSubmit={(event) => {
                 event.preventDefault();
                 lab.check(true);
@@ -136,21 +150,25 @@ export function InductionWorkbench() {
                         {"A B C"} <span aria-hidden="true">···</span>
                       </strong>
                       <small>
-                        {t("{v0} tokens", { v0: settings.block_length })}
+                        {Number.isFinite(settings.block_length)
+                          ? t("{v0} tokens", { v0: settings.block_length })
+                          : t("Unavailable")}
                       </small>
                     </div>
                   ),
                 )}
               </div>
               <p className="inline-note">
-                {t(
-                  "{v0} probes and up to {v1} candidate ablations use {v2} forward passes.",
-                  {
-                    v0: settings.examples,
-                    v1: Math.min(settings.causal_heads, selectedHeads),
-                    v2: forwards,
-                  },
-                )}
+                {previewReady
+                  ? t(
+                      "{v0} probes and up to {v1} candidate ablations use {v2} forward passes.",
+                      {
+                        v0: settings.examples,
+                        v1: Math.min(settings.causal_heads, selectedHeads),
+                        v2: forwards,
+                      },
+                    )
+                  : t("Enter valid probe settings to estimate the workload.")}
               </p>
               <details className="induction-advanced">
                 <summary>{t("Probe settings")}</summary>

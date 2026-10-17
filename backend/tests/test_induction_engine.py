@@ -279,3 +279,44 @@ def test_resource_plan_blocks_missing_headroom(runtime, constraint):
         hardware=hardware,
     )
     assert not plan["compatible"] and plan["blockers"]
+
+
+def test_kl_direction_matches_a_fixed_asymmetric_probability_example(runtime):
+    import math
+
+    original = runtime.model.forward
+    vocabulary = runtime.model.config.vocab_size
+    p = [0.85] + [0.15 / (vocabulary - 1)] * (vocabulary - 1)
+    q = [1 / vocabulary] * vocabulary
+
+    def controlled(*args, **kwargs):
+        ablated = any(block.attn.c_proj._forward_pre_hooks for block in runtime._blocks())
+        output = original(*args, **kwargs)
+        distribution = q if ablated else p
+        values = torch.tensor(distribution, dtype=torch.float64).log()
+        output.logits = values.reshape(1, 1, -1).expand_as(output.logits).clone()
+        return output
+
+    with patch.object(runtime.model, "forward", side_effect=controlled):
+        result, _ = probe(runtime)
+    assert result["complete"], result.get("error")
+    expected = sum(value * math.log(value / other) for value, other in zip(p, q, strict=True))
+    reverse = sum(value * math.log(value / other) for value, other in zip(q, p, strict=True))
+    actual = result["causal_results"][0]["mean_kl_divergence"]
+    assert actual == pytest.approx(expected, abs=1e-12)
+    assert abs(actual - reverse) > 0.1
+    assert_no_hooks(runtime)
+
+
+@pytest.mark.parametrize("dtype", [torch.float16, torch.bfloat16])
+def test_half_precision_teacher_patterns_and_causal_distributions_remain_finite(runtime, dtype):
+    runtime.model.to(dtype=dtype)
+    before = {name: value.clone() for name, value in runtime.model.state_dict().items()}
+    result, _ = probe(runtime)
+    assert result["complete"], result.get("error")
+    assert result["logits_dtype"] == str(dtype).removeprefix("torch.")
+    assert torch.isfinite(torch.tensor([row["prefix_attention"] for row in result["heads"]])).all()
+    assert result["causal_results"][0]["mean_kl_divergence"] >= 0
+    for name, value in runtime.model.state_dict().items():
+        assert torch.equal(value, before[name])
+    assert_no_hooks(runtime)

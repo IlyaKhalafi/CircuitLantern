@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, post } from "@/lib/api";
 import { useBackgroundJob } from "@/lib/jobs";
 import { useRuntime } from "@/lib/runtime";
+import { normalizeProbeDraft } from "@/lib/induction-settings";
 import type {
   InductionCapabilities,
   InductionPlan,
@@ -14,32 +15,19 @@ import type {
 function restoreSettings(
   execution: string,
   fallback: InductionSettings,
+  layers: number[],
 ): InductionSettings {
   try {
-    const value = JSON.parse(
-      sessionStorage.getItem("lantern-induction-settings-" + execution) ||
-        "null",
+    return normalizeProbeDraft(
+      JSON.parse(
+        sessionStorage.getItem("lantern-induction-settings-" + execution) ||
+          "null",
+      ),
+      fallback,
+      layers,
     );
-    if (!value || Object.keys(fallback).some((key) => !(key in value)))
-      return fallback;
-    for (const key of [
-      "block_length",
-      "repeats",
-      "examples",
-      "seed",
-      "causal_heads",
-    ])
-      if (!Number.isSafeInteger(value[key])) return fallback;
-    if (
-      typeof value.include_start_token !== "boolean" ||
-      (value.layers !== null &&
-        (!Array.isArray(value.layers) ||
-          !value.layers.every(Number.isSafeInteger)))
-    )
-      return fallback;
-    return value;
   } catch {
-    return fallback;
+    return { ...fallback };
   }
 }
 
@@ -86,7 +74,11 @@ export function useInduction() {
               ? previous
               : {
                   execution,
-                  value: restoreSettings(execution, value.recommended!),
+                  value: restoreSettings(
+                    execution,
+                    value.recommended!,
+                    value.layers.map((row) => row.layer),
+                  ),
                 },
           );
         }

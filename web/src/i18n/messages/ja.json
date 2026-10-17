@@ -1690,5 +1690,7 @@
   "Insufficient free GPU memory for this head probe with the model resident.": "モデルを常駐させた状態ではこのヘッドプローブ用のGPUメモリが不足しています。",
   "Insufficient disk space for the saved probe evidence.": "プローブの証拠を保存するディスク容量が不足しています。",
   "The probe vocabulary changed. Start the measurement again.": "プローブの語彙が変更されました。測定を再実行してください。",
-  "Pattern evidence and a causal test on the same probes.": "パターンの証拠と、同じプローブを使った因果テスト。"
+  "Pattern evidence and a causal test on the same probes.": "パターンの証拠と、同じプローブを使った因果テスト。",
+  "Enter valid probe settings to estimate the workload.": "有効なプローブ設定を入力すると処理量を見積もれます。",
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "差分はアブレーション後からベースラインを引いた対数確率で、単位は nat です。負の値はヘッド除去で周期的な正解トークンの確率が低下したことを示します。KL は全語彙でベースライン分布からアブレーション後の分布への発散です。"
 }

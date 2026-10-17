@@ -1690,5 +1690,7 @@
   "Insufficient free GPU memory for this head probe with the model resident.": "Insufficient free GPU memory for this head probe with the model resident.",
   "Insufficient disk space for the saved probe evidence.": "Insufficient disk space for the saved probe evidence.",
   "The probe vocabulary changed. Start the measurement again.": "The probe vocabulary changed. Start the measurement again.",
-  "Pattern evidence and a causal test on the same probes.": "Pattern evidence and a causal test on the same probes."
+  "Pattern evidence and a causal test on the same probes.": "Pattern evidence and a causal test on the same probes.",
+  "Enter valid probe settings to estimate the workload.": "Enter valid probe settings to estimate the workload.",
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary."
 }

@@ -1690,5 +1690,7 @@
   "Insufficient free GPU memory for this head probe with the model resident.": "Mémoire GPU libre insuffisante pour ce test avec le modèle chargé.",
   "Insufficient disk space for the saved probe evidence.": "Espace disque insuffisant pour enregistrer les données du test.",
   "The probe vocabulary changed. Start the measurement again.": "Le vocabulaire du test a changé. Relancez la mesure.",
-  "Pattern evidence and a causal test on the same probes.": "Des mesures de motif et un test causal sur les mêmes exemples."
+  "Pattern evidence and a causal test on the same probes.": "Des mesures de motif et un test causal sur les mêmes exemples.",
+  "Enter valid probe settings to estimate the workload.": "Saisissez des paramètres de sonde valides pour estimer le travail.",
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "Le delta est la log-probabilité après ablation moins la référence, en nats. Une valeur négative signifie que retirer la tête réduit la probabilité de la cible périodique. La KL va de la distribution de référence vers celle après ablation, sur tout le vocabulaire."
 }

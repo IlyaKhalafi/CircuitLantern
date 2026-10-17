@@ -493,3 +493,73 @@ test("resource and capability failures recover without submitting a probe", asyn
     .click();
   expect(submissions).toBe(0);
 });
+
+test("invalid collapsed probe settings reopen the control and reload preserves other valid fields", async ({
+  page,
+  request,
+}) => {
+  const caps = await (await request.get("/api/induction/capabilities")).json();
+  const execution = caps.execution.execution_id;
+  await page.addInitScript(
+    ({ execution, value }) => {
+      if (!sessionStorage.getItem("lantern-induction-settings-" + execution))
+        sessionStorage.setItem(
+          "lantern-induction-settings-" + execution,
+          JSON.stringify(value),
+        );
+    },
+    {
+      execution,
+      value: {
+        ...caps.recommended,
+        examples: null,
+        seed: 23,
+        legacy_setting: 1,
+      },
+    },
+  );
+  let submissions = 0;
+  page.on("request", (request) => {
+    if (
+      request.method() === "POST" &&
+      request.url().endsWith("/api/induction/probe")
+    )
+      submissions++;
+  });
+  await page.goto("/causal/heads/induction");
+  await expect(
+    page.getByRole("button", { name: "Run probe", exact: true }),
+  ).toBeEnabled();
+  await page.getByText("Probe settings", { exact: true }).click();
+  const example = page.getByRole("spinbutton", {
+    name: "Probe examples",
+    exact: true,
+  });
+  const seedInput = page.getByRole("spinbutton", {
+    name: "Random seed",
+    exact: true,
+  });
+  await expect(seedInput).toHaveValue("23");
+  await expect(example).toHaveValue(String(caps.recommended.examples));
+  await example.fill("");
+  await expect(page.locator(".induction-form")).not.toContainText("NaN");
+  await page.getByText("Probe settings", { exact: true }).click();
+  await page.getByRole("button", { name: "Run probe", exact: true }).click();
+  await expect(page.locator(".induction-advanced")).toHaveAttribute("open", "");
+  await expect(example).toBeFocused();
+  expect(submissions).toBe(0);
+  await page.reload();
+  await page.getByText("Probe settings", { exact: true }).click();
+  await expect(seedInput).toHaveValue("23");
+  await expect(example).toHaveValue(String(caps.recommended.examples));
+  const planned = page.waitForRequest((request) =>
+    request.url().endsWith("/api/induction/plan"),
+  );
+  await page
+    .getByRole("button", { name: "Check resources", exact: true })
+    .click();
+  const payload = (await planned).postDataJSON();
+  expect(payload.seed).toBe(23);
+  expect(payload).not.toHaveProperty("legacy_setting");
+  expect(submissions).toBe(0);
+});

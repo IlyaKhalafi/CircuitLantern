@@ -1690,5 +1690,7 @@
   "Insufficient free GPU memory for this head probe with the model resident.": "حافظه آزاد پردازنده گرافیکی برای این آزمون با مدل بارگذاری‌شده کافی نیست.",
   "Insufficient disk space for the saved probe evidence.": "فضای دیسک برای ذخیره شواهد آزمون کافی نیست.",
   "The probe vocabulary changed. Start the measurement again.": "واژگان آزمون تغییر کرده است. سنجش را دوباره آغاز کنید.",
-  "Pattern evidence and a causal test on the same probes.": "شواهد الگویی و آزمون علّی روی همان نمونه‌ها."
+  "Pattern evidence and a causal test on the same probes.": "شواهد الگویی و آزمون علّی روی همان نمونه‌ها.",
+  "Enter valid probe settings to estimate the workload.": "برای برآورد حجم کار، تنظیمات معتبر کاوش را وارد کنید.",
+  "Delta is ablated minus baseline log probability in nats. Negative values mean removing the head reduced the periodic target probability. KL compares the baseline distribution to the ablated distribution over the full vocabulary.": "دلتا برابر لگاریتم احتمال پس از حذف منهای مقدار پایه، بر حسب نَت است. مقدار منفی یعنی حذف سر احتمال هدف تناوبی را کاهش داده است. KL توزیع پایه را با توزیع پس از حذف در کل واژگان مقایسه می‌کند."
 }
