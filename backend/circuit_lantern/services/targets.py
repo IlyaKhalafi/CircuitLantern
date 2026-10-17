@@ -5,6 +5,7 @@ from circuit_lantern.limits import (
     MAX_TARGET_PREVIEW_PIECES,
     MAX_TRACKED_TARGETS,
 )
+from circuit_lantern.services.tokens import special_token_ids
 
 
 def _target_problem(ids: list[int], vocabulary_size: int) -> str | None:
@@ -36,7 +37,7 @@ def _inspect_targets(
             raise ValueError(
                 f"Each tracked target must contain between {0 if allow_empty else 1} and {MAX_TARGET_CHARACTERS} characters."
             )
-    special = set(tokenizer.all_special_ids)
+    special = special_token_ids(tokenizer)
     previews = []
     seen = {}
     for index, text in enumerate(targets):

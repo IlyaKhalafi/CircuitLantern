@@ -2,6 +2,7 @@
 import { useI18n } from "@/i18n/provider";
 import { Modal } from "@/components/modal";
 import { ModelDiscovery } from "@/components/model-discovery";
+import { matchingProbeHref } from "@/lib/induction-comparison";
 import Image from "next/image";
 import {
   ArrowRight,
@@ -46,6 +47,25 @@ export default function LibraryPage() {
   const requestId = useRef(0);
   const checkQueue = useRef<Promise<void>>(Promise.resolve());
   useEffect(() => {
+    const query = new URLSearchParams(window.location.search);
+    if (
+      query.get("return") === "induction" &&
+      /^[a-f0-9]{32}$/.test(query.get("reference") || "")
+    ) {
+      const targetContext = Number(query.get("context"));
+      if (
+        Number.isSafeInteger(targetContext) &&
+        targetContext >= 16 &&
+        targetContext <= 131072
+      )
+        setContext(targetContext);
+      const targetPrecision = query.get("precision");
+      if (executionFormats.some(([value]) => value === targetPrecision))
+        setPrecision(targetPrecision!);
+      const targetDevice = query.get("device");
+      if (targetDevice === "cpu" || targetDevice === "cuda")
+        setDevice(targetDevice);
+    }
     api<Hardware>("/hardware")
       .then(setHardware)
       .catch(() => {});
@@ -90,11 +110,23 @@ export default function LibraryPage() {
     checkQueue.current = pending;
     await pending;
   }
-  async function poll(id: string) {
+  async function poll(id: string, generation: number) {
+    if (generation !== requestId.current) return;
     try {
       const result = await api<Job>(`/jobs/${id}`);
+      if (generation !== requestId.current) return;
       setJob(result);
       if (result.status === "ready") {
+        const query = new URLSearchParams(window.location.search);
+        const reference = query.get("reference");
+        if (
+          query.get("return") === "induction" &&
+          reference &&
+          /^[a-f0-9]{32}$/.test(reference)
+        ) {
+          router.push(matchingProbeHref(reference));
+          return;
+        }
         router.push(
           new URLSearchParams(window.location.search).get("return") ===
             "compare"
@@ -108,8 +140,9 @@ export default function LibraryPage() {
         setBusy(false);
         return;
       }
-      timer.current = setTimeout(() => poll(id), 1200);
+      timer.current = setTimeout(() => poll(id, generation), 1200);
     } catch (e) {
+      if (generation !== requestId.current) return;
       setError([
         (e as Error).message,
         "The server may still be preparing the model. Check Server & runtime before retrying.",
@@ -120,6 +153,7 @@ export default function LibraryPage() {
   }
   async function load() {
     if (!selected || !report) return;
+    const generation = requestId.current;
     setBusy(true);
     setError(null);
     setJob({
@@ -137,9 +171,11 @@ export default function LibraryPage() {
         context_length: report.context_length ?? context,
         device: report.device,
       });
+      if (generation !== requestId.current) return;
       setJob(result);
-      await poll(result.id);
+      await poll(result.id, generation);
     } catch (e) {
+      if (generation !== requestId.current) return;
       setError((e as Error).message);
       setBusy(false);
       setJob(null);

@@ -9,7 +9,7 @@ from dataclasses import dataclass
 
 import torch
 
-from circuit_lantern.services.tokens import capture_token_limit
+from circuit_lantern.services.tokens import capture_token_limit, special_token_ids
 
 
 class CaptureCancelled(Exception):
@@ -28,6 +28,7 @@ class PreparedCorpus:
     token_limit: int
     seed: int = 0
     shared_prefixes_excluded: int = 0
+    excluded_special_token_ids: tuple[int, ...] = ()
 
     @property
     def train_indices(self) -> list[int]:
@@ -46,6 +47,7 @@ class PreparedCorpus:
             "fingerprint": self.fingerprint,
             "duplicate_documents": self.duplicate_documents,
             "special_tokens_excluded": self.special_tokens_excluded,
+            "excluded_special_token_ids": list(self.excluded_special_token_ids),
             "first_position_excluded": self.first_position_excluded,
             "token_limit": self.token_limit,
             "split_seed": self.seed,
@@ -114,7 +116,7 @@ def prepare_corpus(
         raise ValueError("At least four document groups are needed after grouping near duplicates.")
     rng.shuffle(order)
     validation_groups = set(order[: max(1, round(len(order) * 0.2))])
-    special = set(tokenizer.all_special_ids) if exclude_special_tokens else set()
+    special = special_token_ids(tokenizer) if exclude_special_tokens else set()
     encoded = []
     descriptions = []
     candidates = {"train": [], "validation": []}
@@ -212,6 +214,7 @@ def prepare_corpus(
         fingerprint=fingerprint,
         duplicate_documents=len(documents) - len(distinct),
         special_tokens_excluded=exclude_special_tokens,
+        excluded_special_token_ids=tuple(sorted(special)),
         first_position_excluded=exclude_first_position,
         token_limit=token_limit,
         seed=seed,

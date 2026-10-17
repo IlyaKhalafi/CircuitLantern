@@ -52,6 +52,28 @@ The export retains exact input IDs, periodic target IDs, scored query positions,
 
 The sampler uses a local CPU random generator. It does not change the application's global random state. Token IDs pass directly to the model without decoding and retokenizing.
 
+## Compare checkpoints
+
+Save a completed or partial probe to **Experiments**, open its record and expand **Compare probe checkpoints**. Choose **Repeat with another checkpoint**, then **Choose a checkpoint** to return to the model library. The library carries over the reference device, precision and context allowance.
+
+After loading a compatible checkpoint, the matching probe replays the saved token IDs directly. Its dataset controls are locked until you clear the reference. Candidate ablations first reuse the reference's retained intervention coordinates among the selected layers, including when that reference was itself matched to an earlier checkpoint. Additional candidates follow its prefix ranking. They do not silently switch to the new checkpoint's highest ranked heads.
+
+Save the matching run and open its notebook link to compare both records. The comparison works after unloading the teacher. Attention scores and repeat losses are recalculated over the intersection of completed probe examples. Each head's causal difference uses its own intersection of completed baseline and ablated pairs. Missing measurements remain unavailable rather than becoming zero.
+
+The metric selector switches between prefix, duplicate and previous token attention, target log probability effects and KL divergence. Attention changes use percentage points. Causal changes use nats and compare two within-checkpoint intervention effects. The table defaults to paired heads, sorts by absolute change and supports layer filtering. JSON exports include both original records and derived paired measurements.
+
+Checkpoint identifiers and revisions may differ. Architecture and head coordinates, vocabulary token names and numeric IDs, decoded probe inputs, the complete dataset, execution settings and scoring conventions must agree. Captures without comparison provenance remain readable, but cannot be used for this comparison.
+
+Decoded-input checks retain special tokens and disable tokenizer cleanup and inserted special-token spacing. This keeps display preferences from changing an otherwise identical capture identity.
+
+Tokenizers can designate different special tokens while retaining the same vocabulary mapping. Matching runs preserve the reference sampling distribution by replaying its original IDs, even if the new tokenizer designates some IDs as special. The complete registered set includes the public special-token map and added tokens marked special. The exported input policy records this distinction. Saved results show the number of block positions designated special by the captured checkpoint tokenizer and link back to the reference evidence.
+
+A native H200 check compared pinned SmolLM2 135M base and instruct checkpoints in NF4 with ten 25-token blocks, four repeats and seed 19. The comparison aligned ten examples, 270 attention heads and three causally tested head coordinates. The mean repeated loss changed by approximately +2.7193 nats for instruct minus base on this synthetic sample. Neither run sampled a special token under either tokenizer's complete registered set. This result does not measure general model quality or establish that aligned head indices have the same learned function.
+
+![Paired SmolLM2 base and instruct repeat losses, attention changes and head measurements](images/induction-checkpoint-comparison.png)
+
+![Three paired intervention effects with missing head measurements left unavailable](images/induction-checkpoint-interventions.png)
+
 ## Supported execution
 
 Verified eager attention layouts currently cover GPT-2, Llama, Qwen2 and GPT-NeoX. Unsupported or pruned attention layouts are rejected before a probe runs. Runtime context limits, available RAM, visible GPU memory and saved evidence disk space are checked before allocation and again in the worker.

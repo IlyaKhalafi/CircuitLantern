@@ -31,9 +31,10 @@ def model_operation(function):
 def eligible_positions(manifest: dict, token_ids: torch.Tensor, tokenizer) -> torch.Tensor:
     mask = torch.ones(len(token_ids), dtype=torch.bool, device="cpu")
     if manifest["corpus"]["special_tokens_excluded"]:
-        mask &= ~torch.isin(
-            token_ids.cpu(), torch.tensor(tokenizer.all_special_ids, dtype=torch.int64)
-        )
+        # Earlier dictionaries used only the public special-token map. Keep their
+        # eligibility convention while new captures replay their exact saved mask.
+        excluded = manifest["corpus"].get("excluded_special_token_ids", tokenizer.all_special_ids)
+        mask &= ~torch.isin(token_ids.cpu(), torch.tensor(excluded, dtype=torch.int64))
     if manifest["corpus"]["first_position_excluded"] and len(mask):
         mask[0] = False
     return mask

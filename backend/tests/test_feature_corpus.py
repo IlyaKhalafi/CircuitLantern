@@ -184,3 +184,41 @@ def test_validation_never_reuses_an_exact_training_prefix(runtime):
     assert train.isdisjoint(validation)
     assert prepared.shared_prefixes_excluded > 0
     assert prepared.description()["shared_prefixes_excluded"] == prepared.shared_prefixes_excluded
+
+
+def test_added_special_tokens_are_excluded_consistently_from_capture_and_interventions(runtime):
+    from tokenizers import AddedToken
+
+    from circuit_lantern.services.features.inference import eligible_positions
+
+    identifier = runtime.tokenizer.convert_tokens_to_ids("France")
+    runtime.tokenizer.add_tokens([AddedToken("France", special=True)], special_tokens=True)
+    assert identifier not in runtime.tokenizer.all_special_ids
+    prepared = corpus(runtime)
+    assert all(
+        prepared.documents[sample["document"]]["token_ids"][sample["position"]] != identifier
+        for sample in prepared.samples
+    )
+    mask = eligible_positions(
+        {"corpus": {**prepared.description(), "first_position_excluded": False}},
+        torch.tensor([3, identifier, 4]),
+        runtime.tokenizer,
+    )
+    assert mask.tolist() == [True, False, True]
+    assert identifier in prepared.description()["excluded_special_token_ids"]
+    legacy = {**prepared.description(), "first_position_excluded": False}
+    legacy.pop("excluded_special_token_ids")
+    assert eligible_positions(
+        {"corpus": legacy}, torch.tensor([3, identifier, 4]), runtime.tokenizer
+    ).tolist() == [True, True, True]
+    runtime.tokenizer.add_special_tokens({"additional_special_tokens": ["capital"]})
+    assert eligible_positions(
+        {"corpus": {**prepared.description(), "first_position_excluded": False}},
+        torch.tensor([3, identifier, 4]),
+        runtime.tokenizer,
+    ).tolist() == [True, False, True]
+    included = corpus(runtime, exclude_special_tokens=False)
+    assert any(
+        included.documents[sample["document"]]["token_ids"][sample["position"]] == identifier
+        for sample in included.samples
+    )

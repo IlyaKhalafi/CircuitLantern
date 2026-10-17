@@ -80,3 +80,21 @@ def test_tokenizer_added_bos_is_counted_and_matches_the_actual_capture(runtime):
     assert preview["token_count"] == 3
     assert preview["token_ids"] == trace["token_ids"] == [0, 3, 4]
     assert preview["special_tokens"] == [True, False, False]
+
+
+def test_added_special_tokens_outside_the_public_map_are_marked_in_all_previews(runtime):
+    from tokenizers import AddedToken
+
+    from circuit_lantern.services.targets import preview_target_tokens
+    from circuit_lantern.services.tokens import special_token_ids
+
+    tokenizer = runtime.tokenizer
+    identifier = tokenizer.convert_tokens_to_ids("France")
+    tokenizer.add_tokens([AddedToken("France", special=True)], special_tokens=True)
+    assert identifier not in tokenizer.all_special_ids
+    assert identifier in special_token_ids(tokenizer)
+    preview = runtime.tokenize(["France the"], 0)["prompts"][0]
+    assert preview["token_ids"] == [identifier, 3]
+    assert preview["special_tokens"] == [True, False]
+    target = preview_target_tokens(tokenizer, ["France"], 16)[0]
+    assert target["valid"] and target["special_tokens"] == [True]

@@ -34,6 +34,7 @@ from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
 from circuit_lantern.services.hub import model_metadata, search_models
 from circuit_lantern.services.induction.lab import InductionLab
+from circuit_lantern.services.induction.reference import ReferenceProbeNotFoundError
 from circuit_lantern.services.prepared_downloads import DownloadBusyError
 from circuit_lantern.services.runtime import ModelChangedError, ModelRuntime, RuntimeBusyError
 from circuit_lantern.services.store import ExperimentStore
@@ -49,7 +50,7 @@ async def lifespan(app: FastAPI):
     settings = get_settings()
     app.state.runtime = ModelRuntime(settings)
     app.state.store = ExperimentStore(settings.data_dir / "experiments.sqlite3")
-    app.state.induction = InductionLab(app.state.runtime)
+    app.state.induction = InductionLab(app.state.runtime, app.state.store)
     app.state.features = FeatureLab(
         app.state.runtime,
         DictionaryStore(
@@ -102,6 +103,11 @@ async def artifact_conflict(request: Request, error: ArtifactBusyError | Downloa
 
 @app.exception_handler(ArtifactNotFoundError)
 async def artifact_missing(request: Request, error: ArtifactNotFoundError):
+    return JSONResponse(status_code=404, content={"detail": str(error)})
+
+
+@app.exception_handler(ReferenceProbeNotFoundError)
+async def missing_probe_reference(request: Request, error: ReferenceProbeNotFoundError):
     return JSONResponse(status_code=404, content={"detail": str(error)})
 
 

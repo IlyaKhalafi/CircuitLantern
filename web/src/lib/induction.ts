@@ -46,6 +46,9 @@ export interface InductionHead {
   duplicate_attention: number;
   previous_attention: number;
   representative_attention: number[];
+  prefix_by_probe?: number[];
+  duplicate_by_probe?: number[];
+  previous_by_probe?: number[];
 }
 
 export interface InductionEffect {
@@ -70,6 +73,10 @@ export interface InductionResult extends ExecutionProvenance {
   revision: string;
   device: string;
   format: string;
+  reference_experiment_id?: string;
+  causal_candidate_policy?: string;
+  input_policy?: string;
+  active_tokenizer_special_ids?: number[];
   complete: boolean;
   cancelled?: boolean;
   error: string | null;

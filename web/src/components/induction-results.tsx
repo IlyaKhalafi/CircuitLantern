@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Link from "next/link";
 import { Heatmap, SeriesChart } from "@/components/charts";
 import { ErrorNotice, Metric, Panel } from "@/components/ui";
 import { useI18n } from "@/i18n/provider";
@@ -13,6 +14,17 @@ const PAGE_SIZE = 12;
 
 export function InductionResults({ result }: { result: InductionResult }) {
   const { t } = useI18n();
+  const activeSpecials = new Set(result.active_tokenizer_special_ids || []);
+  const replayedSpecialPositions = result.active_tokenizer_special_ids
+    ? result.dataset.probes.reduce(
+        (total, probe) =>
+          total +
+          probe.token_ids
+            .slice(result.dataset.start_token_id === null ? 0 : 1)
+            .filter((token) => activeSpecials.has(token)).length,
+        0,
+      )
+    : null;
   const [selection, setSelection] = useState<string | null>(null);
   const [layer, setLayer] = useState("all");
   const [page, setPage] = useState(0);
@@ -347,15 +359,43 @@ export function InductionResults({ result }: { result: InductionResult }) {
       <details className="capture-details">
         <summary>{t("Probe setup and evidence")}</summary>
         <p className="inline-note">
-          {t(
-            "Uniform distinct nonspecial token IDs are sampled per block. This adapts the paper sampling policy. Prefix, duplicate and previous token scores use the same queries after the first block. Pattern matching alone does not establish copying.",
-          )}
+          {result.reference_experiment_id
+            ? t(
+                "This probe replays exact saved reference token IDs and candidate head coordinates. Sampling metadata describes the original reference generation. IDs are not resampled under the captured checkpoint tokenizer policy.",
+              )
+            : t(
+                "Uniform distinct nonspecial token IDs are sampled per block. This adapts the paper sampling policy. Prefix, duplicate and previous token scores use the same queries after the first block. Pattern matching alone does not establish copying.",
+              )}
         </p>
         <p className="inline-note">
           {t(
             "Prefix matching attention can identify candidate induction heads. It does not establish copying or a mechanism for general in-context learning. Head ablation measures signed effects on this synthetic probe distribution.",
           )}
         </p>
+        {result.reference_experiment_id && (
+          <>
+            <p className="inline-note">
+              {replayedSpecialPositions === null
+                ? t(
+                    "Special token designations at capture time were not retained for this result.",
+                  )
+                : t(
+                    "{v0} sampled positions use IDs designated as special by the captured checkpoint tokenizer. The sequence start token is excluded from this count.",
+                    { v0: replayedSpecialPositions },
+                  )}
+            </p>
+            <p>
+              <Link
+                href={
+                  "/experiments?experiment=" +
+                  encodeURIComponent(result.reference_experiment_id)
+                }
+              >
+                {t("Open reference probe")}
+              </Link>
+            </p>
+          </>
+        )}
         <p className="inline-note">
           {t("Seed {v0} · vocabulary pool {v1} · completed forwards {v2}", {
             v0: result.dataset.config.seed,

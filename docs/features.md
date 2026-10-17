@@ -66,6 +66,8 @@ Expand **Intervention precision** to compare the constructed float32 residual up
 
 Use **Export feature inspection** to retain the captured coefficients, tokens, predictions and any intervention effect. **Export reconstruction** saves the loss measurements and scoring scope. Both exports include a UTC capture time, the current inference execution identity, and a separate dictionary source with weight and manifest checksums, training settings, corpus fingerprint and original training execution identity. Exporting uses the captured result without another model forward and remains available after unloading the model while the page stays open. Save the JSON before leaving or reloading the page.
 
+Activation corpora retain the exact special-token IDs excluded during sampling. New captures include both the public special-token map and added tokens marked special. Feature interventions reuse the recorded exclusion set. Older dictionaries without that set keep their original public-map eligibility convention.
+
 ## Measure feature circuits
 
 Select one dictionary per layer and a prompt. The lab chooses the most active features in each selected layer, ablates each separately, and measures changes in later features and the final prediction. The current interactive graph supports up to eight dictionaries and four candidate features per layer.
