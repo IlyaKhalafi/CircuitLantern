@@ -45,6 +45,7 @@ function ExperimentNotebook() {
     "head_sweep",
     "matrix",
     "induction_probe",
+    "causal_batch",
   ].includes(requestedKind ?? "")
     ? requestedKind!
     : "all";
