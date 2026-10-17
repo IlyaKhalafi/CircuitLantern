@@ -12,7 +12,7 @@ async function loadModel(
       context_length: 256,
     },
   });
-  expect(response.status()).toBe(202);
+  expect(response.status(), await response.text()).toBe(202);
   const job = await response.json();
   await expect
     .poll(async () => {
