@@ -36,6 +36,28 @@ def prepare_set(runtime, request: PromptSetRequest) -> tuple[dict, list[dict]]:
     layers = list(range(len(blocks))) if request.layers is None else sorted(request.layers)
     if len(set(layers)) != len(layers) or any(index >= len(blocks) for index in layers):
         raise ValueError("Choose distinct transformer layers within the loaded model.")
+    source = request.hypothesis_source
+    if source is not None:
+        profile = execution_provenance(runtime.metadata)
+        if (
+            source.model_id != runtime.metadata["id"]
+            or source.revision != runtime.metadata["revision"]
+            or source.device != runtime.device
+            or source.execution_precision != profile["execution_precision"]
+            or source.execution_config != profile["execution_config"]
+        ):
+            raise ValueError(
+                "The patching hypothesis source does not match the active checkpoint and execution profile."
+            )
+        if (
+            request.metric != "logit_difference"
+            or request.position_mode != "last"
+            or source.layer not in layers
+            or source.clean_prompt != request.pairs[0].clean_prompt
+        ):
+            raise ValueError(
+                "The patching draft differs from the captured hypothesis. Use an independent experiment for changed inputs."
+            )
     forwards = len(request.pairs) * (len(layers) + 2)
     limit = capture_token_limit(runtime.metadata, runtime.settings.max_prompt_tokens)
     vocabulary = int(runtime.model.get_output_embeddings().weight.shape[0])
@@ -58,6 +80,19 @@ def prepare_set(runtime, request: PromptSetRequest) -> tuple[dict, list[dict]]:
                 alternative = single_target_id(runtime.tokenizer, pair.alternative, vocabulary)
                 if target == alternative:
                     raise ValueError("Target and alternative must identify different tokens.")
+            if (
+                source is not None
+                and index == 0
+                and (
+                    clean != source.token_ids
+                    or source.position != len(clean) - 1
+                    or target != source.target_token_id
+                    or alternative != source.alternative_token_id
+                )
+            ):
+                raise ValueError(
+                    "The captured prompt or answer token IDs differ from the active tokenizer."
+                )
             changed = [i for i, (a, b) in enumerate(zip(clean, corrupt, strict=True)) if a != b]
             positions = (
                 list(range(len(clean)))
@@ -109,9 +144,14 @@ def prepare_set(runtime, request: PromptSetRequest) -> tuple[dict, list[dict]]:
         blockers.append("Insufficient free GPU memory for this prompt set.")
     if result_bytes * 3 > hardware["experiment_disk_free_bytes"] * 0.9:
         blockers.append("Insufficient disk space for the saved prompt set.")
+    fingerprint_input = dict(
+        request.model_dump(exclude={"expected_execution_id", "hypothesis_source"}), layers=layers
+    )
+    if source is not None:
+        fingerprint_input["hypothesis_source"] = source.model_dump()
     fingerprint = hashlib.sha256(
         json.dumps(
-            dict(request.model_dump(exclude={"expected_execution_id"}), layers=layers),
+            fingerprint_input,
             sort_keys=True,
             ensure_ascii=False,
         ).encode()
@@ -227,6 +267,11 @@ def measure_set(runtime, request: PromptSetRequest, job) -> dict:
         "metric": request.metric,
         "position_mode": request.position_mode,
         "requested_pairs": [pair.model_dump() for pair in request.pairs],
+        **(
+            {"hypothesis_source": request.hypothesis_source.model_dump()}
+            if request.hypothesis_source is not None
+            else {}
+        ),
         "selected_layers": plan["layers"],
         "pairs": pairs,
         **summary,
