@@ -1,6 +1,12 @@
 "use client";
 
 import { useEffect, useId, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
+import {
+  hypothesisSource,
+  hypothesisSourceProblem,
+  type PatchingHypothesis,
+} from "@/lib/patching-hypothesis";
 import { Plus, Play, Square, Trash2, Upload } from "lucide-react";
 import { useI18n } from "@/i18n/provider";
 import { EmptyState, ErrorNotice, Loading, Panel } from "@/components/ui";
@@ -21,7 +27,7 @@ import {
   type PromptSetPlan,
   type PromptSetResult,
 } from "@/lib/prompt-sets";
-import type { RuntimeState } from "@/lib/types";
+import type { RuntimeState, TokenPreviewResponse } from "@/lib/types";
 import "./prompt-set.css";
 
 interface Draft {
@@ -30,6 +36,7 @@ interface Draft {
   position: PatchPositions;
   layers: string;
   seed: string;
+  sourceLinked?: boolean;
 }
 const initialDraft: Draft = {
   pairs: examplePairs,
@@ -38,7 +45,15 @@ const initialDraft: Draft = {
   layers: "",
   seed: "0",
 };
-const storageKey = "lantern-prompt-set-draft";
+const defaultStorageKey = "lantern-prompt-set-draft";
+
+function parseLayersInclude(value: string, layer: number) {
+  try {
+    return parseSetLayers(value)?.includes(layer) ?? true;
+  } catch {
+    return false;
+  }
+}
 
 export function PromptSetWorkbench({
   runtime,
@@ -46,7 +61,9 @@ export function PromptSetWorkbench({
   runtimeError,
   onBusyChange,
   task,
+  hypothesis = null,
 }: {
+  hypothesis?: PatchingHypothesis | null;
   task: BackgroundJob<PromptSetResult>;
   runtime: RuntimeState | null;
   loading: boolean;
@@ -54,7 +71,29 @@ export function PromptSetWorkbench({
   onBusyChange: (busy: boolean) => void;
 }) {
   const { t } = useI18n();
-  const [draft, setDraft] = useState<Draft>(initialDraft);
+  const router = useRouter();
+  const storageKey =
+    defaultStorageKey + (hypothesis ? "." + hypothesis.id : "");
+  const [draft, setDraft] = useState<Draft>(() =>
+    hypothesis
+      ? {
+          pairs: [
+            {
+              label: "",
+              clean_prompt: hypothesis.prompt,
+              corrupted_prompt: "",
+              target: hypothesis.target.requested_text,
+              alternative: hypothesis.alternative.requested_text,
+            },
+          ],
+          metric: "logit_difference",
+          position: "last",
+          layers: String(hypothesis.layer),
+          seed: "0",
+          sourceLinked: true,
+        }
+      : initialDraft,
+  );
   const [ready, setReady] = useState(false);
   const [plan, setPlan] = useState<PromptSetPlan | null>(null);
   const [planning, setPlanning] = useState(false);
@@ -67,6 +106,20 @@ export function PromptSetWorkbench({
   const result = task.job?.result;
   const execution = runtime?.metadata?.execution_id;
   const busy = task.busy || planning || importing;
+  const linked = !!hypothesis && draft.sourceLinked !== false;
+  const sourceProblem =
+    linked && hypothesis
+      ? hypothesisSourceProblem(hypothesis, runtime) ||
+        (draft.pairs.length !== 1 ||
+        draft.pairs[0]?.clean_prompt !== hypothesis.prompt ||
+        draft.pairs[0]?.target !== hypothesis.target.requested_text ||
+        draft.pairs[0]?.alternative !== hypothesis.alternative.requested_text ||
+        draft.metric !== "logit_difference" ||
+        draft.position !== "last" ||
+        !parseLayersInclude(draft.layers, hypothesis.layer)
+          ? "The patching draft differs from the captured hypothesis. Use an independent experiment for changed inputs."
+          : null)
+      : null;
   useEffect(() => {
     onBusyChange(planning || importing);
   }, [planning, importing, onBusyChange]);
@@ -87,6 +140,7 @@ export function PromptSetWorkbench({
           position: stored.position,
           layers: typeof stored.layers === "string" ? stored.layers : "",
           seed: typeof stored.seed === "string" ? stored.seed : "0",
+          sourceLinked: hypothesis ? stored.sourceLinked !== false : undefined,
         });
     } catch {
       /* A private or full browser store must not block research. */
@@ -123,6 +177,7 @@ export function PromptSetWorkbench({
     });
   }
   function payload() {
+    if (sourceProblem) throw new Error(sourceProblem);
     const pairs = parsePromptPairs(JSON.stringify(draft.pairs));
     const layers = parseSetLayers(draft.layers);
     if (!/^\d+$/.test(draft.seed) || Number(draft.seed) > 4294967295)
@@ -134,6 +189,9 @@ export function PromptSetWorkbench({
       position_mode: draft.position,
       seed: Number(draft.seed),
       expected_execution_id: execution,
+      ...(linked && hypothesis
+        ? { hypothesis_source: hypothesisSource(hypothesis) }
+        : {}),
     };
   }
   function describeError(reason: unknown) {
@@ -149,7 +207,24 @@ export function PromptSetWorkbench({
     setPlanning(true);
     setPlan(null);
     try {
-      const value = await post<PromptSetPlan>("/causal/sets/plan", payload());
+      const request = payload();
+      if (linked && hypothesis) {
+        const preview = await post<TokenPreviewResponse>("/tokenize", {
+          prompts: [hypothesis.prompt],
+          reserved_tokens: 0,
+          expected_execution_id: execution,
+        });
+        if (sequence !== planSequence.current) return;
+        if (
+          preview.execution_id !== execution ||
+          JSON.stringify(preview.prompts[0]?.token_ids) !==
+            JSON.stringify(hypothesis.token_ids)
+        )
+          throw new Error(
+            "The captured prompt or answer token IDs differ from the active tokenizer.",
+          );
+      }
+      const value = await post<PromptSetPlan>("/causal/sets/plan", request);
       if (sequence === planSequence.current) setPlan(value);
     } catch (reason) {
       if (sequence === planSequence.current) describeError(reason);
@@ -176,16 +251,66 @@ export function PromptSetWorkbench({
     !!runtime?.loaded &&
     !!execution &&
     !!plan?.compatible &&
+    !sourceProblem &&
     plan.execution_id === execution &&
     !busy &&
     ready;
-  const requirement = !plan
-    ? t("Check the prompt set before running.")
-    : !plan.compatible
-      ? t("Resolve the validation and resource blockers before running.")
-      : null;
+  const requirement = sourceProblem
+    ? t(sourceProblem)
+    : !plan
+      ? t("Check the prompt set before running.")
+      : !plan.compatible
+        ? t("Resolve the validation and resource blockers before running.")
+        : null;
   return (
     <>
+      {hypothesis && (
+        <div className="notice info set-hypothesis">
+          <div>
+            <strong>
+              {linked
+                ? t("Prepared from block {layer} attribution", {
+                    layer: hypothesis.layer,
+                  })
+                : t("Independent prompt-set draft")}
+            </strong>
+            <p>
+              {linked
+                ? t(
+                    "Choose a corrupted prompt to test this hypothesis. Patching is a new experiment, not an equivalent measure of the block contribution.",
+                  )
+                : t(
+                    "This draft is no longer linked to its original attribution source.",
+                  )}
+            </p>
+            <p>
+              <bdi>{hypothesis.source.model_id}</bdi> ·{" "}
+              <bdi>{hypothesis.source.revision.slice(0, 8)}</bdi>
+            </p>
+            {linked && sourceProblem && !loading && (
+              <p role="status">{t(sourceProblem)}</p>
+            )}
+          </div>
+          <div className="feature-toolbar">
+            {linked && (
+              <button
+                className="button secondary"
+                disabled={busy}
+                onClick={() => edit({ sourceLinked: false })}
+              >
+                {t("Use as independent experiment")}
+              </button>
+            )}
+            <button
+              className="button secondary"
+              disabled={busy}
+              onClick={() => router.push("/causal?scope=set")}
+            >
+              {t("Return to other draft")}
+            </button>
+          </div>
+        </div>
+      )}
       <ErrorNotice
         message={
           runtimeError ||
@@ -502,7 +627,7 @@ export function PromptSetWorkbench({
               <button
                 type="button"
                 className={canRun ? "button secondary" : "button primary"}
-                disabled={busy || !ready || !execution}
+                disabled={busy || !ready || !execution || !!sourceProblem}
                 onClick={() => void check()}
               >
                 {planning ? t("Checking prompt set") : t("Check prompt set")}

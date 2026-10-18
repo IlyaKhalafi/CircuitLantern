@@ -1,0 +1,218 @@
+.attribution-body {
+  display: grid;
+  gap: 20px;
+  padding: 22px;
+}
+.attribution-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 16px;
+}
+.attribution-controls label {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  min-width: 0;
+  flex: 0 1 320px;
+}
+.attribution-controls select {
+  width: 100%;
+  min-width: 0;
+}
+.attribution-context {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  font-size: 12px;
+  color: var(--muted);
+}
+.attribution-health {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+  background: var(--blue-tint);
+  font-size: 12px;
+}
+.attribution-health[data-health="rounding"],
+.attribution-health[data-health="contrast_error"],
+.attribution-health[data-health="mismatch"] {
+  background: var(--accent-tint);
+}
+.attribution-health > span {
+  margin-inline-start: auto;
+  color: var(--muted);
+}
+.attribution-totals {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+.attribution-totals > div {
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 16px;
+  display: grid;
+  gap: 8px;
+}
+.attribution-totals > div > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.attribution-totals strong {
+  font-size: 22px;
+  font-family: var(--mono);
+  overflow-wrap: anywhere;
+}
+.attribution-totals small {
+  color: var(--muted);
+}
+.attribution-table-scroll {
+  overflow: auto;
+  max-height: 560px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 9px;
+}
+.attribution-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 570px;
+  font-size: 12px;
+}
+.attribution-table th,
+.attribution-table td {
+  padding: 14px;
+  border-block-end: 1px solid var(--line);
+  text-align: start;
+}
+.attribution-table thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--panel-raised);
+}
+.attribution-table th[scope="row"] {
+  width: 26%;
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: normal;
+  text-transform: none;
+  color: var(--ink);
+  background: transparent;
+}
+.attribution-table td:nth-child(2) {
+  width: 44%;
+}
+.attribution-value {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 10px;
+}
+.attribution-value bdi {
+  font-family: var(--mono);
+}
+.attribution-value > span {
+  color: var(--muted);
+  font-size: 11px;
+}
+.attribution-track {
+  height: 8px;
+  position: relative;
+  margin-block-start: 9px;
+  background: var(--panel-raised);
+  border-radius: 5px;
+}
+.attribution-track::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  width: 1px;
+  height: 12px;
+  background: var(--muted);
+  opacity: 0.5;
+}
+.attribution-track > span {
+  height: 8px;
+  position: absolute;
+  border-radius: 3px;
+}
+.attribution-track .positive {
+  left: 50%;
+  background: var(--blue);
+}
+.attribution-track .negative {
+  right: 50%;
+  background: var(--accent);
+}
+.attribution-test {
+  white-space: nowrap;
+  font-size: 11px;
+  padding: 8px 10px;
+}
+.attribution-method {
+  border: 1px solid var(--line);
+  padding: 14px;
+  border-radius: 9px;
+  font-size: 12px;
+}
+.attribution-method summary {
+  cursor: pointer;
+  font-weight: 500;
+}
+.attribution-method dl {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+}
+.attribution-method dl > div {
+  min-width: 0;
+}
+.attribution-method dt {
+  color: var(--muted);
+  margin-block-end: 5px;
+}
+.attribution-method dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.attribution-method p {
+  margin-block-start: 12px;
+}
+@media (max-width: 640px) {
+  .attribution-body {
+    padding: 16px;
+    gap: 16px;
+  }
+  .attribution-controls label {
+    flex-basis: 100%;
+  }
+  .attribution-totals {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .attribution-totals > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .attribution-totals > div {
+    padding: 12px;
+  }
+  .attribution-totals strong {
+    font-size: 18px;
+  }
+  .attribution-method dl {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 360px) {
+  .attribution-totals strong {
+    font-size: 16px;
+  }
+}

@@ -137,7 +137,7 @@ export function useBackgroundJob<T>(storageKey: string) {
   }
 
   return {
-    job,
+    job: restoring ? null : job,
     error: error || actionError,
     clearError: () => {
       setError(null);

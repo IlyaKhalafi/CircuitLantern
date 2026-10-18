@@ -1,3 +1,4 @@
+import type { LogitAttribution } from "@/lib/attribution";
 import type { PromptSetResult } from "@/lib/prompt-sets";
 import type { InductionResult } from "@/lib/induction";
 
@@ -295,6 +296,8 @@ export interface TrackedTarget {
   token: string;
 }
 export interface Trace extends ExecutionProvenance {
+  trace_id?: string;
+  logit_attribution?: LogitAttribution;
   tracked_targets?: TrackedTarget[];
   target_score_method?: string;
   target_rank_method?: string;
