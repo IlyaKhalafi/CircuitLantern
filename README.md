@@ -50,7 +50,7 @@
 - **Model discovery.** Browse Hugging Face models by trending score, downloads, likes or recency. Narrow the results by author, date window and popularity.
 - **Hardware fit.** Check RAM, VRAM, disk space, GPU architecture and execution kernels before downloading. Quantization support depends on the device and runtime, not just model size.
 - **Weight geometry.** Follow attention, MLP and residual connections inside transformer blocks. Select logical matrices to inspect singular values, spectral radius, norms, rank, distributions and spectral energy.
-- **Prompt traces.** Follow residual streams, intermediate predictions, vocabulary confidence, entropy and attention routing. Explore captured token positions without another forward pass.
+- **Prompt traces.** Follow residual streams, intermediate predictions, vocabulary confidence, entropy and attention routing. Explore captured token positions without another forward pass. [Score contributions](docs/logit-attribution.md) show which block updates align with an answer, with checks against the actual logits.
 - **Checkpoint changes.** Compare a base model with a finetuned version using retained weights, layer activations and final output distributions. Keep both revisions and execution settings with the results.
 - **Sparse features.** Train ReLU or TopK sparse autoencoders from a text corpus. Inspect held out reconstruction, activating contexts and feature interventions, then save graphs of measured downstream effects.
 - **Causal interventions.** Residual patching reports target score changes and normalized recovery. Attention head ablation reports target score changes and KL divergence. Repeated token probes investigate candidate induction heads. Completed measurements remain available when a sweep stops.
@@ -107,6 +107,7 @@ Execution supports FP32, FP16, BF16, bitsandbytes NF4, native bitsandbytes FP4 c
 ## Go further
 
 - [Setup](docs/setup.md) covers CUDA installation, configuration and remote access.
+- [Score contributions](docs/logit-attribution.md) explains direct logit attribution, numerical checks and preparing causal tests.
 - [Measurements](docs/measurements.md) explains capture conventions, interventions and comparisons.
 - [Sparse features](docs/features.md) covers dictionary training, validation, interventions and research references.
 - [Model explorer](docs/model-explorer.md) explains source-derived connections, hybrid mixers and coverage.

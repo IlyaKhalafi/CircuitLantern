@@ -67,3 +67,7 @@ Sweeps run in the background with per layer progress and cancellation. A failed 
 Each successful load creates a new session identifier, including reloading the same checkpoint in another precision. Workbench requests are bound to the session displayed on the page. A model replacement in another tab rejects stale graph, matrix, tokenization, capture, sweep and unload requests before they can use or release the replacement. Refresh the explorer or runtime to continue. Refreshing preserves prompt drafts and identifies retained captures from a previous session. Captures display their recorded model and revision alongside the execution format.
 
 Matrix exports use the model identity returned by the backend. Cached matrix results still validate the requested session. The API accepts requests without an expected session for compatibility, and returns the actual source identity in its results.
+
+## Score contributions
+
+Trace results include a final-token decomposition of the embedding input and actual transformer block updates. The default compares the two highest-scoring next tokens, and tracked answers remain available alongside them. The view reports frozen-normalization contributions, reconstruction health and source-bound patching hypotheses. See the [score contribution guide](logit-attribution.md) for interpretation, precision limits and the workflow.
