@@ -50,7 +50,8 @@ def prepare_set(runtime, request: PromptSetRequest) -> tuple[dict, list[dict]]:
                 "The patching hypothesis source does not match the active checkpoint and execution profile."
             )
         if (
-            request.metric != "logit_difference"
+            len(request.pairs) != 1
+            or request.metric != "logit_difference"
             or request.position_mode != "last"
             or source.layer not in layers
             or source.clean_prompt != request.pairs[0].clean_prompt

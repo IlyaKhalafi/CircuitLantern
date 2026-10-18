@@ -7,6 +7,7 @@ import { RepresentationGeometry } from "@/components/representation-geometry";
 import { GeneratedOutput } from "@/components/generated-output";
 import { AttentionHeads } from "@/components/attention-heads";
 import { LogitLens } from "@/components/logit-lens";
+import { LogitAttribution } from "@/components/logit-attribution";
 import { number } from "@/lib/api";
 import { interventionLabel } from "@/lib/interventions";
 import { executionLabel } from "@/lib/execution";
@@ -107,23 +108,30 @@ export function TraceResults({
         {[
           { id: "residual", name: "Residual stream" },
           { id: "lens", name: "Logit lens" },
+          { id: "contributions", name: "Score contributions" },
           { id: "attention", name: "Attention" },
           { id: "logits", name: "Next token logits" },
           ...(trace.geometry
             ? [{ id: "geometry", name: "Representation geometry" }]
             : []),
-        ].map((t) => (
+        ].map((item) => (
           <button
-            key={t.id}
+            key={item.id}
             role="tab"
-            aria-selected={tab === t.id}
-            className={tab === t.id ? "active" : ""}
-            onClick={() => setTab(t.id)}
+            aria-selected={tab === item.id}
+            className={tab === item.id ? "active" : ""}
+            onClick={() => setTab(item.id)}
           >
-            {t.name}
+            {t(item.name)}
           </button>
         ))}
       </div>
+      {tab === "contributions" && (
+        <LogitAttribution
+          key={trace.trace_id ?? trace.duration_ms}
+          trace={trace}
+        />
+      )}
       {tab === "residual" && (
         <>
           <div className="two-column">

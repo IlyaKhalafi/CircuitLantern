@@ -217,3 +217,16 @@
     width: 100%;
   }
 }
+
+.set-hypothesis {
+  display: grid;
+  gap: 14px;
+  margin-block: 16px;
+}
+.set-hypothesis strong {
+  display: block;
+  margin-block-end: 6px;
+}
+.set-hypothesis p {
+  overflow-wrap: anywhere;
+}

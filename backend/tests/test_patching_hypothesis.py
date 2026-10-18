@@ -145,3 +145,13 @@ def test_reloaded_same_checkpoint_profile_can_test_the_original_hypothesis(runti
     payload["expected_execution_id"] = runtime.metadata["execution_id"]
     plan, _ = prepare_set(runtime, PromptSetRequest.model_validate(payload))
     assert plan["compatible"]
+
+
+def test_linked_source_is_not_attributed_to_a_multi_pair_aggregate(runtime, hypothesis):
+    _, payload = hypothesis
+    payload["pairs"].append(dict(payload["pairs"][0]))
+    with (
+        patch.object(runtime.model, "forward", side_effect=AssertionError("must not forward")),
+        pytest.raises(ValueError, match="draft differs"),
+    ):
+        prepare_set(runtime, PromptSetRequest.model_validate(payload))

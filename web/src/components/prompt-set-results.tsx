@@ -141,6 +141,14 @@ export function PromptSetResults({ result }: { result: PromptSetResult }) {
             })}
           </span>
         </div>
+        {result.hypothesis_source && (
+          <p className="control-note">
+            {t(
+              "Prepared from block {layer} attribution. The source trace ID and token IDs remain in this export.",
+              { layer: result.hypothesis_source.layer },
+            )}
+          </p>
+        )}
         <ErrorNotice message={result.error} />
         {!result.complete && (
           <div className="notice warning" role="status">
