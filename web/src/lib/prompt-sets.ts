@@ -1,3 +1,4 @@
+import type { PatchingSource } from "@/lib/patching-hypothesis";
 import type { CausalResult, ExecutionProvenance } from "@/lib/types";
 
 export const maxPromptPairs = 64;
@@ -64,6 +65,7 @@ export interface MeasuredPair {
   };
 }
 export interface PromptSetResult extends ExecutionProvenance {
+  hypothesis_source?: PatchingSource;
   model_id: string;
   revision: string;
   device: string;

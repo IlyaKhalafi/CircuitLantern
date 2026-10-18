@@ -10,6 +10,13 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import {
+  hypothesisIdValid,
+  readPatchingHypothesis,
+  type PatchingHypothesis,
+} from "@/lib/patching-hypothesis";
 import { CausalNavigation } from "@/components/causal-navigation";
 import { PromptSetWorkbench } from "@/components/prompt-set-workbench";
 import { CausalResults } from "@/components/causal-results";
@@ -38,6 +45,31 @@ export default function CausalPage() {
     refresh: refreshRuntime,
   } = useRuntime();
   const [scope, setScope] = useState("single");
+  const query = useSearchParams();
+  const requestedHypothesis = query.get("hypothesis");
+  const requestedScope = query.get("scope");
+  useEffect(() => {
+    if (requestedScope === "set") setScope("set");
+  }, [requestedScope]);
+  const [hypothesis, setHypothesis] = useState<PatchingHypothesis | null>(null);
+  const [hypothesisError, setHypothesisError] = useState<string | null>(null);
+  const activeHypothesis =
+    hypothesis?.id === requestedHypothesis ? hypothesis : null;
+  useEffect(() => {
+    setHypothesis(null);
+    setHypothesisError(null);
+    if (!requestedHypothesis) return;
+    setScope("set");
+    try {
+      if (!hypothesisIdValid(requestedHypothesis))
+        throw new Error(
+          "This patching hypothesis is no longer available. Return to the capture to prepare it again.",
+        );
+      setHypothesis(readPatchingHypothesis(requestedHypothesis));
+    } catch (reason) {
+      setHypothesisError((reason as Error).message);
+    }
+  }, [requestedHypothesis]);
   const [setBusy, setSetBusy] = useState(false);
   const [clean, setClean] = useState("The capital of France is");
   const [corrupted, setCorrupted] = useState("The capital of Poland is");
@@ -46,7 +78,10 @@ export default function CausalPage() {
   const [customPosition, setCustomPosition] = useState(0);
   const { job, error, clearError, start, cancel, busy, canCancel, cancelling } =
     useBackgroundJob<CausalResult>("lantern-causal-job");
-  const setTask = useBackgroundJob<PromptSetResult>("lantern-prompt-set-job");
+  const setTask = useBackgroundJob<PromptSetResult>(
+    "lantern-prompt-set-job" +
+      (hypothesisIdValid(requestedHypothesis) ? "." + requestedHypothesis : ""),
+  );
   useEffect(() => {
     if (setTask.job && ["queued", "running"].includes(setTask.job.status))
       setScope("set");
@@ -153,15 +188,31 @@ export default function CausalPage() {
         }
       />
       <CausalNavigation />
-      {scope === "set" && (
-        <PromptSetWorkbench
-          runtime={runtime}
-          loading={loading}
-          runtimeError={runtimeError}
-          onBusyChange={setSetBusy}
-          task={setTask}
-        />
+      {scope === "set" && hypothesisError && (
+        <>
+          <ErrorNotice message={hypothesisError} />
+          <Link className="button secondary" href="/causal?scope=set">
+            {t("Return to prompt set")}
+          </Link>
+        </>
       )}
+      {scope === "set" &&
+        requestedHypothesis &&
+        !activeHypothesis &&
+        !hypothesisError && <Loading />}
+      {scope === "set" &&
+        !hypothesisError &&
+        (!requestedHypothesis || activeHypothesis) && (
+          <PromptSetWorkbench
+            key={requestedHypothesis ?? "default"}
+            hypothesis={activeHypothesis}
+            runtime={runtime}
+            loading={loading}
+            runtimeError={runtimeError}
+            onBusyChange={setSetBusy}
+            task={setTask}
+          />
+        )}
       {scope === "single" && (
         <div>
           <ErrorNotice
