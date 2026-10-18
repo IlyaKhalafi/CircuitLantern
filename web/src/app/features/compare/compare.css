@@ -1,0 +1,316 @@
+.crosscoder-workbench > div[hidden] {
+  display: none;
+}
+.crosscoder-workbench .panel {
+  margin-block-end: 24px;
+}
+.crosscoder-modes {
+  display: flex;
+  gap: 12px;
+  margin-block-end: 24px;
+  flex-wrap: wrap;
+}
+.crosscoder-session {
+  display: flex;
+  gap: 16px;
+  align-items: center;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--blue-tint);
+  margin-block-end: 24px;
+}
+.crosscoder-session > div {
+  display: grid;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+.crosscoder-session strong,
+.crosscoder-session span {
+  overflow-wrap: anywhere;
+}
+.crosscoder-session span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.crosscoder-details {
+  margin-block-start: 20px;
+}
+.crosscoder-source {
+  display: grid;
+  gap: 10px;
+  padding: 20px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--bg);
+  min-width: 0;
+}
+.crosscoder-source code,
+.crosscoder-source small,
+.crosscoder-source strong {
+  overflow-wrap: anywhere;
+}
+.crosscoder-source code {
+  font-size: 12px;
+}
+.crosscoder-source span,
+.crosscoder-source small {
+  color: var(--muted);
+  line-height: 1.6;
+}
+.crosscoder-source .eyebrow {
+  color: var(--blue);
+}
+.crosscoder-check {
+  color: var(--blue);
+  flex-shrink: 0;
+}
+.crosscoder-sources {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.crosscoder-scope {
+  background: var(--blue-tint);
+  color: var(--ink);
+  border-inline-start: 3px solid var(--blue);
+  padding: 16px;
+  line-height: 1.8;
+  border-radius: 4px;
+  margin: 0;
+  font-size: 12px;
+}
+.crosscoder-explorer {
+  display: grid;
+  grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr);
+  gap: 24px;
+  align-items: start;
+}
+.crosscoder-feature-list {
+  display: grid;
+  gap: 8px;
+}
+.crosscoder-feature-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 0.8fr);
+  gap: 12px;
+  padding: 16px;
+  text-align: start;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--ink);
+}
+.crosscoder-feature-row > span {
+  display: grid;
+  gap: 6px;
+  overflow-wrap: anywhere;
+}
+.crosscoder-feature-row small {
+  color: var(--muted);
+  font-size: 11px;
+}
+.crosscoder-feature-row.selected {
+  border-color: var(--blue);
+  background: var(--blue-tint);
+  box-shadow: inset 3px 0 0 var(--blue);
+}
+.crosscoder-feature-row:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 3px;
+}
+.crosscoder-feature-row:disabled {
+  opacity: 0.65;
+  cursor: wait;
+}
+.crosscoder-feature-row > .crosscoder-balance {
+  grid-column: 1 / -1;
+}
+.crosscoder-balance {
+  display: grid;
+  gap: 6px;
+}
+.crosscoder-balance-track {
+  height: 8px;
+  border-radius: 8px;
+  overflow: hidden;
+  background: var(--action);
+  direction: ltr;
+}
+.crosscoder-balance-track > span {
+  display: block;
+  height: 100%;
+  background: var(--blue);
+}
+.crosscoder-balance small {
+  direction: ltr;
+  text-align: center;
+  color: var(--muted);
+}
+.crosscoder-norms {
+  display: grid;
+  gap: 12px;
+}
+.crosscoder-norm-key {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+}
+.crosscoder-norm-key span:first-child {
+  color: var(--blue);
+}
+.crosscoder-norms > small {
+  line-height: 1.7;
+}
+.crosscoder-ranking {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.crosscoder-pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.crosscoder-pagination > span {
+  color: var(--muted);
+  font-size: 12px;
+}
+.crosscoder-hash {
+  display: grid;
+  gap: 10px;
+  font-size: 12px;
+}
+.crosscoder-hash code {
+  overflow-wrap: anywhere;
+}
+.crosscoder-workbench .feature-form-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.crosscoder-workbench .feature-form input:not([type="checkbox"]),
+.crosscoder-workbench .feature-form textarea {
+  padding: 11px 13px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+}
+.crosscoder-workbench .feature-form input:focus,
+.crosscoder-workbench .feature-form textarea:focus {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
+.crosscoder-overview-metrics {
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+@media (max-width: 1150px) {
+  .crosscoder-explorer {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .crosscoder-overview-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+@media (max-width: 600px) {
+  .crosscoder-session {
+    flex-wrap: wrap;
+  }
+  .crosscoder-session .button {
+    width: 100%;
+  }
+  .crosscoder-sources,
+  .crosscoder-workbench .feature-form-grid,
+  .crosscoder-ranking {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .crosscoder-overview-metrics {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .crosscoder-modes .button {
+    flex: 1 1 100%;
+  }
+  .crosscoder-workbench .panel-header {
+    flex-wrap: wrap;
+  }
+  .crosscoder-workbench .panel-header .header-actions {
+    flex-wrap: wrap;
+  }
+}
+
+.crosscoder-workbench .feature-form .feature-form {
+  padding: 0;
+}
+
+.crosscoder-feature-list {
+  max-height: 600px;
+  overflow-y: auto;
+  padding: 3px;
+  scrollbar-gutter: stable;
+}
+.crosscoder-inspector h2 {
+  scroll-margin-block-start: 24px;
+}
+@media (max-width: 720px) {
+  .crosscoder-feature-list {
+    max-height: 420px;
+  }
+  .crosscoder-inspector h2 {
+    scroll-margin-block-start: 112px;
+  }
+}
+
+.crosscoder-storage {
+  margin-block-end: 24px;
+}
+
+.crosscoder-norm-key {
+  direction: ltr;
+}
+.crosscoder-norm-key > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.crosscoder-norm-key > span::before {
+  content: "";
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--action);
+}
+.crosscoder-norm-key > span:first-child::before {
+  background: var(--blue);
+}
+
+.crosscoder-balance-track.unavailable {
+  background: var(--line);
+}
+
+@media (min-width: 1151px) and (min-height: 720px) {
+  .crosscoder-explorer > .panel:first-child {
+    position: sticky;
+    top: 24px;
+  }
+  .crosscoder-feature-list {
+    max-height: min(600px, calc(100dvh - 400px));
+  }
+}
+
+.crosscoder-context-warning {
+  color: var(--accent);
+  background: var(--accent-tint);
+  border-color: var(--accent-border);
+}
+
+.crosscoder-modes.feature-tabs {
+  display: inline-flex;
+}
+.crosscoder-modes.feature-tabs button[aria-pressed="true"] {
+  background: var(--blue-tint);
+  color: var(--blue);
+}

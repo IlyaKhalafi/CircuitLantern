@@ -120,6 +120,7 @@ export function Panel({
   children,
   action,
   className = "",
+  translateTitle = true,
 }: {
   id?: string;
   title: string;
@@ -128,6 +129,7 @@ export function Panel({
   children: ReactNode;
   action?: ReactNode;
   className?: string;
+  translateTitle?: boolean;
 }) {
   const { t, localize } = useI18n();
   return (
@@ -135,8 +137,12 @@ export function Panel({
       <div className="panel-header">
         <div>
           <div className="heading-with-help">
-            <h2>{t(title)}</h2>
-            {help && <HelpTooltip label={title}>{help}</HelpTooltip>}
+            <h2>{translateTitle ? t(title) : title}</h2>
+            {help && (
+              <HelpTooltip label={title} translateLabel={translateTitle}>
+                {help}
+              </HelpTooltip>
+            )}
           </div>
           {subtitle && <p>{t(subtitle)}</p>}
         </div>

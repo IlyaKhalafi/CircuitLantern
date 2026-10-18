@@ -8,6 +8,7 @@ from fastapi.responses import JSONResponse
 from huggingface_hub.errors import HfHubHTTPError, LocalEntryNotFoundError, OfflineModeIsEnabled
 
 from circuit_lantern.api.checkpoints import router as checkpoint_router
+from circuit_lantern.api.crosscoders import router as crosscoder_router
 from circuit_lantern.api.features import router as feature_router
 from circuit_lantern.api.induction import router as induction_router
 from circuit_lantern.api.prompt_sets import router as prompt_set_router
@@ -27,8 +28,10 @@ from circuit_lantern.schemas import (
     TokenizeRequest,
     TraceRequest,
 )
+from circuit_lantern.services.artifact_views import MetadataMemoryError
 from circuit_lantern.services.checkpoint_store import CheckpointStore
 from circuit_lantern.services.checkpoints import CheckpointLab
+from circuit_lantern.services.crosscoders.lab import CrosscoderLab
 from circuit_lantern.services.features.lab import FeatureLab
 from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.hardware import hardware_snapshot
@@ -36,8 +39,14 @@ from circuit_lantern.services.hub import model_metadata, search_models
 from circuit_lantern.services.hub_errors import explain_hub_error
 from circuit_lantern.services.induction.lab import InductionLab
 from circuit_lantern.services.induction.reference import ReferenceProbeNotFoundError
+from circuit_lantern.services.prepared_downloads import DownloadBusyError
 from circuit_lantern.services.runtime import ModelChangedError, ModelRuntime, RuntimeBusyError
 from circuit_lantern.services.store import ExperimentStore
+from circuit_lantern.services.tensor_artifacts import (
+    ArtifactBusyError,
+    ArtifactNotFoundError,
+    TensorArtifactStore,
+)
 
 
 @asynccontextmanager
@@ -52,10 +61,18 @@ async def lifespan(app: FastAPI):
             settings.data_dir / "dictionaries", max_weight_bytes=settings.max_dictionary_bytes
         ),
     )
+    app.state.crosscoders = CrosscoderLab(
+        app.state.runtime,
+        TensorArtifactStore(
+            settings.data_dir / "shared-features",
+            max_bytes=settings.max_dictionary_bytes,
+        ),
+    )
     app.state.checkpoints = CheckpointLab(
         app.state.runtime, CheckpointStore(settings.data_dir / "checkpoints")
     )
     yield
+    app.state.crosscoders.downloads.close()
     with app.state.runtime.job_lock:
         for job in app.state.runtime.jobs.values():
             if job.get("kind") != "download":
@@ -66,6 +83,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(title="Circuit Lantern", version="0.1.0", lifespan=lifespan)
 app.include_router(feature_router)
 app.include_router(checkpoint_router)
+app.include_router(crosscoder_router)
 app.include_router(induction_router)
 app.include_router(prompt_set_router)
 app.add_middleware(
@@ -80,6 +98,24 @@ app.add_middleware(
 @app.exception_handler(RuntimeBusyError)
 async def runtime_conflict(request: Request, error: RuntimeBusyError | ModelChangedError):
     return JSONResponse(status_code=409, content={"detail": str(error)})
+
+
+@app.exception_handler(ArtifactBusyError)
+@app.exception_handler(DownloadBusyError)
+async def artifact_conflict(request: Request, error: ArtifactBusyError | DownloadBusyError):
+    return JSONResponse(status_code=409, content={"detail": str(error)})
+
+
+@app.exception_handler(ArtifactNotFoundError)
+async def artifact_missing(request: Request, error: ArtifactNotFoundError):
+    return JSONResponse(status_code=404, content={"detail": str(error)})
+
+
+@app.exception_handler(MetadataMemoryError)
+async def metadata_memory_pressure(request: Request, error: MetadataMemoryError):
+    return JSONResponse(
+        status_code=503, content={"detail": str(error)}, headers={"Retry-After": "2"}
+    )
 
 
 @app.exception_handler(ReferenceProbeNotFoundError)

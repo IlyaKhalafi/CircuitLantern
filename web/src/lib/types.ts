@@ -109,7 +109,8 @@ export interface Compatibility {
 export interface Job {
   cancel_requested?: boolean;
   id: string;
-  model_id: string;
+  model_id?: string;
+  requires_model?: boolean;
   status: string;
   progress: number;
   message: string;

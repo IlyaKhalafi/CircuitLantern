@@ -20,6 +20,7 @@ from circuit_lantern.services.features.statistics import feature_statistics
 from circuit_lantern.services.features.store import DictionaryStore
 from circuit_lantern.services.features.training import train_dictionary
 from circuit_lantern.services.hardware import hardware_snapshot
+from circuit_lantern.services.tokens import capture_token_limit
 
 
 class FeatureLab:
@@ -38,6 +39,11 @@ class FeatureLab:
             ),
             "layers": list(range(layers)),
             "input_dim": metadata.get("hidden_size"),
+            "max_capture_tokens": capture_token_limit(
+                metadata, self.runtime.settings.max_prompt_tokens
+            )
+            if state["loaded"]
+            else self.runtime.settings.max_prompt_tokens,
             "execution": execution_provenance(metadata) if state["loaded"] else None,
             "example_documents": DEMONSTRATION_DOCUMENTS,
             "references": REFERENCES,
