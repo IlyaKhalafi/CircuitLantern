@@ -1,4 +1,5 @@
 import gc
+import logging
 import threading
 import time
 import uuid
@@ -14,6 +15,7 @@ from transformers import AutoModelForCausalLM, AutoTokenizer
 from circuit_lantern.config import Settings
 from circuit_lantern.limits import MAX_TARGET_CHARACTERS, MAX_TRACKED_TARGETS
 from circuit_lantern.schemas import CompatibilityRequest, HeadAblation
+from circuit_lantern.services.attribution import AttributionCapture
 from circuit_lantern.services.cache import checkpoint_cache
 from circuit_lantern.services.causal import activation_patch_sweep
 from circuit_lantern.services.compatibility import assess_compatibility
@@ -557,36 +559,65 @@ class ModelRuntime:
             head_intervention = None
             bypassed_hidden = []
             capturing = True
-            if ablate_head is not None:
-                if ablate_layer is not None:
-                    raise ValueError(
-                        "Choose either a block bypass or a head ablation for one trace."
-                    )
-                target = HeadAblation.model_validate(ablate_head)
-                handle, head_intervention = install_head_ablation(blocks, target.layer, target.head)
-                handles.append(handle)
-                if not max_new_tokens:
-                    head_intervention = dict(head_intervention, scope="all_prompt_tokens")
-            if ablate_layer is not None:
-                if blocks is None or not 0 <= ablate_layer < len(blocks):
-                    raise ValueError("The selected layer cannot be bypassed in this architecture.")
-
-                def bypass(module, args, kwargs, output):
-                    hidden = args[0] if args else kwargs["hidden_states"]
-                    if capturing:
-                        bypassed_hidden[:] = [hidden]
-                    return (hidden, *output[1:]) if isinstance(output, tuple) else hidden
-
-                handles.append(blocks[ablate_layer].register_forward_hook(bypass, with_kwargs=True))
             raw_final = []
             capture_handles = []
-            if blocks is not None:
-
-                def capture_final(module, args, output):
-                    raw_final.append(output[0] if isinstance(output, tuple) else output)
-
-                capture_handles.append(blocks[-1].register_forward_hook(capture_final))
+            attribution = None
             try:
+                if ablate_head is not None:
+                    if ablate_layer is not None:
+                        raise ValueError(
+                            "Choose either a block bypass or a head ablation for one trace."
+                        )
+                    target = HeadAblation.model_validate(ablate_head)
+                    handle, head_intervention = install_head_ablation(
+                        blocks, target.layer, target.head
+                    )
+                    handles.append(handle)
+                    if not max_new_tokens:
+                        head_intervention = dict(head_intervention, scope="all_prompt_tokens")
+                if ablate_layer is not None:
+                    if blocks is None or not 0 <= ablate_layer < len(blocks):
+                        raise ValueError(
+                            "The selected layer cannot be bypassed in this architecture."
+                        )
+
+                    def bypass(module, args, kwargs, output):
+                        hidden = args[0] if args else kwargs["hidden_states"]
+                        if capturing:
+                            bypassed_hidden[:] = [hidden]
+                        return (hidden, *output[1:]) if isinstance(output, tuple) else hidden
+
+                    handles.append(
+                        blocks[ablate_layer].register_forward_hook(bypass, with_kwargs=True)
+                    )
+                if blocks is not None:
+
+                    def capture_final(module, args, output):
+                        raw_final.append(output[0] if isinstance(output, tuple) else output)
+
+                    capture_handles.append(blocks[-1].register_forward_hook(capture_final))
+                try:
+                    attribution = AttributionCapture(
+                        blocks,
+                        self._final_norm(),
+                        self.model.get_output_embeddings(),
+                        self.model.config,
+                    )
+                except Exception:
+                    logging.getLogger(__name__).exception("Optional attribution setup failed")
+                    attribution = None
+                if attribution is not None:
+                    if "attention_mask" in inputs and not bool(inputs["attention_mask"][0, -1]):
+                        attribution.reason = "padded_prompt"
+                    try:
+                        attribution.install()
+                    except Exception:
+                        logging.getLogger(__name__).exception(
+                            "Optional attribution hook installation failed"
+                        )
+                        attribution.remove()
+                        attribution.clear()
+                        attribution.reason = "diagnostic_error"
                 outputs = self.model(
                     **inputs,
                     output_hidden_states=True,
@@ -594,6 +625,20 @@ class ModelRuntime:
                     use_cache=False,
                 )
                 capturing = False
+                if attribution is not None:
+                    attribution.remove()
+                    attribution_result = attribution.summarize(
+                        outputs.logits, self.tokenizer, tracked_targets
+                    )
+                else:
+                    attribution_result = {
+                        "schema_version": 1,
+                        "status": "unavailable",
+                        "reason": "diagnostic_error",
+                    }
+                attribution_result.update(
+                    position=token_count - 1, token_id=int(inputs["input_ids"][0, -1])
+                )
                 for handle in capture_handles:
                     handle.remove()
                 tokens = [self.tokenizer.decode([i]) for i in inputs["input_ids"][0].tolist()]
@@ -630,6 +675,8 @@ class ModelRuntime:
                 return {
                     **execution_provenance(self.metadata),
                     **summary,
+                    "logit_attribution": attribution_result,
+                    "trace_id": uuid.uuid4().hex,
                     "prompt": prompt,
                     "tokens": tokens,
                     "token_ids": inputs["input_ids"][0].cpu().tolist(),
@@ -647,5 +694,8 @@ class ModelRuntime:
                     "ablate_head": head_intervention,
                 }
             finally:
+                if attribution is not None:
+                    attribution.remove()
+                    attribution.clear()
                 for handle in handles + capture_handles:
                     handle.remove()
